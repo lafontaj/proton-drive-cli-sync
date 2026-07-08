@@ -1,0 +1,87 @@
+{
+  "exclusions": {
+    "names": [
+      ".windows-serial",
+      "__pycache__",
+      "lost+found",
+      ".directory",
+      ".gvfs",
+      ".caltrash",
+      ".dtrash",
+      ".thumbnails",
+      "LOST.DIR",
+      ".DS_Store",
+      ".Spotlight-V100",
+      ".Trashes",
+      ".fseventsd",
+      ".DocumentRevisions-V100",
+      ".TemporaryItems",
+      "Thumbs.db",
+      "ehthumbs.db",
+      "desktop.ini",
+      "$RECYCLE.BIN",
+      "System Volume Information"
+    ],
+    "patterns": [
+      ".Trash-*",
+      ".goutputstream-*",
+      ".pikepdf*",
+      ".nfs*",
+      ".fuse_hidden*",
+      ".trashed-*",
+      ".pending-*",
+      ".~lock.*#",
+      "~$*",
+      "._*",
+      "*~",
+      "*.tmp",
+      "*.temp",
+      "*.swp",
+      "*.swo",
+      "*.pyc",
+      "*.pyo",
+      "*.pid",
+      "*.lock",
+      "*-wal",
+      "*-shm",
+      "*.db-journal",
+      "*.part",
+      "*.crdownload",
+      "*.partial"
+    ]
+  },
+  "mappings": [
+    {
+      "type": "folder",
+      "source": "/home/myuser/Documents",
+      "dest_parent": "/my-files",
+      "allow_delete": false,
+      "delete_mode": "trash",
+      "source_kind": "local"
+    },
+    {
+      "type": "folder",
+      "source": "/media/nas1/Photos",
+      "dest_parent": "/my-files/Backups",
+      "allow_delete": true,
+      "delete_mode": "trash",
+      "source_kind": "nfs",
+      "exclusions": {
+        "names": [
+          "thumbnails-digikam.db"
+        ],
+        "patterns": [
+          "*picasa.ini"
+        ]
+      }
+    },
+    {
+      "type": "folder",
+      "source": "/media/nas1/Backups/Phone",
+      "dest_parent": "/my-files/Backups/Phone",
+      "allow_delete": true,
+      "delete_mode": "permanent",
+      "source_kind": "nfs"
+    }
+  ]
+}

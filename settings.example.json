@@ -1,0 +1,16 @@
+{
+  "_comment": "Example settings.json — copy next to the scripts as 'settings.json' and adjust. Every key is optional: a missing key falls back to the default shown here. The file is also written by the GUI (Language… and Configuration… dialogs), which preserves unknown keys.",
+
+  "language": "auto",
+
+  "nas_enabled": true,
+  "nas_mount_path": "/media/home_nas",
+  "account_name": null,
+
+  "proton_cli_path": null,
+
+  "rename_ext_enabled": true,
+  "rename_ext_collision_suffix": "_ProtonEditExt",
+
+  "tray_enabled": false
+}

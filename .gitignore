@@ -1,0 +1,30 @@
+# ─── Fichiers de données PERSONNELS (ne jamais publier) ───────────────────
+# Réglages propres à chaque installation (identité NAS, point de montage, etc.)
+settings.json
+# Fichiers de mappings réels (chemins et noms personnels). Seuls les
+# *.example.json sont versionnés.
+mappings-*.json
+mappings-*.json.version
+# ─── Données d'exécution (générées localement) ────────────────────────────
+# Dossier de données unifié : cache, file de marqueurs, journaux, verrou, état.
+.proton-drive-sync/
+# Anciens emplacements (avant unification), au cas où.
+.proton_sync_cache/
+.proton_sync/
+.proton_sync.lock
+# ─── Python ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+# ─── Divers OS / éditeurs ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+# ─── Traductions ──────────────────────────────────────────────────────────
+# Les .mo compilés SONT versionnés (l'appli marche traduite après le clone).
+# Ne pas les ignorer. Les .pot/.po restent la source éditable.
+# ─── Journal de développement PRIVÉ (ne jamais publier) ───────────────────
+CONTEXTE.md

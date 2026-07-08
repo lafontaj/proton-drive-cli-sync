@@ -1,0 +1,2675 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the proton-sync package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: proton-sync\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-04 12:45+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: proton_mapping_editor.py:66
+msgid "Mappings editor — Proton Drive sync"
+msgstr ""
+
+#: proton_mapping_editor.py:199
+msgid "Yes"
+msgstr ""
+
+#: proton_mapping_editor.py:199 proton_mapping_editor.py:790
+#: proton_mapping_editor.py:798 proton_mapping_editor.py:993
+#: proton_mapping_editor.py:1001 proton_mapping_editor.py:1121
+#: proton_mapping_editor.py:1283 proton_mapping_editor.py:1451
+#: proton_mapping_editor.py:1587 proton_mapping_editor.py:1993
+#: proton_mapping_editor.py:2751 proton_mapping_editor.py:2784
+#: proton_mapping_editor.py:2811
+msgid "Cancel"
+msgstr ""
+
+#: proton_mapping_editor.py:255 proton_mapping_editor.py:682
+msgid "Open a mappings file"
+msgstr ""
+
+#: proton_mapping_editor.py:274 proton_mapping_editor.py:725
+msgid "Save the mappings file"
+msgstr ""
+
+#: proton_mapping_editor.py:295 proton_mapping_editor.py:842
+msgid "Choose a source folder"
+msgstr ""
+
+#: proton_mapping_editor.py:308
+msgid ""
+"Test mode (--dry-run)\n"
+"\n"
+"Shows what would be done — which files would be sent — WITHOUT transferring anything and WITHOUT touching the cache.\n"
+"\n"
+"Ideal to check what the sync would do before running it for real."
+msgstr ""
+
+#: proton_mapping_editor.py:314
+msgid ""
+"Content verification (--verify-hash)\n"
+"\n"
+"In addition to comparing file sizes, computes a SHA1 fingerprint of the content to detect modified files whose size did not change (e.g. a rewritten music tag).\n"
+"\n"
+"SLOWER: reads every file in full. Also ignores the cache.\n"
+"Reserve it for an occasional check (e.g. once a month), not for daily use."
+msgstr ""
+
+#: proton_mapping_editor.py:323
+msgid ""
+"Ignore the cache (--ignore-cache)\n"
+"\n"
+"Forces a full re-check on the Proton Drive side, even for folders the cache considers already up to date.\n"
+"\n"
+"Slower than a normal pass, but the cache is refreshed at the end. Useful if you suspect the cache no longer reflects reality."
+msgstr ""
+
+#: proton_mapping_editor.py:330
+msgid ""
+"Verbose mode (-v)\n"
+"\n"
+"Shows more information: files recognized as unchanged, cache skips (“cache valid”), and a sample of the raw data received from Proton Drive.\n"
+"\n"
+"Useful for diagnosing, but makes the output much longer."
+msgstr ""
+
+#: proton_mapping_editor.py:337
+msgid ""
+"Propagate deletions (--delete)\n"
+"\n"
+"MASTER SWITCH for deletion. Without this box, NO deletion happens (the sync is purely additive: it sends, but never erases anything on Proton).\n"
+"\n"
+"With this box, every mapping that has “Allow deletion” (set in Edit) propagates local deletions to Proton: what is on Proton but was deleted locally gets deleted.\n"
+"\n"
+"The deletion MODE (trash recoverable for 30 days, or permanent) is the one defined in each mapping. This box only enables the propagation; the mapping decides trash or permanent.\n"
+"\n"
+"A safety check first verifies that the source is healthy (NAS mount alive); when in doubt, deletions for that mapping are disabled and only uploads happen.\n"
+"\n"
+"TIP: run “Test (dry-run)” first to see what would be deleted, without erasing anything."
+msgstr ""
+
+#: proton_mapping_editor.py:432 proton_mapping_editor.py:1234
+msgid "🔑 Proton: connected"
+msgstr ""
+
+#: proton_mapping_editor.py:433 proton_mapping_editor.py:1219
+#: proton_mapping_editor.py:1235
+msgid "🔑 Sign in to Proton — session expired"
+msgstr ""
+
+#: proton_mapping_editor.py:435 proton_mapping_editor.py:1240
+msgid ""
+"Proton session unavailable (expired token or locked keyring) — click “Sign "
+"in to Proton”."
+msgstr ""
+
+#: proton_mapping_editor.py:461
+msgid "📂 Open…"
+msgstr ""
+
+#: proton_mapping_editor.py:462
+msgid "💾 Save"
+msgstr ""
+
+#: proton_mapping_editor.py:463
+msgid "💾 Save as…"
+msgstr ""
+
+#: proton_mapping_editor.py:465
+msgid "🌐 Global exclusions…"
+msgstr ""
+
+#: proton_mapping_editor.py:467
+msgid "⏰ Schedule…"
+msgstr ""
+
+#: proton_mapping_editor.py:468
+msgid "⚡ Real-time…"
+msgstr ""
+
+#: proton_mapping_editor.py:470
+msgid "🔑 Sign in to Proton"
+msgstr ""
+
+#: proton_mapping_editor.py:474
+msgid "🌍 Language…"
+msgstr ""
+
+#: proton_mapping_editor.py:480
+msgid "➕ Folder…"
+msgstr ""
+
+#: proton_mapping_editor.py:481
+msgid "➕ File…"
+msgstr ""
+
+#: proton_mapping_editor.py:482
+msgid "✏ Edit"
+msgstr ""
+
+#: proton_mapping_editor.py:483
+msgid "🚫 Mapping exclusions"
+msgstr ""
+
+#: proton_mapping_editor.py:484
+msgid "🗑 Delete"
+msgstr ""
+
+#: proton_mapping_editor.py:496
+msgid "Run sync"
+msgstr ""
+
+#: proton_mapping_editor.py:502
+msgid "SHA1 check"
+msgstr ""
+
+#: proton_mapping_editor.py:503
+msgid "Ignore cache"
+msgstr ""
+
+#: proton_mapping_editor.py:504
+msgid "Verbose"
+msgstr ""
+
+#: proton_mapping_editor.py:505
+msgid "Propagate deletions"
+msgstr ""
+
+#: proton_mapping_editor.py:509
+msgid "🌱 Prime cache"
+msgstr ""
+
+#: proton_mapping_editor.py:512
+msgid "▶ Run sync"
+msgstr ""
+
+#: proton_mapping_editor.py:514 proton_mapping_editor.py:2388
+msgid "⏹ Stop"
+msgstr ""
+
+#: proton_mapping_editor.py:516
+msgid "📋 Copy command"
+msgstr ""
+
+#: proton_mapping_editor.py:517
+msgid "🧹 Clear output"
+msgstr ""
+
+#: proton_mapping_editor.py:529
+msgid "Ready"
+msgstr ""
+
+#: proton_mapping_editor.py:533 proton_mapping_editor.py:854
+msgid "Destination (parent folder on Proton Drive)"
+msgstr ""
+
+#: proton_mapping_editor.py:534
+msgid "Mapping exclusions"
+msgstr ""
+
+#: proton_mapping_editor.py:551
+msgid "Sync output"
+msgstr ""
+
+#: proton_mapping_editor.py:568
+msgid "(no help)"
+msgstr ""
+
+#: proton_mapping_editor.py:568
+msgid "Help — "
+msgstr ""
+
+#: proton_mapping_editor.py:571
+msgid "(new file)"
+msgstr ""
+
+#: proton_mapping_editor.py:578
+msgid "Folder"
+msgstr ""
+
+#: proton_mapping_editor.py:578
+msgid "File"
+msgstr ""
+
+#: proton_mapping_editor.py:667
+msgid "names: "
+msgstr ""
+
+#: proton_mapping_editor.py:669
+msgid "patterns: "
+msgstr ""
+
+#: proton_mapping_editor.py:670
+msgid "(none)"
+msgstr ""
+
+#: proton_mapping_editor.py:674
+msgid "🌐 Global exclusions — "
+msgstr ""
+
+#: proton_mapping_editor.py:715
+#, python-brace-format
+msgid "Loaded: {p} ({n} entries)"
+msgstr ""
+
+#: proton_mapping_editor.py:717
+msgid "Load error"
+msgstr ""
+
+#: proton_mapping_editor.py:755
+#, python-brace-format
+msgid "Saved: {p}"
+msgstr ""
+
+#: proton_mapping_editor.py:758
+msgid "Save error"
+msgstr ""
+
+#: proton_mapping_editor.py:788
+msgid "A sync is currently running. Quitting will interrupt it. Continue?"
+msgstr ""
+
+#: proton_mapping_editor.py:789
+msgid "Sync in progress"
+msgstr ""
+
+#: proton_mapping_editor.py:790
+msgid "Quit"
+msgstr ""
+
+#: proton_mapping_editor.py:796
+msgid "Some changes have not been saved. Quit without saving?"
+msgstr ""
+
+#: proton_mapping_editor.py:797
+msgid "Unsaved changes"
+msgstr ""
+
+#: proton_mapping_editor.py:798
+msgid "Quit without saving"
+msgstr ""
+
+#: proton_mapping_editor.py:816
+msgid "Edit mapping"
+msgstr ""
+
+#: proton_mapping_editor.py:817
+msgid "Add a folder"
+msgstr ""
+
+#: proton_mapping_editor.py:817
+msgid "Add a file"
+msgstr ""
+
+#: proton_mapping_editor.py:833
+msgid "Source (local)"
+msgstr ""
+
+#: proton_mapping_editor.py:845
+msgid "Choose a source file"
+msgstr ""
+
+#: proton_mapping_editor.py:851
+msgid "Browse…"
+msgstr ""
+
+#: proton_mapping_editor.py:860
+msgid "Deletion propagation"
+msgstr ""
+
+#: proton_mapping_editor.py:874
+msgid "Allow this mapping to delete on Proton what was deleted locally"
+msgstr ""
+
+#: proton_mapping_editor.py:884
+msgid "Mode: "
+msgstr ""
+
+#: proton_mapping_editor.py:885
+msgid "Proton trash (recoverable for 30 days)"
+msgstr ""
+
+#: proton_mapping_editor.py:888 proton_mapping_editor.py:992
+msgid "Permanent deletion"
+msgstr ""
+
+#: proton_mapping_editor.py:899
+msgid "Confirmed source type: "
+msgstr ""
+
+#: proton_mapping_editor.py:900
+msgid "NFS (network/NAS)"
+msgstr ""
+
+#: proton_mapping_editor.py:903
+msgid "Local (internal disk)"
+msgstr ""
+
+#: proton_mapping_editor.py:916
+msgid "(pick a source to detect its type)"
+msgstr ""
+
+#: proton_mapping_editor.py:920
+msgid "⚠ Detection module missing (mount_check.py) — pick the type manually."
+msgstr ""
+
+#: proton_mapping_editor.py:966
+msgid "Missing source"
+msgstr ""
+
+#: proton_mapping_editor.py:969
+msgid "Missing destination"
+msgstr ""
+
+#: proton_mapping_editor.py:983
+msgid "Source type required"
+msgstr ""
+
+#: proton_mapping_editor.py:989
+msgid ""
+"You chose PERMANENT deletion (no trash).\n"
+"\n"
+"Files deleted locally will be erased from Proton with no possibility of recovery.\n"
+"\n"
+"Confirm this choice?"
+msgstr ""
+
+#: proton_mapping_editor.py:993
+msgid "Confirm"
+msgstr ""
+
+#: proton_mapping_editor.py:1014
+#, python-brace-format
+msgid "Added (folder): {s}"
+msgstr ""
+
+#: proton_mapping_editor.py:1023
+#, python-brace-format
+msgid "Added (file): {s}"
+msgstr ""
+
+#: proton_mapping_editor.py:1033
+msgid "First select a row in the list."
+msgstr ""
+
+#: proton_mapping_editor.py:1033
+msgid "No selection"
+msgstr ""
+
+#: proton_mapping_editor.py:1036
+msgid ""
+"Several mappings are selected. This action applies to a single mapping — "
+"select just one row."
+msgstr ""
+
+#: proton_mapping_editor.py:1038
+msgid "Single selection required"
+msgstr ""
+
+#: proton_mapping_editor.py:1053
+#, python-brace-format
+msgid "Mapping updated: {s}"
+msgstr ""
+
+#: proton_mapping_editor.py:1062
+#, python-brace-format
+msgid "Removed: {s}"
+msgstr ""
+
+#: proton_mapping_editor.py:1087
+msgid ""
+"• Exact names: one per line (e.g. .caltrash, trash, .Trash-1000). Case-insensitive. Excludes any folder OR file with that name.\n"
+"• Patterns: one per line, shell style (e.g. *.tmp, .Trash-*, ~*). The * matches any sequence of characters."
+msgstr ""
+
+#: proton_mapping_editor.py:1099
+msgid "Exact names (one per line)"
+msgstr ""
+
+#: proton_mapping_editor.py:1106
+msgid "Patterns (one per line)"
+msgstr ""
+
+#: proton_mapping_editor.py:1129
+msgid "Global exclusions"
+msgstr ""
+
+#: proton_mapping_editor.py:1131
+msgid ""
+"These exclusions apply to ALL mappings. A folder or file whose name matches "
+"will be ignored during the sync."
+msgstr ""
+
+#: proton_mapping_editor.py:1140
+msgid "Global exclusions updated."
+msgstr ""
+
+#: proton_mapping_editor.py:1149
+msgid "Exclusions of this mapping"
+msgstr ""
+
+#: proton_mapping_editor.py:1151
+#, python-brace-format
+msgid ""
+"These exclusions add to the global exclusions, ONLY for:\n"
+"{s}"
+msgstr ""
+
+#: proton_mapping_editor.py:1162
+msgid "Mapping exclusions updated."
+msgstr ""
+
+#: proton_mapping_editor.py:1169
+msgid ""
+"The schedule_manager.py module was not found.\n"
+"\n"
+"Place it next to proton_mapping_editor.py to manage the schedule from this interface."
+msgstr ""
+
+#: proton_mapping_editor.py:1172 proton_mapping_editor.py:1192
+#: proton_mapping_editor.py:1210
+msgid "Missing module"
+msgstr ""
+
+#: proton_mapping_editor.py:1177
+msgid ""
+"Open or save a mappings file first: the schedule will apply to that file."
+msgstr ""
+
+#: proton_mapping_editor.py:1179 proton_mapping_editor.py:1199
+#: proton_mapping_editor.py:1322 proton_mapping_editor.py:1401
+#: proton_mapping_editor.py:1541
+msgid "No file"
+msgstr ""
+
+#: proton_mapping_editor.py:1189
+msgid ""
+"The realtime_manager.py module was not found.\n"
+"\n"
+"Place it next to proton_mapping_editor.py to manage real-time from this interface."
+msgstr ""
+
+#: proton_mapping_editor.py:1197
+msgid "Open or save a mappings file first: real-time will apply to that file."
+msgstr ""
+
+#: proton_mapping_editor.py:1209
+msgid "The realtime_manager.py module was not found."
+msgstr ""
+
+#: proton_mapping_editor.py:1221
+msgid ""
+"Proton authentication failed during the run — click “Sign in to Proton” to "
+"renew the session."
+msgstr ""
+
+#: proton_mapping_editor.py:1238
+msgid "Connected to Proton."
+msgstr ""
+
+#: proton_mapping_editor.py:1248 proton_mapping_editor.py:1278
+#: proton_mapping_editor.py:1281
+msgid "Interface language"
+msgstr ""
+
+#: proton_mapping_editor.py:1255
+msgid "Choose the interface language:"
+msgstr ""
+
+#: proton_mapping_editor.py:1259
+msgid "Auto (system language)"
+msgstr ""
+
+#: proton_mapping_editor.py:1275
+msgid ""
+"The language preference has been saved.\n"
+"\n"
+"It will apply to this interface at its next launch, and to the daemons at their next restart."
+msgstr ""
+
+#: proton_mapping_editor.py:1280
+msgid "Could not save the language preference."
+msgstr ""
+
+#: proton_mapping_editor.py:1285
+msgid "OK"
+msgstr ""
+
+#: proton_mapping_editor.py:1322 proton_mapping_editor.py:1401
+#: proton_mapping_editor.py:1541
+msgid "Open or save a mappings file first."
+msgstr ""
+
+#: proton_mapping_editor.py:1327
+msgid "Command copied to the clipboard."
+msgstr ""
+
+#: proton_mapping_editor.py:1405
+msgid "The mappings file has unsaved changes. Save them before running?"
+msgstr ""
+
+#: proton_mapping_editor.py:1407 proton_mapping_editor.py:1545
+msgid "Save first?"
+msgstr ""
+
+#: proton_mapping_editor.py:1408 proton_mapping_editor.py:1546
+msgid "Save"
+msgstr ""
+
+#: proton_mapping_editor.py:1408 proton_mapping_editor.py:1546
+msgid "No"
+msgstr ""
+
+#: proton_mapping_editor.py:1411 proton_mapping_editor.py:1549
+msgid "A sync is already running."
+msgstr ""
+
+#: proton_mapping_editor.py:1411 proton_mapping_editor.py:1549
+msgid "Already running"
+msgstr ""
+
+#: proton_mapping_editor.py:1414 proton_mapping_editor.py:1552
+#, python-brace-format
+msgid ""
+"The engine was not found at:\n"
+"{p}"
+msgstr ""
+
+#: proton_mapping_editor.py:1415 proton_mapping_editor.py:1553
+msgid "Engine not found"
+msgstr ""
+
+#: proton_mapping_editor.py:1434
+#, python-brace-format
+msgid ""
+"You are launching a sync with “Propagate deletions”.\n"
+"\n"
+"⚠  {n} mapping(s) are in PERMANENT mode (deletion without trash, IRREVERSIBLE):\n"
+"  • {names}\n"
+"\n"
+"The other mappings allowing deletion will go to the trash (recoverable for 30 days).\n"
+"\n"
+"Tip: a “Test (dry-run)” first shows what would be deleted.\n"
+"\n"
+"Run anyway?"
+msgstr ""
+
+#: proton_mapping_editor.py:1443
+msgid ""
+"You are launching a sync with “Propagate deletions”.\n"
+"\n"
+"For the mappings that allow deletion, what was deleted locally will be sent to the Proton trash (recoverable for 30 days).\n"
+"\n"
+"Tip: a “Test (dry-run)” first shows what would be deleted.\n"
+"\n"
+"Run?"
+msgstr ""
+
+#: proton_mapping_editor.py:1450
+msgid "Confirm deletion propagation"
+msgstr ""
+
+#: proton_mapping_editor.py:1451
+msgid "Run"
+msgstr ""
+
+#: proton_mapping_editor.py:1452
+msgid "Launch cancelled."
+msgstr ""
+
+#: proton_mapping_editor.py:1463
+#, python-brace-format
+msgid "=== Launch: {c} ==="
+msgstr ""
+
+#: proton_mapping_editor.py:1464
+#, python-brace-format
+msgid "=== Log: {p} ==="
+msgstr ""
+
+#: proton_mapping_editor.py:1465
+msgid "Sync in progress…"
+msgstr ""
+
+#: proton_mapping_editor.py:1494
+msgid "  ✓ Nothing to update — everything is already in sync."
+msgstr ""
+
+#: proton_mapping_editor.py:1495
+#, python-brace-format
+msgid "=== Finished (code {c}) — log: {p} ==="
+msgstr ""
+
+#: proton_mapping_editor.py:1496
+#, python-brace-format
+msgid "Sync finished (code {c})."
+msgstr ""
+
+#: proton_mapping_editor.py:1504
+#, python-brace-format
+msgid "=== Launch error: {e} ==="
+msgstr ""
+
+#: proton_mapping_editor.py:1505
+#, python-brace-format
+msgid "Error: {e}"
+msgstr ""
+
+#: proton_mapping_editor.py:1515
+msgid "Sync interrupted."
+msgstr ""
+
+#: proton_mapping_editor.py:1544
+msgid "The mappings file has unsaved changes. Save them before priming?"
+msgstr ""
+
+#: proton_mapping_editor.py:1567
+msgid "No mapping to prime."
+msgstr ""
+
+#: proton_mapping_editor.py:1567
+msgid "Nothing to do"
+msgstr ""
+
+#: proton_mapping_editor.py:1569
+#, python-brace-format
+msgid "all {n} mapping(s)"
+msgstr ""
+
+#: proton_mapping_editor.py:1570
+#, python-brace-format
+msgid "{n} selected mapping(s)"
+msgstr ""
+
+#: proton_mapping_editor.py:1577
+#, python-brace-format
+msgid ""
+"Prime the cache for {scope}:\n"
+"  • {names}\n"
+"\n"
+"This runs a FULL pass with deletion propagation (to TRASH, recoverable) for the mappings that allow it — so real-time deletion works from the very first pass. The whole tree is analyzed and marked ready for real-time.\n"
+"\n"
+"The real-time daemons and the scheduled timer are stopped during priming and restarted afterwards. This can take a while on large folders (it is interruptible and resumes where it left off).\n"
+"\n"
+"Start priming?"
+msgstr ""
+
+#: proton_mapping_editor.py:1586
+msgid "Prime cache"
+msgstr ""
+
+#: proton_mapping_editor.py:1587
+msgid "Start priming"
+msgstr ""
+
+#: proton_mapping_editor.py:1588
+msgid "Priming cancelled."
+msgstr ""
+
+#: proton_mapping_editor.py:1608
+#, python-brace-format
+msgid "🌱 Priming — {n} folder(s) analyzed{c}"
+msgstr ""
+
+#: proton_mapping_editor.py:1619
+msgid "[realtime_manager.py missing — cannot orchestrate daemons]"
+msgstr ""
+
+#: proton_mapping_editor.py:1623
+msgid "Priming the cache"
+msgstr ""
+
+#: proton_mapping_editor.py:1625
+msgid "🔑 Checking Proton session…"
+msgstr ""
+
+#: proton_mapping_editor.py:1627
+msgid ""
+"❌ Proton session unavailable — sign in first (button “Sign in to Proton”), "
+"then prime again."
+msgstr ""
+
+#: proton_mapping_editor.py:1629
+msgid "Priming aborted: sign in to Proton first."
+msgstr ""
+
+#: proton_mapping_editor.py:1631
+msgid "   ✓ session OK"
+msgstr ""
+
+#: proton_mapping_editor.py:1637
+msgid "⏸ Stopping the consumer (watcher kept running)…"
+msgstr ""
+
+#: proton_mapping_editor.py:1639
+msgid "⏸ Pausing the scheduled timer…"
+msgstr ""
+
+#: proton_mapping_editor.py:1656
+#, python-brace-format
+msgid "▶ Priming started ({n} mapping(s))…"
+msgstr ""
+
+#: proton_mapping_editor.py:1674
+#, python-brace-format
+msgid "Priming finished (code {c})"
+msgstr ""
+
+#: proton_mapping_editor.py:1680
+msgid "▶ Restarting the consumer…"
+msgstr ""
+
+#: proton_mapping_editor.py:1685
+msgid "▶ Scheduled timer restored."
+msgstr ""
+
+#: proton_mapping_editor.py:1689
+#, python-brace-format
+msgid "✓ {r}/{t} mapping(s) now ready for real-time."
+msgstr ""
+
+#: proton_mapping_editor.py:1691
+#, python-brace-format
+msgid "Priming done — {r}/{t} mapping(s) ready for real-time."
+msgstr ""
+
+#: proton_mapping_editor.py:1693
+#, python-brace-format
+msgid "Priming finished (code {c})."
+msgstr ""
+
+#: proton_mapping_editor.py:1695 proton_mapping_editor.py:1696
+#, python-brace-format
+msgid "Priming error: {e}"
+msgstr ""
+
+#: proton_mapping_editor.py:1745 proton_mapping_editor.py:1789
+#: proton_mapping_editor.py:1958
+msgid "Daily"
+msgstr ""
+
+#: proton_mapping_editor.py:1745 proton_mapping_editor.py:1919
+#: proton_mapping_editor.py:1940 proton_mapping_editor.py:1952
+msgid "Weekly"
+msgstr ""
+
+#: proton_mapping_editor.py:1745 proton_mapping_editor.py:1920
+#: proton_mapping_editor.py:1937 proton_mapping_editor.py:1948
+#: proton_mapping_editor.py:1969
+msgid "Hourly"
+msgstr ""
+
+#: proton_mapping_editor.py:1746
+msgid "Monday"
+msgstr ""
+
+#: proton_mapping_editor.py:1746
+msgid "Tuesday"
+msgstr ""
+
+#: proton_mapping_editor.py:1746
+msgid "Wednesday"
+msgstr ""
+
+#: proton_mapping_editor.py:1747
+msgid "Thursday"
+msgstr ""
+
+#: proton_mapping_editor.py:1747
+msgid "Friday"
+msgstr ""
+
+#: proton_mapping_editor.py:1747
+msgid "Saturday"
+msgstr ""
+
+#: proton_mapping_editor.py:1748
+msgid "Sunday"
+msgstr ""
+
+#: proton_mapping_editor.py:1754
+msgid "Sync schedule"
+msgstr ""
+
+#: proton_mapping_editor.py:1766 proton_mapping_editor.py:2055
+#: proton_mapping_editor.py:2197 proton_mapping_editor.py:2334
+msgid "Close"
+msgstr ""
+
+#: proton_mapping_editor.py:1769 proton_mapping_editor.py:2366
+msgid "Current state"
+msgstr ""
+
+#: proton_mapping_editor.py:1771 proton_mapping_editor.py:2060
+#: proton_mapping_editor.py:2368
+msgid "Reading…"
+msgstr ""
+
+#: proton_mapping_editor.py:1776
+msgid "Settings"
+msgstr ""
+
+#: proton_mapping_editor.py:1780
+msgid "Scheduled mappings file:"
+msgstr ""
+
+#: proton_mapping_editor.py:1788
+msgid "Frequency: "
+msgstr ""
+
+#: proton_mapping_editor.py:1796
+msgid "   Day: "
+msgstr ""
+
+#: proton_mapping_editor.py:1803
+msgid "   Time: "
+msgstr ""
+
+#: proton_mapping_editor.py:1814
+msgid "Option B — propagate deletions in the schedule (--delete)"
+msgstr ""
+
+#: proton_mapping_editor.py:1818
+msgid ""
+"Unchecked = Option A (additive, recommended). Checked = mirror: local "
+"deletions propagate automatically at night."
+msgstr ""
+
+#: proton_mapping_editor.py:1826 proton_mapping_editor.py:2384
+msgid "💾 Install / Update"
+msgstr ""
+
+#: proton_mapping_editor.py:1828
+msgid "▶ Enable the timer"
+msgstr ""
+
+#: proton_mapping_editor.py:1831
+msgid "⏸ Disable the timer"
+msgstr ""
+
+#: proton_mapping_editor.py:1835
+msgid "🧪 Run a pass now"
+msgstr ""
+
+#: proton_mapping_editor.py:1837
+msgid "🔄 Refresh state"
+msgstr ""
+
+#: proton_mapping_editor.py:1839
+msgid "📜 Run history…"
+msgstr ""
+
+#: proton_mapping_editor.py:1843
+msgid "Linger (persistence)"
+msgstr ""
+
+#: proton_mapping_editor.py:1858 proton_mapping_editor.py:2463
+msgid "📋 Copy"
+msgstr ""
+
+#: proton_mapping_editor.py:1870
+#, python-brace-format
+msgid "Service installed : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1870 proton_mapping_editor.py:1871
+#: proton_mapping_editor.py:1872 proton_mapping_editor.py:2645
+msgid "yes"
+msgstr ""
+
+#: proton_mapping_editor.py:1870 proton_mapping_editor.py:1871
+#: proton_mapping_editor.py:1872 proton_mapping_editor.py:2645
+msgid "no"
+msgstr ""
+
+#: proton_mapping_editor.py:1871
+#, python-brace-format
+msgid "Timer installed   : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1872
+#, python-brace-format
+msgid "Timer active      : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1874
+#, python-brace-format
+msgid "Scheduled         : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1876
+#, python-brace-format
+msgid "Scheduled mappings: {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1877
+msgid "B (deletions active)"
+msgstr ""
+
+#: proton_mapping_editor.py:1877
+msgid "A (additive)"
+msgstr ""
+
+#: proton_mapping_editor.py:1878
+#, python-brace-format
+msgid "Mode              : Option {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1880
+#, python-brace-format
+msgid "Next run          : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:1900
+msgid "✅ Linger active — the schedule survives logout and reboots."
+msgstr ""
+
+#: proton_mapping_editor.py:1907
+msgid ""
+"⚠ Linger inactive. Without it, the schedule only runs while a session is "
+"open. To enable it (admin rights required, once), copy and run this command "
+"in a terminal:"
+msgstr ""
+
+#: proton_mapping_editor.py:1972
+#, python-brace-format
+msgid "Weekly — {d} at {h}:00"
+msgstr ""
+
+#: proton_mapping_editor.py:1975
+#, python-brace-format
+msgid "Daily at {h}:00"
+msgstr ""
+
+#: proton_mapping_editor.py:1985
+msgid ""
+"You are enabling Option B: the scheduled sync will AUTOMATICALLY propagate local deletions to Proton (according to each mapping's settings), without intervention.\n"
+"\n"
+"Safety nets: a several-hour window before execution, and the Proton trash for 30 days (mappings in trash mode).\n"
+"\n"
+"Make sure you have tested --delete manually first. Continue?"
+msgstr ""
+
+#: proton_mapping_editor.py:1992
+msgid "Enable automatic deletions?"
+msgstr ""
+
+#: proton_mapping_editor.py:1993
+msgid "Enable Option B"
+msgstr ""
+
+#: proton_mapping_editor.py:1998 proton_mapping_editor.py:2000
+msgid "Schedule"
+msgstr ""
+
+#: proton_mapping_editor.py:2015
+msgid "Manual run"
+msgstr ""
+
+#: proton_mapping_editor.py:2046
+msgid "Schedule run history"
+msgstr ""
+
+#: proton_mapping_editor.py:2058
+msgid "Last run"
+msgstr ""
+
+#: proton_mapping_editor.py:2067
+msgid "⟲ Last run"
+msgstr ""
+
+#: proton_mapping_editor.py:2069
+msgid "📅 Pick a date…"
+msgstr ""
+
+#: proton_mapping_editor.py:2077
+msgid "Log"
+msgstr ""
+
+#: proton_mapping_editor.py:2105
+msgid "(state unavailable — the scheduled service may never have run)"
+msgstr ""
+
+#: proton_mapping_editor.py:2108
+#, python-brace-format
+msgid ""
+"{when}\n"
+"Result: {label}"
+msgstr ""
+
+#: proton_mapping_editor.py:2112
+msgid "View: last run"
+msgstr ""
+
+#: proton_mapping_editor.py:2113 proton_mapping_editor.py:2133
+msgid "Reading the journal…"
+msgstr ""
+
+#: proton_mapping_editor.py:2125 proton_mapping_editor.py:2129
+msgid "Pick a date"
+msgstr ""
+
+#: proton_mapping_editor.py:2126
+msgid "Log of the scheduled run for that day:"
+msgstr ""
+
+#: proton_mapping_editor.py:2129
+msgid "Date (YYYY-MM-DD):"
+msgstr ""
+
+#: proton_mapping_editor.py:2132
+#, python-brace-format
+msgid "View: {d}"
+msgstr ""
+
+#: proton_mapping_editor.py:2159
+msgid "Sign in to Proton"
+msgstr ""
+
+#: proton_mapping_editor.py:2172
+msgid ""
+"A browser window will open for you to sign in to Proton (password and 2FA stay in the browser — never handled here).\n"
+"Keep this window open until it confirms success."
+msgstr ""
+
+#: proton_mapping_editor.py:2182
+msgid "📋 Copy URL"
+msgstr ""
+
+#: proton_mapping_editor.py:2187
+msgid "Sign-in progress"
+msgstr ""
+
+#: proton_mapping_editor.py:2193
+msgid "Starting sign-in…"
+msgstr ""
+
+#: proton_mapping_editor.py:2232
+msgid "[proton-drive binary not found]\n"
+msgstr ""
+
+#: proton_mapping_editor.py:2233
+msgid "❌ proton-drive not found — check its path."
+msgstr ""
+
+#: proton_mapping_editor.py:2255
+msgid "✓ Connected to Proton."
+msgstr ""
+
+#: proton_mapping_editor.py:2257
+#, python-brace-format
+msgid "❌ Sign-in failed (code {c})."
+msgstr ""
+
+#: proton_mapping_editor.py:2303
+#, python-brace-format
+msgid "Real-time — {u}"
+msgstr ""
+
+#: proton_mapping_editor.py:2386
+msgid "▶ Start"
+msgstr ""
+
+#: proton_mapping_editor.py:2391
+msgid "🔄 Restart"
+msgstr ""
+
+#: proton_mapping_editor.py:2392
+msgid "🚫 Disable autostart"
+msgstr ""
+
+#: proton_mapping_editor.py:2394
+msgid "🔃 Refresh state"
+msgstr ""
+
+#: proton_mapping_editor.py:2397
+msgid "2) Consumer delays"
+msgstr ""
+
+#: proton_mapping_editor.py:2400
+msgid "Debounce: "
+msgstr ""
+
+#: proton_mapping_editor.py:2404
+msgid " s     Cycle: "
+msgstr ""
+
+#: proton_mapping_editor.py:2409
+msgid "💾 Apply"
+msgstr ""
+
+#: proton_mapping_editor.py:2410
+msgid ""
+"The debounce groups bursts of writes before starting the engine; the cycle "
+"is the polling rhythm of the queues. Applied live, at the next cycle."
+msgstr ""
+
+#: proton_mapping_editor.py:2416
+msgid "3) Mappings push to the NAS"
+msgstr ""
+
+#: proton_mapping_editor.py:2423
+msgid "⬆ Push mappings to the NAS"
+msgstr ""
+
+#: proton_mapping_editor.py:2425
+msgid ""
+"The NAS watcher reads this copy to watch the NAS sources; the push also "
+"happens automatically on every save."
+msgstr ""
+
+#: proton_mapping_editor.py:2430
+msgid "4) NAS watcher (observation)"
+msgstr ""
+
+#: proton_mapping_editor.py:2435
+msgid ""
+"The NAS watcher runs on the NAS (its own systemd) and stays active on its "
+"own. The GUI does not control it: it observes its activity through the NFS "
+"queue."
+msgstr ""
+
+#: proton_mapping_editor.py:2441
+msgid "5) Marker queues"
+msgstr ""
+
+#: proton_mapping_editor.py:2445
+msgid "🧹 Clear the queues"
+msgstr ""
+
+#: proton_mapping_editor.py:2447
+msgid ""
+"Clears the pending markers (local + NAS). Useful for a fresh start; changes "
+"not yet processed will be forgotten."
+msgstr ""
+
+#: proton_mapping_editor.py:2452
+msgid "Linger (persistence outside the session)"
+msgstr ""
+
+#: proton_mapping_editor.py:2469
+msgid "Real-time events (daemon logs)"
+msgstr ""
+
+#: proton_mapping_editor.py:2473
+msgid "Auto-scroll"
+msgstr ""
+
+#: proton_mapping_editor.py:2475
+msgid "🧹 Clear"
+msgstr ""
+
+#: proton_mapping_editor.py:2644
+msgid "⚠ Daemon scripts not found in ~/Logiciels/Proton-drive/"
+msgstr ""
+
+#: proton_mapping_editor.py:2645
+#, python-brace-format
+msgid "Services installed : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:2646
+#, python-brace-format
+msgid "Local watcher      : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:2646 proton_mapping_editor.py:2647
+#: proton_mapping_editor.py:2649
+msgid "active"
+msgstr ""
+
+#: proton_mapping_editor.py:2646 proton_mapping_editor.py:2647
+msgid "stopped"
+msgstr ""
+
+#: proton_mapping_editor.py:2647
+#, python-brace-format
+msgid "Consumer           : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:2648
+#, python-brace-format
+msgid "Debounce / cycle   : {d} s / {c} s"
+msgstr ""
+
+#: proton_mapping_editor.py:2649
+msgid "inactive"
+msgstr ""
+
+#: proton_mapping_editor.py:2650
+#, python-brace-format
+msgid "Linger             : {v}"
+msgstr ""
+
+#: proton_mapping_editor.py:2657
+#, python-brace-format
+msgid ""
+"⚠ The installed services target another file:\n"
+"{p}\n"
+"Click “Install / Update” to point them at the active file."
+msgstr ""
+
+#: proton_mapping_editor.py:2681
+msgid "🟢 Up to date on the NAS"
+msgstr ""
+
+#: proton_mapping_editor.py:2682
+msgid "🟠 Local modified — push to the NAS"
+msgstr ""
+
+#: proton_mapping_editor.py:2683
+msgid "🟠 Never pushed to the NAS"
+msgstr ""
+
+#: proton_mapping_editor.py:2684
+msgid "🔴 NAS unreachable"
+msgstr ""
+
+#: proton_mapping_editor.py:2690
+#, python-brace-format
+msgid "Last push: {t}"
+msgstr ""
+
+#: proton_mapping_editor.py:2697
+msgid "🔴 NAS unreachable (NFS mount missing)"
+msgstr ""
+
+#: proton_mapping_editor.py:2701
+#, python-brace-format
+msgid "🟢 NAS reachable — last activity {t} ago"
+msgstr ""
+
+#: proton_mapping_editor.py:2703
+msgid "🟢 NAS reachable — no pending marker"
+msgstr ""
+
+#: proton_mapping_editor.py:2708
+msgid "— (NAS unreachable)"
+msgstr ""
+
+#: proton_mapping_editor.py:2709
+#, python-brace-format
+msgid "Local: {n} marker(s)    NAS ({u}): {p}"
+msgstr ""
+
+#: proton_mapping_editor.py:2714
+msgid "✅ Linger active — the daemons survive logout and reboots."
+msgstr ""
+
+#: proton_mapping_editor.py:2720
+msgid ""
+"⚠ Linger inactive. Without it, the daemons only run while a session is open "
+"(they stop at logout). To keep them running continuously (admin rights, "
+"once), copy and run:"
+msgstr ""
+
+#: proton_mapping_editor.py:2741
+msgid ""
+"No mapping is ready for real-time yet: no full pass has analyzed the tree.\n"
+"\n"
+"Real-time only synchronizes folders whose entire tree has been analyzed; it never builds that analysis itself (it would freeze for hours on large folders). Until a full pass runs, real-time will hand every change over to the scheduled pass.\n"
+"\n"
+"Recommended: run a full pass first (⏰ Schedule, or the “Run sync” button) and let it finish, then enable real-time.\n"
+"\n"
+"Enable real-time anyway?"
+msgstr ""
+
+#: proton_mapping_editor.py:2750
+msgid "No mapping ready for real-time"
+msgstr ""
+
+#: proton_mapping_editor.py:2751
+msgid "Enable anyway"
+msgstr ""
+
+#: proton_mapping_editor.py:2757 proton_mapping_editor.py:2764
+#: proton_mapping_editor.py:2769 proton_mapping_editor.py:2774
+#: proton_mapping_editor.py:2787
+msgid "Daemons"
+msgstr ""
+
+#: proton_mapping_editor.py:2780
+msgid ""
+"Stop the daemons and disable their autostart?\n"
+"\n"
+"Real-time will be off until re-enabled. The scheduled nightly sync is not affected."
+msgstr ""
+
+#: proton_mapping_editor.py:2783
+msgid "Disable real-time?"
+msgstr ""
+
+#: proton_mapping_editor.py:2784
+msgid "Disable"
+msgstr ""
+
+#: proton_mapping_editor.py:2793
+msgid "Delays"
+msgstr ""
+
+#: proton_mapping_editor.py:2798
+msgid "Push to the NAS"
+msgstr ""
+
+#: proton_mapping_editor.py:2806
+#, python-brace-format
+msgid ""
+"Clear the pending markers?\n"
+"\n"
+"Local: {n}    NAS ({u}): {p}\n"
+"\n"
+"Changes not yet processed will be forgotten (the nightly sync remains the safety net)."
+msgstr ""
+
+#: proton_mapping_editor.py:2810
+msgid "Clear the queues?"
+msgstr ""
+
+#: proton_mapping_editor.py:2811
+msgid "Clear"
+msgstr ""
+
+#: proton_mapping_editor.py:2814
+msgid "Queues"
+msgstr ""
+
+#: schedule_manager.py:55
+msgid "Proton Drive sync (NAS -> Proton, one-way)"
+msgstr ""
+
+#: schedule_manager.py:97
+msgid "Triggers the Proton Drive sync once a day"
+msgstr ""
+
+#: schedule_manager.py:350
+msgid "✅ success"
+msgstr ""
+
+#: schedule_manager.py:353
+#, python-brace-format
+msgid "❌ failure (code {c})"
+msgstr ""
+
+#: schedule_manager.py:354
+msgid "⏹ interrupted (signal)"
+msgstr ""
+
+#: schedule_manager.py:355
+msgid "❔ undetermined (run in progress?)"
+msgstr ""
+
+#: schedule_manager.py:379
+msgid "(no run found in the journal)"
+msgstr ""
+
+#: schedule_manager.py:387
+msgid "(invalid date — expected format YYYY-MM-DD)"
+msgstr ""
+
+#: schedule_manager.py:420 realtime_manager.py:387
+#, python-brace-format
+msgid "Failed to write the systemd files: {e}"
+msgstr ""
+
+#: schedule_manager.py:424 realtime_manager.py:390
+#, python-brace-format
+msgid "daemon-reload failed: {e}"
+msgstr ""
+
+#: schedule_manager.py:429
+#, python-brace-format
+msgid "Enabling the timer failed: {e}"
+msgstr ""
+
+#: schedule_manager.py:430
+msgid "Schedule installed and timer enabled."
+msgstr ""
+
+#: schedule_manager.py:431
+msgid "Schedule installed (timer not enabled)."
+msgstr ""
+
+#: schedule_manager.py:438 schedule_manager.py:448
+msgid "Service not found — install the schedule first."
+msgstr ""
+
+#: schedule_manager.py:457 schedule_manager.py:464
+#, python-brace-format
+msgid "Failed: {e}"
+msgstr ""
+
+#: schedule_manager.py:458
+msgid "Timer enabled."
+msgstr ""
+
+#: schedule_manager.py:465
+msgid "Timer disabled."
+msgstr ""
+
+#: schedule_manager.py:475
+msgid "Timer paused."
+msgstr ""
+
+#: schedule_manager.py:487
+msgid "Timer resumed."
+msgstr ""
+
+#: schedule_manager.py:494
+#, python-brace-format
+msgid "Start failed: {e}"
+msgstr ""
+
+#: schedule_manager.py:495
+msgid "Service started (see journalctl for the result)."
+msgstr ""
+
+#: realtime_manager.py:146
+msgid "Invalid delay values (integers expected)."
+msgstr ""
+
+#: realtime_manager.py:148
+msgid "Delays must be at least 1 second."
+msgstr ""
+
+#: realtime_manager.py:157
+#, python-brace-format
+msgid "Failed to write the config: {e}"
+msgstr ""
+
+#: realtime_manager.py:202
+msgid "No active mappings file to push."
+msgstr ""
+
+#: realtime_manager.py:208
+msgid "Could not read the local mappings file."
+msgstr ""
+
+#: realtime_manager.py:226
+#, python-brace-format
+msgid "Push to the NAS failed: {e}"
+msgstr ""
+
+#: realtime_manager.py:290
+msgid "Local real-time watcher (Proton Drive) — writes markers"
+msgstr ""
+
+#: realtime_manager.py:296
+msgid "Real-time consumer (Proton Drive) — runs the engine on mature folders"
+msgstr ""
+
+#: realtime_manager.py:382
+msgid "No active mappings file."
+msgstr ""
+
+#: realtime_manager.py:395
+#, python-brace-format
+msgid "Enabling {u} failed: {e}"
+msgstr ""
+
+#: realtime_manager.py:396
+msgid "Daemons installed and started (auto-restart at session login)."
+msgstr ""
+
+#: realtime_manager.py:397
+msgid "Daemons installed (not started)."
+msgstr ""
+
+#: realtime_manager.py:404 realtime_manager.py:435
+#, python-brace-format
+msgid "Starting {u} failed: {e}"
+msgstr ""
+
+#: realtime_manager.py:405
+msgid "Daemons started."
+msgstr ""
+
+#: realtime_manager.py:413 realtime_manager.py:426
+#, python-brace-format
+msgid "Stopping {u} failed: {e}"
+msgstr ""
+
+#: realtime_manager.py:414
+msgid "Daemons stopped."
+msgstr ""
+
+#: realtime_manager.py:427
+msgid "Consumer stopped (watcher kept running)."
+msgstr ""
+
+#: realtime_manager.py:436
+msgid "Consumer restarted."
+msgstr ""
+
+#: realtime_manager.py:443
+#, python-brace-format
+msgid "Restarting {u} failed: {e}"
+msgstr ""
+
+#: realtime_manager.py:444
+msgid "Daemons restarted."
+msgstr ""
+
+#: realtime_manager.py:453
+#, python-brace-format
+msgid "Disabling {u} failed: {e}"
+msgstr ""
+
+#: realtime_manager.py:454
+msgid "Daemons stopped and autostart disabled."
+msgstr ""
+
+#: realtime_manager.py:515
+msgid "Signed out of Proton."
+msgstr ""
+
+#: realtime_manager.py:516
+msgid "Sign-out failed."
+msgstr ""
+
+#: realtime_manager.py:653
+#, python-brace-format
+msgid "{n} marker(s) removed — "
+msgstr ""
+
+#: proton_sync.py:120
+#, python-brace-format
+msgid "⚠  Cache corrupted or unreadable ({e}) — starting fresh."
+msgstr ""
+
+#: proton_sync.py:474
+#, python-brace-format
+msgid "    ⚠  Could not create {p}: {e}"
+msgstr ""
+
+#: proton_sync.py:485
+#, python-brace-format
+msgid "    (nothing found at {p}: {e})"
+msgstr ""
+
+#: proton_sync.py:488
+msgid "    [debug] first raw element received from 'filesystem list -j':"
+msgstr ""
+
+#: proton_sync.py:523
+#, python-brace-format
+msgid "    (remote size unknown for {f}, re-sending to be safe)"
+msgstr ""
+
+#: proton_sync.py:531
+#, python-brace-format
+msgid "    (same size but different content: {f})"
+msgstr ""
+
+#: proton_sync.py:569
+#, python-brace-format
+msgid "    [DRY-RUN] would upload: {p}"
+msgstr ""
+
+#: proton_sync.py:577
+#, python-brace-format
+msgid "    ❌ Upload to {p} failed: {e}"
+msgstr ""
+
+#: proton_sync.py:579
+#, python-brace-format
+msgid "    ✅ {n} file(s) sent to {p}"
+msgstr ""
+
+#: proton_sync.py:590
+msgid "would delete PERMANENTLY"
+msgstr ""
+
+#: proton_sync.py:590
+msgid "would move to trash"
+msgstr ""
+
+#: proton_sync.py:595
+#, python-brace-format
+msgid "    ❌ {a} of {p} failed: {e}"
+msgstr ""
+
+#: proton_sync.py:597
+msgid "permanently deleted"
+msgstr ""
+
+#: proton_sync.py:597
+msgid "sent to trash"
+msgstr ""
+
+#: proton_sync.py:635
+#, python-brace-format
+msgid "    (orphan folder: {n} — ~{c} remote element(s))"
+msgstr ""
+
+#: proton_sync.py:668
+#, python-brace-format
+msgid "  ❌ Could not read {p}: {e}"
+msgstr ""
+
+#: proton_sync.py:729
+#, python-brace-format
+msgid "  ⚡ {t}, skipping the CLI call for {p}"
+msgstr ""
+
+#: proton_sync.py:735
+#, python-brace-format
+msgid "  🚫 excluded (folder): {p}"
+msgstr ""
+
+#: proton_sync.py:767
+#, python-brace-format
+msgid "    🚫 excluded ({k}): {p}"
+msgstr ""
+
+#: proton_sync.py:782 proton_sync.py:868
+#, python-brace-format
+msgid "    ⏭  unchanged: {p}"
+msgstr ""
+
+#: proton_sync.py:840
+#, python-brace-format
+msgid "  ⚠  Deletions disabled for this mapping: {r}"
+msgstr ""
+
+#: proton_sync.py:841 proton_sync.py:1026
+msgid "      (uploads continue normally)"
+msgstr ""
+
+#: proton_sync.py:844 proton_sync.py:1029
+msgid "permanent"
+msgstr ""
+
+#: proton_sync.py:844 proton_sync.py:1029
+msgid "to trash"
+msgstr ""
+
+#: proton_sync.py:845
+#, python-brace-format
+msgid "  🗑  Deletion propagation ACTIVE ({l}) for this mapping"
+msgstr ""
+
+#: proton_sync.py:859
+#, python-brace-format
+msgid "    🚫 excluded (file): {p}"
+msgstr ""
+
+#: proton_sync.py:969
+#, python-brace-format
+msgid "  ❌ Subpath not found or not a folder: {p}"
+msgstr ""
+
+#: proton_sync.py:982
+#, python-brace-format
+msgid "subpath excluded (“{s}” filtered), skipped: {p}"
+msgstr ""
+
+#: proton_sync.py:1004
+#, python-brace-format
+msgid ""
+"folder not fully indexed yet (cache not built by a full pass), deferred to "
+"scheduling: {p}"
+msgstr ""
+
+#: proton_sync.py:1025
+#, python-brace-format
+msgid "  ⚠  Deletions disabled for this subpath: {r}"
+msgstr ""
+
+#: proton_sync.py:1030
+#, python-brace-format
+msgid "  🗑  Deletion propagation ACTIVE ({l}) for this subpath"
+msgstr ""
+
+#: proton_sync.py:1032
+#, python-brace-format
+msgid "  ↪ subpath: {s}  =>  {d}"
+msgstr ""
+
+#: proton_sync.py:1125 proton_sync.py:1165
+#, python-brace-format
+msgid "❌ proton-drive binary not found at {p}"
+msgstr ""
+
+#: proton_sync.py:1147
+msgid "❌ A mappings file is required (config)."
+msgstr ""
+
+#: proton_sync.py:1159
+msgid "❌ Another instance of proton_sync.py is already running."
+msgstr ""
+
+#: proton_sync.py:1160
+#, python-brace-format
+msgid "   Lock: {p}"
+msgstr ""
+
+#: proton_sync.py:1161
+msgid "   (If you are sure no other instance is running, delete this file.)"
+msgstr ""
+
+#: proton_sync.py:1166
+msgid "   Adjust the PROTON_DRIVE_CLI environment variable if needed."
+msgstr ""
+
+#: proton_sync.py:1177
+msgid "Proton Drive authentication impossible — pass skipped."
+msgstr ""
+
+#: proton_sync.py:1178
+msgid "   Likely cause: the graphical session is not open, so the"
+msgstr ""
+
+#: proton_sync.py:1179
+msgid "   secrets keyring is locked and the CLI cannot read its"
+msgstr ""
+
+#: proton_sync.py:1180
+msgid "   credentials."
+msgstr ""
+
+#: proton_sync.py:1182
+#, python-brace-format
+msgid "   CLI detail: {e}"
+msgstr ""
+
+#: proton_sync.py:1183
+msgid "   (This is not a serious error: the next run will retry."
+msgstr ""
+
+#: proton_sync.py:1184
+msgid "    Open this user's session to unlock the keyring.)"
+msgstr ""
+
+#: proton_sync.py:1218
+msgid ""
+"⏹ Interrupted — cache progress saved: resuming will skip what is already "
+"done (no restart from zero)."
+msgstr ""
+
+#: proton_sync.py:1227
+msgid "DRY-RUN (nothing will be transferred)"
+msgstr ""
+
+#: proton_sync.py:1227
+msgid "real"
+msgstr ""
+
+#: proton_sync.py:1236
+#, python-brace-format
+msgid "== Proton Drive sync — {n} entry(ies) — {m}{x} =="
+msgstr ""
+
+#: proton_sync.py:1238
+#, python-brace-format
+msgid "   Cache: {p} ({n} known folder(s))"
+msgstr ""
+
+#: proton_sync.py:1244
+msgid ""
+"   ↺ Resuming on an existing cache — work already recorded won't be redone "
+"(unchanged folders are skipped)."
+msgstr ""
+
+#: proton_sync.py:1249
+#, python-brace-format
+msgid "   Global exclusions: {n} name(s), {p} pattern(s)"
+msgstr ""
+
+#: proton_sync.py:1254
+#, python-brace-format
+msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
+msgstr ""
+
+#: proton_sync.py:1255
+#, python-brace-format
+msgid ", including {n} PERMANENT"
+msgstr ""
+
+#: proton_sync.py:1257
+msgid ""
+"   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
+msgstr ""
+
+#: proton_sync.py:1267
+msgid "❌ --subpath requires --mapping-source to identify the mapping."
+msgstr ""
+
+#: proton_sync.py:1276
+#, python-brace-format
+msgid "❌ No mapping with source = {s}"
+msgstr ""
+
+#: proton_sync.py:1279
+#, python-brace-format
+msgid "❌ --subpath only applies to 'folder' mappings (this one is '{t}')."
+msgstr ""
+
+#: proton_sync.py:1283
+#, python-brace-format
+msgid "== REAL-TIME sync — subpath of a mapping — {m} =="
+msgstr ""
+
+#: proton_sync.py:1284
+#, python-brace-format
+msgid "   Mapping: {s}  =>  {d}"
+msgstr ""
+
+#: proton_sync.py:1286
+msgid "   ⚠  Deletion propagation requested (--delete)"
+msgstr ""
+
+#: proton_sync.py:1298 proton_sync.py:1344
+msgid "Done."
+msgstr ""
+
+#: proton_sync.py:1311
+#, python-brace-format
+msgid "   ⟳ Restricted to {n} selected mapping(s) (of {t})."
+msgstr ""
+
+#: proton_sync.py:1319
+#, python-brace-format
+msgid ""
+"\n"
+"▶ Mapping {i}/{n} : {s}  =>  {d}"
+msgstr ""
+
+#: proton_sync.py:1321
+#, python-brace-format
+msgid "  ❌ Source not found, skipped: {s}"
+msgstr ""
+
+#: realtime_consumer.py:346
+#, python-brace-format
+msgid "  ⊘ folder vanished, skipped: {p}"
+msgstr ""
+
+#: realtime_consumer.py:353
+#, python-brace-format
+msgid "  ⊘ no mapping for: {p} (marker ignored)"
+msgstr ""
+
+#: realtime_consumer.py:358
+msgid " [with deletions]"
+msgstr ""
+
+#: realtime_consumer.py:359
+#, python-brace-format
+msgid "  → sync: {p}{f}"
+msgstr ""
+
+#: realtime_consumer.py:374
+msgid "    🚫 excluded (name filtered) — nothing to sync"
+msgstr ""
+
+#: realtime_consumer.py:376
+msgid "    ✓ ok"
+msgstr ""
+
+#: realtime_consumer.py:387
+msgid ""
+"    ⏳ cold folder — deferred to the scheduled pass (real-time does not build"
+" the cache)"
+msgstr ""
+
+#: realtime_consumer.py:394
+#, python-brace-format
+msgid "    ✗ failure (code {c}) — markers kept for retry"
+msgstr ""
+
+#: realtime_consumer.py:511
+#, python-brace-format
+msgid "Real-time daemon started (user {u})."
+msgstr ""
+
+#: realtime_consumer.py:512
+#, python-brace-format
+msgid "  Watched queues: {q}"
+msgstr ""
+
+#: realtime_consumer.py:513
+#, python-brace-format
+msgid "  Engine: {p}"
+msgstr ""
+
+#: realtime_consumer.py:521
+#, python-brace-format
+msgid ""
+"  • {r}/{t} mapping(s) ready for real-time. The others need a full pass "
+"(Schedule) before real-time can sync them."
+msgstr ""
+
+#: realtime_consumer.py:524
+#, python-brace-format
+msgid "  • {r}/{t} mapping(s) ready for real-time."
+msgstr ""
+
+#: realtime_consumer.py:552
+msgid ""
+"⏳ Proton authentication unavailable (expired session or locked keyring) — "
+"markers kept, no pass launched. Run “proton-drive auth login” (or the “Sign "
+"in to Proton” button) to renew the session."
+msgstr ""
+
+#: realtime_consumer.py:557
+msgid ""
+"⏳ Waiting: another pass holds the lock (manual or scheduled run) — markers "
+"kept, no pass launched."
+msgstr ""
+
+#: realtime_consumer.py:563
+msgid "🔓 Session opened — resuming processing."
+msgstr ""
+
+#: realtime_consumer.py:565
+msgid "🔓 Lock released — resuming processing."
+msgstr ""
+
+#: local_watcher.py:320
+#, python-brace-format
+msgid "  ⊘ DELETE ignored (NAS mount unhealthy): {p}"
+msgstr ""
+
+#: local_watcher.py:326
+#, python-brace-format
+msgid "  {t} {p} -> marker on {d}"
+msgstr ""
+
+#: local_watcher.py:328
+#, python-brace-format
+msgid "  ⚠ marker write failed: {e}"
+msgstr ""
+
+#: local_watcher.py:363
+#, python-brace-format
+msgid "  ➕ target added: [{k}] {d}"
+msgstr ""
+
+#: local_watcher.py:365
+#, python-brace-format
+msgid "  ⚠ cannot watch {d}: {e}"
+msgstr ""
+
+#: local_watcher.py:375
+#, python-brace-format
+msgid "  ➖ target removed (mount down or source deleted): {d}"
+msgstr ""
+
+#: local_watcher.py:382
+#, python-brace-format
+msgid "Local watcher started — {n} target(s) ({l} local, {m} NAS):"
+msgstr ""
+
+#: local_watcher.py:388
+#, python-brace-format
+msgid ""
+"   ⏳ {n} source(s) not mounted yet — picked up automatically as soon as they"
+" appear:"
+msgstr ""
+
+#: local_watcher.py:392
+#, python-brace-format
+msgid ""
+"Watching — mounts re-scanned every {s}s (faster at startup). (Ctrl+C to "
+"stop.)"
+msgstr ""
+
+#: local_watcher.py:423
+#, python-brace-format
+msgid "  🔄 Re-scan: {n} target(s) watched ({l} local, {m} NAS)."
+msgstr ""
+
+#: nas_watcher.py:202
+#, python-brace-format
+msgid "  ⚠ marker write ({u}) failed: {e}"
+msgstr ""
+
+#: nas_watcher.py:204
+#, python-brace-format
+msgid "  ⊘ no user for {p} (ignored)"
+msgstr ""
+
+#: nas_watcher.py:235
+#, python-brace-format
+msgid "  ⚠ catch-up: folder missing, skipped: {p}"
+msgstr ""
+
+#: nas_watcher.py:242
+#, python-brace-format
+msgid "  ⟳ catch-up [{u}] {p}"
+msgstr ""
+
+#: nas_watcher.py:245
+#, python-brace-format
+msgid "  ⚠ catch-up failed ({u}): {e}"
+msgstr ""
+
+#: nas_watcher.py:256
+#, python-brace-format
+msgid "No mappings copy in {d} (the GUI must push them there)."
+msgstr ""
+
+#: nas_watcher.py:274
+msgid "No NAS target to watch. The NAS watcher has nothing to do."
+msgstr ""
+
+#: nas_watcher.py:280
+#, python-brace-format
+msgid "NAS watcher started — {n} target(s):"
+msgstr ""
+
+#: nas_watcher.py:288
+#, python-brace-format
+msgid "Startup catch-up: {n} marker(s) written."
+msgstr ""
+
+#: nas_watcher.py:320
+#, python-brace-format
+msgid "   ⚠ folder missing, not watched: {p}"
+msgstr ""
+
+#: nas_watcher.py:324
+msgid "Watching. (Ctrl+C to stop.)"
+msgstr ""
+
+#: nas_watcher.py:347
+#, python-brace-format
+msgid ""
+"⚠ WARNING: ~{t} subfolders to watch, system limit = {l}. Watches may be "
+"missed. Increase fs.inotify.max_user_watches."
+msgstr ""
+
+#: nas_watcher.py:351
+#, python-brace-format
+msgid "Watch capacity OK (~{t} folders / limit {l})."
+msgstr ""
+
+msgid "Scope: {s}"
+msgstr ""
+
+msgid ""
+"“Propagate deletions” is checked, but no mapping in scope allows deletion (set it via Edit). Nothing will be deleted.\n"
+"\n"
+"Run anyway?"
+msgstr ""
+
+msgid "Reset mapping"
+msgstr ""
+
+msgid "Reset error: {e}"
+msgstr ""
+
+msgid "Resetting the mapping(s)"
+msgstr ""
+
+msgid "Reset done — {r}/{t} mapping(s) ready for real-time."
+msgstr ""
+
+msgid "  ♻ No remote folder to wipe (already absent): {p}"
+msgstr ""
+
+msgid "  🗑  Wiping remote folder to TRASH: {p}"
+msgstr ""
+
+msgid "  ⛔ Remote wipe REFUSED (mount guard): {r}"
+msgstr ""
+
+msgid "♻ Resetting — {n} folder(s) analyzed{c}"
+msgstr ""
+
+msgid "Also empty the remote folder (→ Proton trash)"
+msgstr ""
+
+msgid "♻ Reset mapping"
+msgstr ""
+
+msgid "Start reset"
+msgstr ""
+
+msgid "▶ Reset started ({n} mapping(s))…"
+msgstr ""
+
+msgid "Reset finished (code {c})."
+msgstr ""
+
+msgid "   ♻ {n} cache entry(ies) purged: {s}"
+msgstr ""
+
+msgid "   ♻ RESET restricted to {n} selected mapping(s) (of {t})."
+msgstr ""
+
+msgid "Select the mapping(s) to reset in the list first."
+msgstr ""
+
+msgid "❌ --wipe-remote requires --reset-source."
+msgstr ""
+
+msgid ""
+"Reset {n} selected mapping(s):\n"
+"  • {names}\n"
+"\n"
+"This PURGES their local cache (they fall back to ⏳ “pending”) and rebuilds them with a targeted pass — like priming, so the cache comes back fully armed for real-time and for deletions.\n"
+"\n"
+"Optionally, tick below to also empty each mapping's REMOTE folder (sent to Proton TRASH, recoverable 30 days) before rebuilding — under the mount guard. You will purge the trash yourself once you have checked the re-upload succeeded.\n"
+"\n"
+"Real-time consumer and the scheduled timer are paused during the reset and restored afterwards. It is interruptible: to resume, just press Reset again (idempotent).\n"
+"\n"
+"Start reset?"
+msgstr ""
+
+msgid "     Nothing deleted remotely — this mapping was NOT reset."
+msgstr ""
+
+msgid "The mappings file has unsaved changes. Save them before resetting?"
+msgstr ""
+
+msgid "Reset finished (code {c})"
+msgstr ""
+
+msgid "Reset aborted: sign in to Proton first."
+msgstr ""
+
+msgid "Reset cancelled."
+msgstr ""
+
+msgid "No mapping to reset."
+msgstr ""
+
+msgid "(no message from the CLI)"
+msgstr ""
+
+msgid "    ✅ {n} file(s) recovered on individual retry."
+msgstr ""
+
+msgid ""
+"    ⚠  {n} file(s) uploaded WITHOUT thumbnail (image format needs an OS "
+"codec — saved anyway, logged in {log})."
+msgstr ""
+
+msgid "      ✓ uploaded WITHOUT thumbnail (no Proton preview): {p}"
+msgstr ""
+
+msgid "    ❌   reason: {e}"
+msgstr ""
+
+msgid "      ⚠ thumbnail/codec issue — retrying without thumbnail: {p}"
+msgstr ""
+
+msgid "❗ Errors only"
+msgstr ""
+
+msgid ""
+"    ⚠  Batch upload to {p} reported a failure — isolating the culprit "
+"file(s)…"
+msgstr ""
+
+msgid "    ❌ upload failed: {p}"
+msgstr ""
+
+msgid "      ✓ recovered on individual retry: {p}"
+msgstr ""
+
+msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
+msgstr ""
+
+msgid "    ✎ fixed uppercase extension: {a} -> {b}"
+msgstr ""
+
+msgid "    ✎ [DRY-RUN] would fix uppercase extension: {a} -> {b}"
+msgstr ""
+
+msgid "    ⚠  Could not rename {a}: {e}"
+msgstr ""
+
+msgid ""
+"    – {n} file(s) vanished (deleted meanwhile) — skipped, not a failure."
+msgstr ""
+
+msgid "      – vanished during upload (deleted meanwhile), skipped: {p}"
+msgstr ""
+
+msgid "      – vanished before upload (deleted meanwhile), skipped: {p}"
+msgstr ""
+
+msgid "The suffix cannot contain / \\ \" '."
+msgstr ""
+
+msgid "File extensions"
+msgstr ""
+
+msgid "Suffix on name clash: "
+msgstr ""
+
+msgid "Use a NAS"
+msgstr ""
+
+msgid "Delays saved (debounce {d}s, cycle {c}s). Applied at the next cycle."
+msgstr ""
+
+msgid ""
+"[config] ⚠ Could not migrate the data folder ({e}) — using the legacy paths "
+"for this run."
+msgstr ""
+
+msgid "The suffix cannot be empty."
+msgstr ""
+
+msgid ""
+"Fix uppercase extensions\n"
+"\n"
+"Proton Drive can fail to show a thumbnail, preview or correct icon for a file whose extension is written in UPPERCASE (e.g. “PHOTO.JPG” instead of “photo.jpg”) — even though the file itself is perfectly fine.\n"
+"\n"
+"When this is on, the app automatically renames such files on your computer (only the extension, never the name) so Proton Drive recognizes them correctly. Every rename is written to a log file, and the app never overwrites another file by mistake (see the suffix setting below).\n"
+"\n"
+"Turn this off only if you have a specific reason to keep uppercase extensions exactly as they are."
+msgstr ""
+
+msgid "3-4) NAS features"
+msgstr ""
+
+msgid "NAS mount point: "
+msgstr ""
+
+msgid "[config] ⚠ Could not migrate the cache folder ({e})."
+msgstr ""
+
+msgid ""
+"Local-only mode is active (see Configuration…): no NAS mapping push, no NAS "
+"watcher to observe."
+msgstr ""
+
+msgid ""
+"NAS mount point\n"
+"\n"
+"The folder on THIS computer where the NAS's shared configuration and marker queue appear — not your NAS document folders themselves, just the small technical folder used to talk to the NAS watcher.\n"
+"\n"
+"Leave the default unless you know your NAS is mounted at a different location. Only used when “Use a NAS” is turned on."
+msgstr ""
+
+msgid "⚙ Configuration…"
+msgstr ""
+
+msgid ""
+"Suffix used to avoid overwriting\n"
+"\n"
+"If fixing an extension would create a file that already exists (e.g. renaming “DOC.PDF” to “doc.pdf” when a different “doc.pdf” is already there), the app adds this short piece of text to the new file's name instead of overwriting anything (e.g. “doc_ProtonEditExt.pdf”).\n"
+"\n"
+"You can change this text if you prefer something else, but it cannot contain / \\ \" ' (characters that would break a file name)."
+msgstr ""
+
+msgid ""
+"Mappings for “{user}” pushed to the NAS (version {v}…). The NAS watcher "
+"reloads them live."
+msgstr ""
+
+msgid "1) Local machine daemons (watcher + consumer)"
+msgstr ""
+
+msgid ""
+"NAS unreachable (NFS mount missing). Check that {mount} is mounted, then try"
+" again."
+msgstr ""
+
+msgid ""
+"Detailed mode (-v)\n"
+"\n"
+"Shows the RAW output of the engine: every file examined (unchanged, uploaded, renamed…), cache skips (“cache valid”), and transfer summaries — instead of the condensed view (one line per folder as it is scanned, plus status/error lines only).\n"
+"\n"
+"Useful to see exactly what happens inside a folder (e.g. to check why a file failed), but the output is much longer.\n"
+"\n"
+"TIP: combine with “❗ Errors only” to see just the problems within a detailed run, without scrolling through everything."
+msgstr ""
+
+msgid ""
+"Local-only mode is active (see Configuration…) — there is no NAS to push "
+"mappings to."
+msgstr ""
+
+msgid ""
+"Use a NAS\n"
+"\n"
+"Turn this ON if your files come from a NAS (a network storage box) mounted on this computer, in addition to — or instead of — purely local folders.\n"
+"\n"
+"Turn it OFF if this computer only backs up its own local folders, with no NAS at all. When off, the app never tries to reach a NAS — no more waiting, no more messages about a missing network drive.\n"
+"\n"
+"Changing this takes effect the next time you restart this window and the background services."
+msgstr ""
+
+msgid "[config] Data folder migrated: {old} -> {new}"
+msgstr ""
+
+msgid "Fix uppercase extensions"
+msgstr ""
+
+msgid "NAS"
+msgstr ""
+
+msgid "Configuration"
+msgstr ""
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"It will apply to this window at its next launch, and to the background daemons at their next restart."
+msgstr ""
+
+msgid "Ready."
+msgstr ""
+
+msgid "🔑 Session expired or locked"
+msgstr ""
+
+msgid "🔑 Proton: session expired"
+msgstr ""
+
+msgid "Checking…"
+msgstr ""
+
+msgid ""
+"Proton session unavailable (expired token or locked keyring) — open “⚙ "
+"Configuration…” to sign in."
+msgstr ""
+
+msgid "🔑 Connected"
+msgstr ""
+
+msgid "🔑 Proton: connected — {u}"
+msgstr ""
+
+msgid ""
+"Proton authentication failed during the run — open “⚙ Configuration…” to "
+"renew the session."
+msgstr ""
+
+msgid "🔑 Connected — {u}"
+msgstr ""
+
+msgid "Proton account"
+msgstr ""
+
+msgid ""
+"Status icon in the system tray\n"
+"\n"
+"Shows a small circular double-arrow icon near the clock:\n"
+"  • purple — the background service is running and the Proton session is fine;\n"
+"  • grey with a red X — the service is running but the Proton session has expired (sign in again from this window);\n"
+"  • grey — the background service is stopped.\n"
+"\n"
+"Left-click opens this editor. The icon starts automatically with your session. It only reads a small local status file — it never contacts Proton itself.\n"
+"\n"
+"Requires the system packages “python3-gi” and “gir1.2-xapp-1.0” (already installed on Linux Mint)."
+msgstr ""
+
+msgid "Proton Drive sync — active, session OK"
+msgstr ""
+
+msgid "Show the status icon in the system tray"
+msgstr ""
+
+msgid "Proton Drive sync — session expired or keyring locked"
+msgstr ""
+
+msgid "Proton Drive sync — daemons stopped"
+msgstr ""
+
+msgid ""
+"Tray indicator unavailable: {e}\n"
+"Install the packages: python3-gi gir1.2-xapp-1.0"
+msgstr ""
+
+msgid "System tray"
+msgstr ""
+
+msgid "Open the mappings editor"
+msgstr ""
+
+msgid "Quit the indicator"
+msgstr ""
+
+msgid "🔍 Browse Proton…"
+msgstr ""
+
+msgid "Choose this folder"
+msgstr ""
+
+msgid ""
+"Could not list Proton Drive — check the session (⚙ Configuration…) and try "
+"again."
+msgstr ""
+
+msgid ""
+"Double-click to open a folder; select the destination, then “Choose this "
+"folder”."
+msgstr ""
+
+msgid "(no subfolder)"
+msgstr ""
+
+msgid "Choose a destination folder on Proton Drive"
+msgstr ""
+
+msgid "Loading…"
+msgstr ""
+
+msgid "Local-only mode is active — there is no NAS identity to retire."
+msgstr ""
+
+msgid ""
+"Pending markers: {n} — including {m} for folders NOT covered by the new "
+"file. Those changes will only be synced if you reload the old file and run a"
+" pass."
+msgstr ""
+
+msgid "Pending markers: none."
+msgstr ""
+
+msgid ""
+"Let the current service finish first (recommended if markers are pending) — "
+"cancel this update and run it again once the queues are empty."
+msgstr ""
+
+msgid ""
+"Update cancelled — the current daemons keep processing their queues. Run "
+"Install/Update again once the queues are empty (counts are visible in this "
+"window)."
+msgstr ""
+
+msgid ""
+"Old name “{u}” retired from the NAS (mappings copy and marker queue "
+"removed)."
+msgstr ""
+
+msgid "Mappings file name change"
+msgstr ""
+
+msgid "Could not retire the old name from the NAS: {e}"
+msgstr ""
+
+msgid ""
+"⚠ Orphan queue (no matching mappings file): {d} ({n} marker(s)) — left "
+"untouched."
+msgstr ""
+
+msgid ""
+"Keep the old name on the NAS as-is, and install anyway (temporary change)."
+msgstr ""
+
+msgid ""
+"Clean up now: remove the old name's copy and marker queue from the NAS, then"
+" install."
+msgstr ""
+
+msgid ""
+"The services currently use:\n"
+"  {old}\n"
+"You are installing:\n"
+"  {new}"
+msgstr ""
+
+msgid ""
+"NAS identity (account name)\n"
+"\n"
+"The stable name used on the NAS for YOUR configuration copy and marker queue (config/mappings-<name>.json and queue/<name>). It no longer depends on your mappings file's name: you can rename or switch files freely, the NAS side stays the same.\n"
+"\n"
+"It is set automatically the first time (from your existing services, or from your Proton address on a fresh install). Change it only if you know why — the background services must be reinstalled (Install/Update) afterwards so they follow the new name.\n"
+"\n"
+"Leave it empty to return to automatic mode."
+msgstr ""
+
+msgid "NAS identity (account name): "
+msgstr ""
+
+msgid ""
+"Pending markers: {n} — {m} of them target folders NOT covered by the new "
+"file. Those will be DISCARDED (“⊘” lines in the journal); they can only be "
+"recovered by reloading the old file and running a manual or scheduled pass."
+msgstr ""
+
+msgid ""
+"Pending markers: none right now (new ones may still arrive at any moment)."
+msgstr ""
+
+msgid "Active mappings file change"
+msgstr ""
+
+msgid ""
+"The services currently use:\n"
+"  {old}\n"
+"You are installing:\n"
+"  {new}\n"
+"\n"
+"{counts}"
+msgstr ""
+
+msgid "Confirm the change"
+msgstr ""
+
+msgid "Cancel (keep the current file)"
+msgstr ""
+
+msgid "Services' file     : {v}"
+msgstr ""
+
+msgid ""
+"The connected Proton account has changed: this cache was built for {a}, but "
+"the session is now {b}."
+msgstr ""
+
+msgid ""
+"Proton account changed — prime the cache (or reset the mappings) to rebuild "
+"on the new account."
+msgstr ""
+
+msgid ""
+"    ⛔ account changed — engine refused (cache belongs to the previous "
+"account); markers kept"
+msgstr ""
+
+msgid ""
+"Account change accepted ({a} → {b}) — the previous cache is discarded and "
+"will be rebuilt for the new account."
+msgstr ""
+
+msgid ""
+"   Nothing was synced or modified — the cache describes the OLD account's "
+"Drive."
+msgstr ""
+
+msgid "🔓 Account matter resolved — resuming processing."
+msgstr ""
+
+msgid ""
+"   To proceed on the NEW account: run “Prime the cache” (or reset the "
+"mappings). The destinations will be (re)created on the new Drive."
+msgstr ""
+
+msgid ""
+"⛔ Proton account changed — the cache belongs to the previous account. "
+"Markers kept; prime the cache (or reset the mappings) from the GUI to "
+"resume."
+msgstr ""
+
+msgid ""
+"The identity “{a}” exists on the NAS (marker queue and/or mappings copy).\n"
+"\n"
+"Migrate it to “{b}”? Everything is simply renamed — pending markers and continuity are preserved.\n"
+"\n"
+"Afterwards, restart the background services (⚡ Real-time… → Install / Update) so they follow the new name."
+msgstr ""
+
+msgid "Do not migrate"
+msgstr ""
+
+msgid "NAS identity"
+msgstr ""
+
+msgid ""
+"The identity “{n}” already exists on the NAS — migration refused (possible "
+"collision with another user). Choose another name."
+msgstr ""
+
+msgid "Migration failed: {e}"
+msgstr ""
+
+msgid "Local-only mode is active — nothing to migrate on a NAS."
+msgstr ""
+
+msgid ""
+"Identity migrated on the NAS: “{a}” → “{b}” (queue and mappings copy "
+"renamed, markers preserved)."
+msgstr ""
+
+msgid "Migrate"
+msgstr ""
+
+msgid ""
+"NAS identity (account name)\n"
+"\n"
+"The stable name used on the NAS for YOUR configuration copy and marker queue (config/mappings-<name>.json and queue/<name>). It depends neither on your mappings file's name nor on your Proton account: you can rename files or switch accounts, the NAS side stays the same.\n"
+"\n"
+"It is set automatically the first time: from your existing services on an upgrade, or a neutral unique name (user1, user2, …) claimed on the NAS at first use on a fresh install.\n"
+"\n"
+"If you change it and the old name exists on the NAS, the app offers to MIGRATE it (a simple rename — pending markers preserved). Afterwards, restart the background services so they follow the new name. Leave the field empty to return to automatic mode."
+msgstr ""
+
+msgid "scripts partly pushed ({e})"
+msgstr ""
+
+msgid "NAS scripts updated ({n} file(s))."
+msgstr ""
+
+msgid "scripts not pushed (NAS unreachable)"
+msgstr ""
+
+msgid ""
+"NAS scripts updated ({n} file(s)). The service file changed: on the NAS, "
+"review proton-sync/nas_watcher.service.new, then run “sudo systemctl daemon-"
+"reload && sudo systemctl restart proton-nas-watch.service”."
+msgstr ""
+
+msgid "Path to the proton-drive binary: "
+msgstr ""
+
+msgid "Proton Drive CLI"
+msgstr ""
+
+msgid ""
+"Path to the Proton Drive CLI\n"
+"\n"
+"This app does not include Proton's CLI — you download it separately from Proton (see the README) and it does the actual talking to your Drive.\n"
+"\n"
+"Leave this empty if you placed the “proton-drive” binary in the same folder as the app (the simplest setup). Otherwise, put the full path to the binary here, e.g. /home/me/tools/proton-drive.\n"
+"\n"
+"The background services pick up this path too (they are reinstalled on the next Install/Update). An advanced alternative is the PROTON_DRIVE_CLI environment variable, which takes priority over this setting."
+msgstr ""
