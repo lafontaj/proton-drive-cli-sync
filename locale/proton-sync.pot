@@ -2673,3 +2673,12 @@ msgid ""
 "\n"
 "The background services pick up this path too (they are reinstalled on the next Install/Update). An advanced alternative is the PROTON_DRIVE_CLI environment variable, which takes priority over this setting."
 msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Actions"
+msgstr ""
+
+msgid "Test (dry-run)"
+msgstr ""

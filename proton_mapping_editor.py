@@ -933,7 +933,7 @@ class MappingEditor(tk.Tk):
 
         opts = ttk.Frame(run_frame)
         opts.pack(side="top", fill="x")
-        self._add_option(opts, "Test (dry-run)", self.opt_dry_run, "dry-run")
+        self._add_option(opts, _("Test (dry-run)"), self.opt_dry_run, "dry-run")
         self._add_option(opts, _("SHA1 check"), self.opt_verify_hash, "verify-hash")
         self._add_option(opts, _("Ignore cache"), self.opt_ignore_cache, "ignore-cache")
         self._add_option(opts, _("Verbose"), self.opt_verbose, "verbose")
@@ -970,9 +970,9 @@ class MappingEditor(tk.Tk):
         columns = ("state", "type", "del", "source", "dest_parent", "exclusions")
         self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings", selectmode="extended")
         self.tree.heading("state", text=_("Ready"))
-        self.tree.heading("type", text="Type")
+        self.tree.heading("type", text=_("Type"))
         self.tree.heading("del", text="🗑")
-        self.tree.heading("source", text="Source (local)")
+        self.tree.heading("source", text=_("Source (local)"))
         self.tree.heading("dest_parent", text=_("Destination (parent folder on Proton Drive)"))
         self.tree.heading("exclusions", text=_("Mapping exclusions"))
         self.tree.column("state", width=48, anchor="center")
@@ -1931,8 +1931,12 @@ class MappingEditor(tk.Tk):
             lang_frame.pack(fill="x", pady=(0, 10))
             lang_var = tk.StringVar(value=i18n.read_language_setting())
             for value, label in (("auto", _("Auto (system language)")),
+                                 ("en", "English"),
                                  ("fr", "Français"),
-                                 ("en", "English")):
+                                 ("de", "Deutsch"),
+                                 ("es", "Español"),
+                                 ("it", "Italiano"),
+                                 ("pt", "Português")):
                 ttk.Radiobutton(lang_frame, text=label, value=value,
                                 variable=lang_var).pack(anchor="w", pady=1)
 
@@ -2880,7 +2884,7 @@ class ScheduleDialog(tk.Toplevel):
             foreground="#666", wraplength=580, justify="left").pack(anchor="w", pady=(0, 4))
 
         # Boutons d'action
-        actions = ttk.LabelFrame(self, text="Actions", padding=10)
+        actions = ttk.LabelFrame(self, text=_("Actions"), padding=10)
         actions.pack(side="top", fill="x", padx=10, pady=6)
         row1 = ttk.Frame(actions); row1.pack(anchor="w", fill="x", pady=2)
         ttk.Button(row1, text=_("💾 Install / Update"),

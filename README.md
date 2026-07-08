@@ -220,7 +220,13 @@ Each installation has a **stable identity** (`account_name` setting, decoupled f
 
 ## Internationalization
 
-Interface, engine, and daemons are translated **French / English** (gettext catalog). The language is chosen in ⚙ Configuration. Compiled `.mo` files are shipped (the app is translated right after cloning); to regenerate after editing translations: `./build_locales.sh`.
+The interface is available in **six languages**: French, English, German, Spanish, Italian and Portuguese (gettext catalog). The language is chosen in ⚙ Configuration. Compiled `.mo` files are shipped (the app is translated right after cloning); to regenerate after editing translations: `./build_locales.sh`.
+
+**French** and **English** are the reference languages, maintained by the author. **German, Spanish, Italian and Portuguese** are complete but community-contributed translations that may still be improved: corrections and refinements are welcome (see below). Documentation (README, guides) stays in French and English.
+
+### Contributing translations
+
+Translations live in `locale/<language>/LC_MESSAGES/proton-sync.po`. To fix or improve a language: edit the matching `.po` file (each `msgid` is the English string, each `msgstr` its translation), then run `./build_locales.sh` to recompile. Rules to follow: never translate the bracketed tags (`[account-changed]`, `[config]`, `[DRY-RUN]`…), preserve the `{x}` fields and the emojis. Suggestions for corrections or new languages are welcome via an issue or a pull request.
 
 ---
 
@@ -234,7 +240,7 @@ Interface, engine, and daemons are translated **French / English** (gettext cata
 | `local_watcher.py`, `nas_watcher.py` | `inotify` watching (local machine / NAS) |
 | `schedule_manager.py` | Scheduled passes (systemd timers) |
 | `config.py` | Shared settings (`settings.json`) |
-| `i18n.py`, `locale/` | FR/EN translations |
+| `i18n.py`, `locale/` | Translations (FR, EN, DE, ES, IT, PT) |
 | `tray_indicator.py` | System-tray icon |
 | `mount_check.py` | Network-mount verification |
 | `*.example.json` | Config templates to copy |

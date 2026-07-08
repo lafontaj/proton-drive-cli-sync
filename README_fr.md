@@ -220,7 +220,13 @@ Le cache, la file de marqueurs et les journaux vivent sous un dossier unique : `
 
 ## Internationalisation
 
-Interface, moteur et démons sont traduits **français / anglais** (catalogue gettext). La langue se choisit dans ⚙ Configuration. Les `.mo` compilés sont fournis (l'appli s'affiche traduite dès le clone) ; pour régénérer après modification des traductions : `./build_locales.sh`.
+L'interface est disponible en **six langues** : français, anglais, allemand, espagnol, italien et portugais (catalogue gettext). La langue se choisit dans ⚙ Configuration. Les `.mo` compilés sont fournis (l'appli s'affiche traduite dès le clone) ; pour régénérer après modification des traductions : `./build_locales.sh`.
+
+Le **français** et l'**anglais** sont les langues de référence, maintenues par l'auteur. L'**allemand, l'espagnol, l'italien et le portugais** sont des traductions communautaires complètes mais perfectibles : corrections et améliorations sont les bienvenues (voir ci-dessous). La documentation (README, guides) reste en français et anglais.
+
+### Contribuer aux traductions
+
+Les traductions vivent dans `locale/<langue>/LC_MESSAGES/proton-sync.po`. Pour corriger ou améliorer une langue : éditez le fichier `.po` correspondant (chaque `msgid` est la chaîne anglaise, chaque `msgstr` sa traduction), puis lancez `./build_locales.sh` pour recompiler. Les règles à respecter : ne jamais traduire les balises entre crochets (`[account-changed]`, `[config]`, `[DRY-RUN]`…), préserver les champs `{x}` et les emojis. Les propositions de correction ou de nouvelles langues sont bienvenues via une *issue* ou une *pull request*.
 
 ---
 
@@ -234,7 +240,7 @@ Interface, moteur et démons sont traduits **français / anglais** (catalogue ge
 | `local_watcher.py`, `nas_watcher.py` | Surveillance `inotify` (machine locale / NAS) |
 | `schedule_manager.py` | Passages planifiés (timers systemd) |
 | `config.py` | Réglages partagés (`settings.json`) |
-| `i18n.py`, `locale/` | Traductions FR/EN |
+| `i18n.py`, `locale/` | Traductions (FR, EN, DE, ES, IT, PT) |
 | `tray_indicator.py` | Icône de barre des tâches |
 | `mount_check.py` | Vérification des montages réseau |
 | `*.example.json` | Modèles de configuration à copier |

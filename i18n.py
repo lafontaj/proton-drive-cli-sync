@@ -29,7 +29,7 @@ LOCALE_DIR = os.path.join(APP_DIR, "locale")
 SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
 DOMAIN = "proton-sync"
 
-SUPPORTED = ("en", "fr")
+SUPPORTED = ("en", "fr", "de", "es", "it", "pt")
 SOURCE_LANGUAGE = "en"   # language of the msgid strings in the code (Option B)
 
 
@@ -148,8 +148,14 @@ def subprocess_env():
         return env
     # Non-English target: pick an installed locale for that language, if any.
     avail = _available_locales()
-    for cand in (f"{lang}_CA.utf8", f"{lang}_FR.utf8", f"{lang}.utf8",
-                 f"{lang}_CA.UTF-8", f"{lang}_FR.UTF-8"):
+    # Régions usuelles par langue (première trouvée = utilisée). Générique :
+    # toute langue de SUPPORTED est couverte, avec des régions plausibles.
+    _REGIONS = {"fr": ("CA", "FR"), "en": ("US", "GB"), "de": ("DE", "AT"),
+                "es": ("ES", "MX"), "it": ("IT",), "pt": ("PT", "BR")}
+    cands = [f"{lang}.utf8", f"{lang}.UTF-8"]
+    for reg in _REGIONS.get(lang, ()):
+        cands += [f"{lang}_{reg}.utf8", f"{lang}_{reg}.UTF-8"]
+    for cand in cands:
         if cand.lower() in avail:
             env["LC_ALL"] = cand
             env["LANGUAGE"] = lang
