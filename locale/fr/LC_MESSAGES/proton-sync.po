@@ -1103,11 +1103,6 @@ msgstr "✓ Connecté à Proton."
 msgid "❌ Sign-in failed (code {c})."
 msgstr "❌ Échec de la connexion (code {c})."
 
-#: proton_mapping_editor.py:2303
-#, python-brace-format
-msgid "Real-time — {u}"
-msgstr "Temps réel — {u}"
-
 #: proton_mapping_editor.py:2386
 msgid "▶ Start"
 msgstr "▶ Démarrer"
@@ -3043,6 +3038,168 @@ msgstr ""
 "Une vérification de sécurité confirme d'abord que la source est saine (montage NAS actif) ; en cas de doute, les suppressions de ce mapping sont désactivées et seuls les téléversements ont lieu.\n"
 "\n"
 "ASTUCE : lancez d'abord « Test (dry-run) » pour voir ce qui serait supprimé, sans rien effacer."
+
+msgid "↪ Move to file…"
+msgstr "↪ Déplacer vers un fichier…"
+
+msgid "Move mapping"
+msgstr "Déplacer le mapping"
+
+msgid "Move"
+msgstr "Déplacer"
+
+msgid "Save the current mappings file first."
+msgstr "Enregistrez d'abord le fichier de mappings courant."
+
+msgid "Move to which mappings file?"
+msgstr "Déplacer vers quel fichier de mappings ?"
+
+msgid "Source and destination are the same file."
+msgstr "La source et la destination sont le même fichier."
+
+msgid "Different Proton account"
+msgstr "Compte Proton différent"
+
+msgid "Destination identity unknown"
+msgstr "Identité de la destination inconnue"
+
+msgid "Move failed: {e}"
+msgstr "Le déplacement a échoué : {e}"
+
+msgid "Mapping moved to {f}: {s}"
+msgstr "Mapping déplacé vers {f} : {s}"
+
+msgid ""
+"The destination file is linked to another Proton account:\n"
+"  destination: {b}\n"
+"  source: {a}\n"
+"\n"
+"Transfer refused — the cache must not mix two accounts."
+msgstr ""
+"Le fichier destination est lié à un autre compte Proton :\n"
+"  destination : {b}\n"
+"  source : {a}\n"
+"\n"
+"Transfert refusé — le cache ne doit pas mélanger deux comptes."
+
+msgid ""
+"The destination file already has mappings but no cache yet, so its Proton account cannot be verified.\n"
+"\n"
+"Prime the destination file at least once first, then move the mapping — this avoids mixing two accounts by mistake."
+msgstr ""
+"Le fichier destination a déjà des mappings mais pas encore de cache, son compte Proton ne peut donc pas être vérifié.\n"
+"\n"
+"Amorcez d'abord le fichier destination au moins une fois, puis déplacez le mapping — cela évite de mélanger deux comptes par erreur."
+
+msgid ""
+"Move this mapping to “{f}”?\n"
+"\n"
+"  • {s}\n"
+"\n"
+"Its cache (priming) is moved too, so it stays ready — no re-priming needed as long as the Proton destination is unchanged.\n"
+"\n"
+"Afterwards, reinstall/restart the background services of BOTH files (⚡ Real-time…, ⏰ Schedule…) so they follow the change."
+msgstr ""
+"Déplacer ce mapping vers « {f} » ?\n"
+"\n"
+"  • {s}\n"
+"\n"
+"Son cache (amorçage) est déplacé aussi, il reste donc prêt — pas de ré-amorçage nécessaire tant que la destination Proton est inchangée.\n"
+"\n"
+"Ensuite, réinstallez/redémarrez les services en arrière-plan des DEUX fichiers (⚡ Temps réel…, ⏰ Planification…) pour qu'ils suivent le changement."
+
+msgid ""
+"Mapping moved.\n"
+"\n"
+"Remember to reinstall/restart the background services of both files (⚡ Real-time…, ⏰ Schedule…) so they follow the change."
+msgstr ""
+"Mapping déplacé.\n"
+"\n"
+"Pensez à réinstaller/redémarrer les services en arrière-plan des deux fichiers (⚡ Temps réel…, ⏰ Planification…) pour qu'ils suivent le changement."
+
+msgid "Overwrite"
+msgstr "Écraser"
+
+msgid "Move cancelled."
+msgstr "Déplacement annulé."
+
+msgid "Global exclusions copied"
+msgstr "Exclusions globales copiées"
+
+msgid "Global exclusions differ"
+msgstr "Exclusions globales différentes"
+
+msgid "🔓 Lock released — starting."
+msgstr "🔓 Verrou libéré — démarrage."
+
+msgid "⏹ Cancelled while waiting for the lock."
+msgstr "⏹ Annulé pendant l'attente du verrou."
+
+msgid ""
+"⏳ Waiting for the lock to be released (another pass is running)… (Stop to "
+"cancel)"
+msgstr ""
+"⏳ En attente de la libération du verrou (un autre passage est en cours)… "
+"(Arrêter pour annuler)"
+
+msgid ""
+"The source file's global exclusions will be copied to the destination — this"
+" is required so the mapping keeps its primed state and syncs the same way."
+msgstr ""
+"Les exclusions globales du fichier source seront copiées vers la destination"
+" — c'est nécessaire pour que le mapping conserve son état amorcé et se "
+"synchronise de la même façon."
+
+msgid "Apply and move"
+msgstr "Appliquer et déplacer"
+
+msgid ""
+"The destination file uses different global exclusions, and applying this file's would make {n} already-primed mapping(s) there no longer ready:\n"
+"  • {names}\n"
+"\n"
+"They would fall back to ⏳ and need re-priming. Other mappings are unaffected.\n"
+"\n"
+"Apply this file's global exclusions to the destination?\n"
+"(Cancel to check and harmonize them yourself first.)"
+msgstr ""
+"Le fichier destination utilise des exclusions globales différentes, et appliquer celles de ce fichier rendrait {n} mapping(s) déjà amorcé(s) là-bas non prêt(s) :\n"
+"  • {names}\n"
+"\n"
+"Ils repasseraient en ⏳ et devraient être ré-amorcés. Les autres mappings ne sont pas affectés.\n"
+"\n"
+"Appliquer les exclusions globales de ce fichier à la destination ?\n"
+"(Annuler pour les vérifier et les harmoniser vous-même d'abord.)"
+
+msgid "Continue"
+msgstr "Continuer"
+
+msgid ""
+"This file has unsaved changes. Moving a mapping saves the whole file (to "
+"keep both files consistent). Continue and save?"
+msgstr ""
+"Ce fichier a des modifications non enregistrées. Déplacer un mapping "
+"enregistre tout le fichier (pour garder les deux fichiers cohérents). "
+"Continuer et enregistrer ?"
+
+msgid "Push"
+msgstr "Pousser"
+
+msgid ""
+"ℹ The background services currently watch this file: {f} (not the one open "
+"in the editor)."
+msgstr ""
+"ℹ Les services en arrière-plan surveillent actuellement ce fichier : {f} "
+"(pas celui ouvert dans l'éditeur)."
+
+msgid ""
+"The background services watch {units} — that is the file that will be pushed"
+" to the NAS, not the one open in the editor ({open}). Push it?"
+msgstr ""
+"Les services en arrière-plan surveillent {units} — c'est ce fichier qui sera"
+" poussé vers le NAS, pas celui ouvert dans l'éditeur ({open}). Le pousser ?"
+
+msgid "Real-time — watching {f}"
+msgstr "Temps réel — Surveillance {f}"
 
 #~ msgid ""
 #~ "NAS identity (account name)\n"

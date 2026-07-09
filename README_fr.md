@@ -160,6 +160,7 @@ Le mode `permanent` (`delete_mode: "permanent"`) est **irréversible** : préfé
 - **Témoin de connexion** en bas à droite : le vrai compte connecté (« 🔑 Proton : connecté à … »).
 - **Colonne « Prêt »** par mapping (✅/⏳/—) et **journal des passages** (dernière exécution, succès/échec).
 - **Icône de barre des tâches** (optionnelle) : double flèche circulaire — violette (actif + session OK), grise + X (session expirée), grise (démons arrêtés). Clic gauche = ouvrir l'éditeur.
+- **↪ Déplacer vers un fichier…** : déplace un mapping (et **son cache d'amorçage**) vers un autre fichier de mappings — pratique pour répartir vos dossiers entre plusieurs fichiers, par exemple un fichier pour la **planification nocturne** et un autre pour le **temps réel** sur vos répertoires de travail. Le mapping reste **prêt** dans sa nouvelle maison, sans ré-amorçage, tant que sa destination Proton ne change pas. Par sécurité, le transfert **refuse** si le fichier de destination est lié à un autre compte Proton, et **prévient** si vos exclusions globales diffèrent. Après un déplacement, pensez à **réinstaller/redémarrer** les services temps réel et la planification des deux fichiers concernés.
 
 ## Synchronisation temps réel
 

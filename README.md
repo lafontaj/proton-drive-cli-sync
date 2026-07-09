@@ -160,6 +160,7 @@ The `permanent` mode (`delete_mode: "permanent"`) is **irreversible**: prefer `t
 - **Connection indicator** bottom-right: the real connected account ("🔑 Proton: connected — …").
 - **Per-mapping "Ready" column** (✅/⏳/—) and **pass journal** (last run, success/failure).
 - **System-tray icon** (optional): circular double arrow — purple (active + session OK), grey + X (session expired), grey (daemons stopped). Left-click opens the editor.
+- **↪ Move to file…**: moves a mapping (and **its priming cache**) to another mappings file — handy to split your folders across several files, e.g. one file for **nightly scheduling** and another for **real-time** on your working directories. The mapping stays **ready** in its new home, with no re-priming, as long as its Proton destination is unchanged. For safety, the move **refuses** if the destination file is linked to another Proton account, and **warns** if your global exclusions differ. After a move, remember to **reinstall/restart** the real-time and scheduling services of both files involved.
 
 ## Real-time sync
 

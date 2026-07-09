@@ -358,6 +358,32 @@ def pick_save_file(parent=None, title=_("Save the mappings file"),
         initialfile=initialfile) or None
 
 
+def pick_move_target(parent=None, title=None, initialdir=None):
+    """Sélecteur pour la DESTINATION d'un transfert de mapping : le fichier peut
+    être EXISTANT (on y ajoute le mapping) ou NOUVEAU (on le crée). On n'utilise
+    donc PAS --confirm-overwrite : choisir un fichier existant ne l'« écrase »
+    pas, on lui ajoute une entrée — le message « le fichier existe, remplacer ? »
+    du sélecteur d'enregistrement serait trompeur ici. zenity si dispo, sinon Tk."""
+    title = title or _("Move to which mappings file?")
+    initialdir = initialdir or APP_DIR
+    if _ZENITY:
+        start = os.path.join(initialdir, "mappings.json")
+        args = ["--file-selection", "--save",   # --save autorise un nom nouveau…
+                "--title", title, "--filename", start,          # …SANS confirm-overwrite
+                "--file-filter", "JSON | *.json",
+                "--file-filter", "Tous les fichiers | *"]
+        path = _zenity_run(args)
+        if path and not path.lower().endswith(".json"):
+            path += ".json"
+        return path
+    # Tk : asksaveasfilename avec confirmoverwrite=False (permet existant ou neuf,
+    # sans dialogue d'écrasement).
+    return filedialog.asksaveasfilename(
+        title=title, defaultextension=".json",
+        filetypes=[("JSON", "*.json")], initialdir=initialdir,
+        initialfile="mappings.json", confirmoverwrite=False) or None
+
+
 def pick_directory(parent=None, title=_("Choose a source folder"), initialdir=None):
     """Sélecteur de dossier. zenity si dispo, sinon Tk."""
     initialdir = initialdir or "/media"
@@ -902,6 +928,7 @@ class MappingEditor(tk.Tk):
         ttk.Button(toolbar2, text=_("✏ Edit"), command=self.on_edit_mapping).pack(side="left", padx=2)
         ttk.Button(toolbar2, text=_("🚫 Mapping exclusions"), command=self.on_edit_mapping_exclusions).pack(side="left", padx=2)
         ttk.Button(toolbar2, text=_("🗑 Delete"), command=self.on_remove).pack(side="left", padx=2)
+        ttk.Button(toolbar2, text=_("↪ Move to file…"), command=self.on_move_mapping).pack(side="left", padx=2)
 
         # Ligne de résumé des exclusions globales (juste sous la barre d'outils)
         self.excl_summary = tk.StringVar(value="")
@@ -1712,6 +1739,395 @@ class MappingEditor(tk.Tk):
             self._cache_memo = None   # forcer la relecture
         except OSError:
             pass
+
+    # ── Transfert d'un mapping vers un AUTRE fichier de mappings ────────────
+    @staticmethod
+    def _cache_path_for(config_path):
+        """Chemin du fichier cache associé à un fichier de mappings quelconque
+        (même règle que le moteur : CACHE_DIR/<nom sans .json>.cache)."""
+        cache_dir = (appconfig.CACHE_DIR if _HAS_CONFIG
+                     else os.path.expanduser("~/.proton_sync_cache"))
+        name = os.path.basename(config_path).replace(".json", "") + ".cache"
+        return os.path.join(cache_dir, name)
+
+    @staticmethod
+    def _read_cache_file(path):
+        """Lit un fichier cache (dict) ou renvoie None s'il n'existe pas / illisible.
+        None signifie « pas de cache » (jamais amorcé) — distinct d'un cache vide."""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else None
+        except (OSError, ValueError):
+            return None
+
+    @staticmethod
+    def _cache_account(cache_data):
+        """Compte Proton estampillé dans un cache (clé __meta__.account), ou None."""
+        if not isinstance(cache_data, dict):
+            return None
+        m = cache_data.get("__meta__")
+        return m.get("account") if isinstance(m, dict) else None
+
+    @staticmethod
+    def _subtree_keys(cache_data, source):
+        """Clés de cache appartenant au sous-arbre `source` (racine + descendants),
+        par préfixe de chemin — même logique que Cache.purge_subtree du moteur."""
+        base = os.path.normpath(source)
+        prefix = base.rstrip("/") + "/"
+        out = []
+        for k in cache_data:
+            if k == "__meta__":
+                continue
+            nk = os.path.normpath(k)
+            if nk == base or (nk + "/").startswith(prefix):
+                out.append(k)
+        return out
+
+    def _file_has_mappings(self, config_path):
+        """True si le fichier de mappings destination contient déjà ≥1 mapping.
+        Lit le JSON sans altérer l'état de l'éditeur. Gère les deux formats
+        (liste simple, ou objet {exclusions, mappings})."""
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except (OSError, ValueError):
+            return False
+        if isinstance(raw, list):
+            return len(raw) > 0
+        if isinstance(raw, dict):
+            return len(raw.get("mappings", [])) > 0
+        return False
+
+    def on_move_mapping(self):
+        """Déplace le mapping sélectionné vers un AUTRE fichier de mappings, avec
+        son sous-arbre de cache (pour préserver l'amorçage). Vérification d'identité
+        Proton STRICTE : on refuse dès qu'on ne peut pas garantir que la destination
+        vise le même compte que la source (cf. cas ci-dessous). Un mapping à la fois."""
+        idx = self._selected_index()
+        if idx is None:
+            return
+        if not self.config_path:
+            dlg_info(self, _("Save the current mappings file first."),
+                     title=_("Move mapping"))
+            return
+        # Le transfert est ATOMIQUE : il enregistrera le fichier source (sans le
+        # mapping) juste après avoir écrit la destination et déplacé le cache. Si
+        # le fichier source a d'AUTRES modifications non enregistrées, elles seront
+        # donc écrites aussi — on prévient et on demande confirmation.
+        if self.dirty:
+            if not dlg_confirm(self, _("This file has unsaved changes. Moving a "
+                "mapping saves the whole file (to keep both files consistent). "
+                "Continue and save?"), title=_("Move mapping"), kind="question",
+                ok_text=_("Continue"), cancel_text=_("Cancel")):
+                return
+        mapping = self.mappings[idx]
+
+        # Choisir le fichier destination (existant ou nouveau) — SANS message
+        # d'écrasement (on ajoute au fichier, on ne le remplace pas).
+        dest = pick_move_target(self, title=_("Move to which mappings file?"),
+                                initialdir=APP_DIR)
+        if not dest:
+            return
+        if os.path.normpath(dest) == os.path.normpath(self.config_path):
+            dlg_info(self, _("Source and destination are the same file."),
+                     title=_("Move mapping"))
+            return
+
+        # ── Vérification d'identité Proton (stricte) ───────────────────────
+        src_cache = self._read_cache_file(self._cache_path_for(self.config_path))
+        dst_cache_path = self._cache_path_for(dest)
+        dst_cache = self._read_cache_file(dst_cache_path)
+        src_account = self._cache_account(src_cache)
+        dst_account = self._cache_account(dst_cache)
+        dest_exists = os.path.exists(dest)
+
+        if dst_cache is not None and dst_account:
+            # B a un cache estampillé : must match A.
+            if src_account and dst_account != src_account:
+                dlg_error(self, _("The destination file is linked to another Proton "
+                    "account:\n  destination: {b}\n  source: {a}\n\nTransfer refused "
+                    "— the cache must not mix two accounts.").format(
+                    a=src_account, b=dst_account), title=_("Different Proton account"))
+                return
+        elif dest_exists and self._file_has_mappings(dest) and dst_cache is None:
+            # B a des mappings mais aucun cache -> identité indéterminable.
+            dlg_error(self, _("The destination file already has mappings but no cache "
+                "yet, so its Proton account cannot be verified.\n\nPrime the "
+                "destination file at least once first, then move the mapping — this "
+                "avoids mixing two accounts by mistake."),
+                title=_("Destination identity unknown"))
+            return
+        # Autres cas (B vide/neuf, ou B au même compte, ou A sans cache) : autorisé.
+
+        # ── Exclusions globales : elles font partie de l'empreinte qui rend un
+        #    mapping « prêt ». Un mapping amorcé dans A ne reste ✅ dans B que si
+        #    B applique les MÊMES exclusions globales. Logique :
+        #      - src_excl == dst_excl (identiques, y compris toutes deux vides) :
+        #        AUCUN conflit -> on ajoute simplement le mapping, pas de dialogue.
+        #      - exclusions différentes, B vide/neuf : les exclusions de A suivent
+        #        (message informatif), rien à écraser.
+        #      - exclusions différentes, B a des mappings : on regarde si écraser
+        #        invaliderait RÉELLEMENT des mappings prêts de B (empreinte testée
+        #        un à un). Si OUI -> avertir + choix Annuler/Écraser. Si NON (aucun
+        #        mapping prêt réellement impacté) -> écrasement silencieux inoffensif.
+        #    `copy_excl` = True -> on écrira les exclusions de A dans B.
+        src_excl = {"names": sorted(self.global_exclusions.get("names", []) or []),
+                    "patterns": sorted(self.global_exclusions.get("patterns", []) or [])}
+        dst_excl = self._read_global_exclusions(dest) if dest_exists else \
+                   {"names": [], "patterns": []}
+        dst_excl_norm = {"names": sorted(dst_excl.get("names", []) or []),
+                         "patterns": sorted(dst_excl.get("patterns", []) or [])}
+        dst_has_excl = bool(dst_excl_norm["names"] or dst_excl_norm["patterns"])
+        dst_has_maps = dest_exists and self._file_has_mappings(dest)
+        same_excl = (src_excl == dst_excl_norm)
+        copy_excl = False
+
+        if not same_excl:
+            if not dst_has_excl and not dst_has_maps:
+                # B neuf/vide : les exclusions de A suivent sans rien écraser.
+                copy_excl = True
+                if src_excl["names"] or src_excl["patterns"]:
+                    dlg_info(self, _("The source file's global exclusions will be "
+                        "copied to the destination — this is required so the mapping "
+                        "keeps its primed state and syncs the same way."),
+                        title=_("Global exclusions copied"))
+            else:
+                # B a des exclusions et/ou des mappings ET elles diffèrent. On ne
+                # dérange l'utilisateur QUE si l'écrasement casserait réellement des
+                # mappings prêts de B (test d'empreinte un à un). Un mapping déjà
+                # doté des bons filtres (p. ex. après un aller-retour de transfert)
+                # n'est PAS compté et ne déclenche pas d'alerte.
+                impacted = self._mappings_invalidated_by_globals(
+                    dest, src_excl, exclude_source=mapping.get("source", ""))
+                if impacted:
+                    names = "\n  • ".join(os.path.basename(s.rstrip("/"))
+                                          for s in impacted)
+                    choice = dlg_confirm(self, _("The destination file uses different "
+                        "global exclusions, and applying this file's would make {n} "
+                        "already-primed mapping(s) there no longer ready:\n  • {names}\n\n"
+                        "They would fall back to ⏳ and need re-priming. Other mappings "
+                        "are unaffected.\n\nApply this file's global exclusions to the "
+                        "destination?\n(Cancel to check and harmonize them yourself "
+                        "first.)").format(n=len(impacted), names=names),
+                        title=_("Global exclusions differ"), kind="warning",
+                        ok_text=_("Apply and move"), cancel_text=_("Cancel"))
+                    if not choice:
+                        self.status.set(_("Move cancelled."))
+                        return
+                # Impacté ou non, on aligne les exclusions de B sur A pour que le
+                # mapping transféré reste cohérent (inoffensif si rien n'est prêt).
+                copy_excl = True
+
+        # Confirmation.
+        if not dlg_confirm(self, _("Move this mapping to “{f}”?\n\n  • {s}\n\nIts cache "
+            "(priming) is moved too, so it stays ready — no re-priming needed as long "
+            "as the Proton destination is unchanged.\n\nAfterwards, reinstall/restart "
+            "the background services of BOTH files (⚡ Real-time…, ⏰ Schedule…) so "
+            "they follow the change.").format(
+            f=os.path.basename(dest), s=mapping.get("source", "")),
+            title=_("Move mapping"), kind="question",
+            ok_text=_("Move"), cancel_text=_("Cancel")):
+            return
+
+        try:
+            self._do_move_mapping(idx, dest, src_account,
+                                  copy_excl=copy_excl, src_excl=src_excl)
+        except Exception as e:
+            dlg_error(self, _("Move failed: {e}").format(e=e), title=_("Move mapping"))
+            return
+
+        self.mappings.pop(idx)
+        # Transfert ATOMIQUE : la destination et le cache sont déjà écrits ;
+        # on persiste MAINTENANT le fichier source (sans le mapping) pour qu'il
+        # n'y ait aucun état incohérent, même si l'utilisateur n'enregistre pas
+        # ensuite (le mapping ne doit pas « réapparaître » à la réouverture).
+        self._save(self.config_path)
+        self._refresh_tree()
+        self.status.set(_("Mapping moved to {f}: {s}").format(
+            f=os.path.basename(dest), s=mapping.get("source", "")))
+        dlg_info(self, _("Mapping moved.\n\nRemember to reinstall/restart the "
+            "background services of both files (⚡ Real-time…, ⏰ Schedule…) so they "
+            "follow the change."), title=_("Move mapping"))
+
+    def _mapping_fp_with_globals(self, mapping, global_excl):
+        """Empreinte d'exclusions effective d'un mapping calculée avec des
+        exclusions GLOBALES données (pas forcément celles de l'éditeur courant).
+        Sert à prédire si un mapping resterait « prêt » sous d'autres exclusions
+        globales. None si aucune exclusion effective ou si le moteur d'exclusions
+        n'est pas disponible."""
+        if _PS_EXCL is None:
+            return None
+        try:
+            g = _PS_EXCL(global_excl.get("names"), global_excl.get("patterns"))
+            ex = mapping.get("exclusions") or {}
+            local = _PS_EXCL(ex.get("names"), ex.get("patterns"))
+            eff = g.merged_with(local)
+            return eff.fingerprint() if eff else None
+        except Exception:
+            return None
+
+    def _mappings_invalidated_by_globals(self, config_path, new_globals,
+                                         exclude_source=None):
+        """Renvoie la liste des sources de mappings de `config_path` qui seraient
+        RÉELLEMENT invalidés si on remplaçait ses exclusions globales par
+        `new_globals` : c.-à-d. les mappings actuellement « prêts » (racine
+        subtree_complete + empreinte stockée) dont l'empreinte ne correspondrait
+        PLUS sous les nouvelles globales. Un mapping qui a déjà les bons filtres
+        (empreinte inchangée) n'est PAS listé — on ne l'invalidera pas. Ne modifie
+        rien (simulation)."""
+        cache = self._read_cache_file(self._cache_path_for(config_path))
+        if not cache:
+            return []
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except (OSError, ValueError):
+            return []
+        maps = raw if isinstance(raw, list) else (raw.get("mappings", [])
+               if isinstance(raw, dict) else [])
+        excl_norm = os.path.normpath(exclude_source) if exclude_source else None
+        hit = []
+        for m in maps:
+            if m.get("type") != "folder":
+                continue
+            src = os.path.normpath(m.get("source", ""))
+            if src == excl_norm:
+                continue
+            entry = cache.get(src)
+            if not (isinstance(entry, dict) and entry.get("subtree_complete")):
+                continue   # pas prêt de toute façon -> rien à casser
+            sig = entry.get("sig")
+            stored_fp = sig.get("excl") if isinstance(sig, dict) else None
+            new_fp = self._mapping_fp_with_globals(m, new_globals)
+            if new_fp != stored_fp:
+                hit.append(m.get("source", ""))
+        return hit
+
+    def _invalidate_other_mappings_in_file(self, config_path, exclude_source,
+                                           new_globals):
+        """Invalide SÉLECTIVEMENT (retire subtree_complete) les seuls mappings de
+        `config_path` dont l'empreinte devient invalide sous `new_globals`. Les
+        mappings qui gardent une empreinte valide (déjà les bons filtres, p. ex.
+        après un aller-retour de transfert) sont LAISSÉS INTACTS. `exclude_source`
+        (le mapping qu'on vient de transférer) est ignoré. Écriture atomique."""
+        targets = set(os.path.normpath(s) for s in
+                      self._mappings_invalidated_by_globals(
+                          config_path, new_globals, exclude_source))
+        if not targets:
+            return
+        cache_path = self._cache_path_for(config_path)
+        cache = self._read_cache_file(cache_path)
+        if not cache:
+            return
+        changed = False
+        for tgt in targets:
+            for k in self._subtree_keys(cache, tgt):
+                entry = cache.get(k)
+                if isinstance(entry, dict) and entry.get("subtree_complete"):
+                    entry["subtree_complete"] = False
+                    changed = True
+        if not changed:
+            return
+        try:
+            tmp = cache_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(cache, f, ensure_ascii=False)
+            os.replace(tmp, cache_path)
+        except OSError:
+            pass
+
+    def _read_global_exclusions(self, config_path):
+        """Lit les exclusions globales d'un fichier de mappings quelconque, sans
+        altérer l'état de l'éditeur. Gère les deux formats (liste simple -> pas
+        d'exclusions ; objet {exclusions, mappings})."""
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except (OSError, ValueError):
+            return {"names": [], "patterns": []}
+        if isinstance(raw, dict):
+            ex = raw.get("exclusions") or {}
+            return {"names": ex.get("names", []) or [],
+                    "patterns": ex.get("patterns", []) or []}
+        return {"names": [], "patterns": []}
+
+    def _do_move_mapping(self, idx, dest, src_account, copy_excl=False, src_excl=None):
+        """Effectue le déplacement : entrée du mapping (A->B dans le JSON) + son
+        sous-arbre de cache (copie vers B.cache, purge de A.cache). Écritures
+        atomiques. Ne retire PAS l'entrée de self.mappings (fait par l'appelant
+        après succès).
+
+        Si copy_excl, écrit `src_excl` comme exclusions globales de B (les mappings
+        déjà présents dans B verront alors leur amorçage invalidé — c'est le prix,
+        accepté explicitement par l'utilisateur au dialogue de conflit)."""
+        mapping = self.mappings[idx]
+        source = mapping.get("source", "")
+
+        # 1) Charger le JSON destination (ou structure vide) et y ajouter le mapping.
+        dst_map = {"exclusions": {"names": [], "patterns": []}, "mappings": []}
+        if os.path.exists(dest):
+            try:
+                with open(dest, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                if isinstance(raw, list):
+                    dst_map = {"exclusions": {"names": [], "patterns": []},
+                               "mappings": raw}
+                elif isinstance(raw, dict):
+                    dst_map = raw
+                    dst_map.setdefault("mappings", [])
+                    dst_map.setdefault("exclusions", {"names": [], "patterns": []})
+            except (OSError, ValueError):
+                pass
+        if copy_excl and src_excl is not None:
+            dst_map["exclusions"] = {"names": list(src_excl.get("names", [])),
+                                     "patterns": list(src_excl.get("patterns", []))}
+        dst_map["mappings"].append(mapping)
+        tmp = dest + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(dst_map, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, dest)
+
+        # 1b) Si on a écrasé les exclusions de B, l'amorçage des mappings DÉJÀ
+        #     présents dans B dont l'empreinte devient invalide est retiré
+        #     (sélectivement — ceux qui gardent les bons filtres restent prêts).
+        if copy_excl and os.path.exists(dest) and src_excl is not None:
+            self._invalidate_other_mappings_in_file(dest, exclude_source=source,
+                                                    new_globals=src_excl)
+
+        # 2) Déplacer le sous-arbre de cache (seulement si A a un cache et que le
+        #    mapping est un dossier — un 'file' ou un mapping jamais amorcé n'a
+        #    rien à transférer).
+        if mapping.get("type") != "folder":
+            return
+        src_cache_path = self._cache_path_for(self.config_path)
+        src_cache = self._read_cache_file(src_cache_path)
+        if not src_cache:
+            return
+        keys = self._subtree_keys(src_cache, source)
+        if not keys:
+            return
+        # Cache destination : charger l'existant ou créer, en estampillant le compte.
+        dst_cache_path = self._cache_path_for(dest)
+        dst_cache = self._read_cache_file(dst_cache_path)
+        if dst_cache is None:
+            dst_cache = {}
+        if src_account and "__meta__" not in dst_cache:
+            dst_cache["__meta__"] = {"account": src_account}
+        for k in keys:
+            dst_cache[k] = src_cache[k]
+        tmp = dst_cache_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(dst_cache, f, ensure_ascii=False)
+        os.replace(tmp, dst_cache_path)
+        # Purger le sous-arbre du cache source.
+        for k in keys:
+            del src_cache[k]
+        tmp = src_cache_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(src_cache, f, ensure_ascii=False)
+        os.replace(tmp, src_cache_path)
+        self._cache_memo = None
 
     def on_remove(self):
         idx = self._selected_index()
@@ -2581,10 +2997,29 @@ class MappingEditor(tk.Tk):
             self.after(0, lambda: self.stop_button.configure(state="disabled"))
 
     def on_stop_sync(self):
+        # Casser une éventuelle attente de verrou (amorçage/reset patients).
+        self._stop_requested = True
         if self.sync_process and self.sync_process.poll() is None:
             self.sync_process.terminate()
             self._append_output("\n=== Interruption demandée (terminate) ===\n")
             self.status.set(_("Sync interrupted."))
+
+    def _lock_is_busy(self, env=None):
+        """True si le verrou moteur (~/.proton_sync.lock) est actuellement tenu par
+        un autre passage. Utilise --check-lock du moteur : une sonde qui teste
+        EXACTEMENT le même flock puis le relâche aussitôt (non destructif, ne lance
+        aucune synchro). Renvoie False en cas de doute (mieux vaut tenter le passage
+        que rester bloqué à tort)."""
+        try:
+            e = env if env is not None else dict(os.environ)
+            e.setdefault("PROTON_DRIVE_CLI", DEFAULT_CLI)
+            r = subprocess.run(
+                ["python3", DEFAULT_ENGINE, self.config_path, "--check-lock"],
+                env=e, capture_output=True, text=True, timeout=15)
+            # Convention moteur : code 0 = libre, code non nul = occupé.
+            return r.returncode != 0
+        except Exception:
+            return False
 
     # ---------- Amorçage du cache (passage complet ciblé, --delete corbeille) ----------
     def _cache_complete_count(self):
@@ -2860,6 +3295,30 @@ class MappingEditor(tk.Tk):
             self._current_log_path = log_path
             env = dict(os.environ)
             env["PROTON_DRIVE_CLI"] = DEFAULT_CLI
+
+            # 3a) ATTENTE PATIENTE DU VERROU (au lieu d'échouer en code 1). Le
+            #     consommateur vient d'être arrêté, mais le watcher NAS ou une passe
+            #     planifiée peut encore tenir le flock ~/.proton_sync.lock ; et le
+            #     consommateur peut mettre un instant à le relâcher. Plutôt que de
+            #     laisser le moteur sortir immédiatement (« Une autre instance… »,
+            #     code 1), on sonde le verrou (--check-lock, non destructif) et on
+            #     réessaie toutes les ~3 s. Le bouton Arrêter pose _stop_requested
+            #     et casse la boucle proprement. Le verrou lui-même n'est pas touché.
+            self._stop_requested = False
+            waited = False
+            while self._lock_is_busy(env):
+                if getattr(self, "_stop_requested", False):
+                    self._append_output(_("⏹ Cancelled while waiting for the lock.") + "\n")
+                    self.after(0, lambda: self.status.set(_("Priming cancelled.")))
+                    return
+                if not waited:
+                    self._append_output(_("⏳ Waiting for the lock to be released "
+                        "(another pass is running)… (Stop to cancel)") + "\n")
+                    waited = True
+                time.sleep(3)
+            if waited:
+                self._append_output(_("🔓 Lock released — starting.") + "\n")
+
             self._append_output(started_txt + "\n\n")
             self._last_shown_folder = None
             self._folders_shown = 0
@@ -3542,8 +4001,13 @@ class RealtimeDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent = parent
         self.mappings_path = mappings_path
-        user = realtime_manager.user_from_mappings_path(mappings_path)
-        self.title(_("Real-time — {u}").format(u=user))
+        # Titre basé sur le fichier RÉELLEMENT surveillé par les services (celui
+        # des unités installées), pas sur le fichier ouvert dans l'éditeur — la
+        # fenêtre parle de la surveillance en cours. Nom de base seul (sans le
+        # chemin). Fallback sur le fichier courant si aucun service n'est installé.
+        watched = realtime_manager.read_units_mappings_path() or mappings_path
+        self.title(_("Real-time — watching {f}").format(
+            f=os.path.basename(watched)))
         # Taille relative à l'écran, centrée — s'adapte aux deux postes (Jean en
         # pleine résolution, Maryse en résolution réduite / texte agrandi) sans
         # qu'une taille fixe convienne mal à l'un ou à l'autre. Plafonnée pour ne
@@ -3925,10 +4389,14 @@ class RealtimeDialog(tk.Toplevel):
         self.state_text.set("\n".join(lines))
 
         # Note si les services visent un AUTRE fichier de mappings que l'actif.
+        # Ton INFORMATIF (pas alarmant) : c'est une situation normale quand on
+        # édite un second fichier (ex. après un transfert de mapping) — les
+        # services continuent de fonctionner sur leur fichier ; il suffit de
+        # cliquer « Installer / Mettre à jour » pour les faire basculer.
         if st["units_exist"] and ump and os.path.normpath(ump) != os.path.normpath(self.mappings_path):
             self.daemon_note.set(
-                _("⚠ The installed services target another file:\n{p}\n"
-                "Click “Install / Update” to point them at the active file.").format(p=ump))
+                _("ℹ The background services currently watch this file: {f} "
+                "(not the one open in the editor).").format(f=os.path.basename(ump)))
             self._daemon_note_label.pack(anchor="w", pady=(0, 6),
                                          before=self._daemon_first_row)
         else:
@@ -4101,7 +4569,25 @@ class RealtimeDialog(tk.Toplevel):
         self._refresh()
 
     def on_push(self):
-        ok, msg = realtime_manager.push_mappings_to_nas(self.mappings_path)
+        # On pousse vers le NAS le fichier que les services surveillent RÉELLEMENT
+        # (pas le fichier ouvert dans l'éditeur). Le watcher NAS lit cette copie ;
+        # y pousser un autre fichier changerait ce qu'il surveille.
+        units_path = realtime_manager.read_units_mappings_path()
+        push_path = units_path or self.mappings_path
+        # Garde-fou : si le fichier édité diffère du fichier des services, prévenir
+        # clairement lequel sera poussé (évite de pousser le mauvais fichier par
+        # mégarde).
+        if (units_path and os.path.realpath(units_path)
+                != os.path.realpath(self.mappings_path)):
+            if not dlg_confirm(self, _("The background services watch {units} — that "
+                "is the file that will be pushed to the NAS, not the one open in the "
+                "editor ({open}). Push it?").format(
+                units=os.path.basename(units_path),
+                open=os.path.basename(self.mappings_path)),
+                title=_("Push to the NAS"), kind="question",
+                ok_text=_("Push"), cancel_text=_("Cancel")):
+                return
+        ok, msg = realtime_manager.push_mappings_to_nas(push_path)
         (dlg_success if ok else dlg_error)(self, msg, title=_("Push to the NAS"))
         self._refresh()
 

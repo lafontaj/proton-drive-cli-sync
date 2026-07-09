@@ -915,16 +915,25 @@ def status(mappings_path):
     """Agrège tout l'état nécessaire à la fenêtre temps réel."""
     cfg = read_config()
     queues = count_queues(mappings_path)
+    # La DÉRIVE NAS (section 3) doit porter sur le fichier que les services
+    # surveillent RÉELLEMENT (celui qui est poussé vers le NAS), PAS sur le
+    # fichier actuellement ouvert dans l'éditeur — sinon, éditer un autre
+    # fichier afficherait un faux « local modifié » et « Pousser » écraserait la
+    # copie NAS avec le mauvais fichier. On retombe sur le fichier courant si
+    # aucun service n'est installé (rien n'est encore surveillé).
+    units_path = read_units_mappings_path()
+    drift_path = units_path if units_path else mappings_path
     return {
         "scripts_present": os.path.exists(LOCAL_WATCHER) and os.path.exists(CONSUMER),
         "units_exist": units_exist(),
         "watch_active": _is_active(WATCH_NAME),
         "consume_active": _is_active(CONSUME_NAME),
-        "units_mappings_path": read_units_mappings_path(),
+        "units_mappings_path": units_path,
         "linger": linger_enabled(),
         "debounce_seconds": cfg["debounce_seconds"],
         "cycle_seconds": cfg["cycle_seconds"],
-        "drift": drift_state(mappings_path),
+        "drift": drift_state(drift_path),
+        "drift_path": drift_path,
         "nas": nas_observe(),
         "queues": queues,
         "active_mappings_path": mappings_path,

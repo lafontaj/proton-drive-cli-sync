@@ -134,6 +134,9 @@ msgid ""
 "Requires the system packages “python3-gi” and “gir1.2-xapp-1.0” (already installed on Linux Mint)."
 msgstr ""
 
+msgid "Move to which mappings file?"
+msgstr ""
+
 msgid ""
 "• Exact names: one per line (e.g. .caltrash, trash, .Trash-1000). Case-insensitive. Excludes any folder OR file with that name.\n"
 "• Patterns: one per line, shell style (e.g. *.tmp, .Trash-*, ~*). The * matches any sequence of characters."
@@ -170,6 +173,12 @@ msgid "(new file)"
 msgstr ""
 
 msgid "(none)"
+msgstr ""
+
+msgid ""
+"Mapping moved.\n"
+"\n"
+"Remember to reinstall/restart the background services of both files (⚡ Real-time…, ⏰ Schedule…) so they follow the change."
 msgstr ""
 
 msgid "Global exclusions"
@@ -360,6 +369,15 @@ msgstr ""
 msgid ""
 "Several mappings are selected. This action applies to a single mapping — "
 "select just one row."
+msgstr ""
+
+msgid "Save the current mappings file first."
+msgstr ""
+
+msgid "Source and destination are the same file."
+msgstr ""
+
+msgid "Move mapping"
 msgstr ""
 
 msgid "Exact names (one per line)"
@@ -636,6 +654,23 @@ msgstr ""
 msgid "Mapping updated: {s}"
 msgstr ""
 
+msgid ""
+"This file has unsaved changes. Moving a mapping saves the whole file (to "
+"keep both files consistent). Continue and save?"
+msgstr ""
+
+msgid ""
+"The destination file already has mappings but no cache yet, so its Proton account cannot be verified.\n"
+"\n"
+"Prime the destination file at least once first, then move the mapping — this avoids mixing two accounts by mistake."
+msgstr ""
+
+msgid "Move"
+msgstr ""
+
+msgid "Mapping moved to {f}: {s}"
+msgstr ""
+
 msgid "Removed: {s}"
 msgstr ""
 
@@ -884,6 +919,9 @@ msgstr ""
 msgid "🗑 Delete"
 msgstr ""
 
+msgid "↪ Move to file…"
+msgstr ""
+
 msgid "❗ Errors only"
 msgstr ""
 
@@ -957,6 +995,30 @@ msgstr ""
 msgid "Change to additive mode"
 msgstr ""
 
+msgid "Continue"
+msgstr ""
+
+msgid "Different Proton account"
+msgstr ""
+
+msgid "Destination identity unknown"
+msgstr ""
+
+msgid ""
+"The source file's global exclusions will be copied to the destination — this"
+" is required so the mapping keeps its primed state and syncs the same way."
+msgstr ""
+
+msgid ""
+"Move this mapping to “{f}”?\n"
+"\n"
+"  • {s}\n"
+"\n"
+"Its cache (priming) is moved too, so it stays ready — no re-priming needed as long as the Proton destination is unchanged.\n"
+"\n"
+"Afterwards, reinstall/restart the background services of BOTH files (⚡ Real-time…, ⏰ Schedule…) so they follow the change."
+msgstr ""
+
 msgid "🔑 Proton: connected — {u}"
 msgstr ""
 
@@ -1020,6 +1082,9 @@ msgid "⏸ Stopping the consumer (watcher kept running)…"
 msgstr ""
 
 msgid "⏸ Pausing the scheduled timer…"
+msgstr ""
+
+msgid "🔓 Lock released — starting."
 msgstr ""
 
 msgid "▶ Restarting the consumer…"
@@ -1139,9 +1204,8 @@ msgid "stopped"
 msgstr ""
 
 msgid ""
-"⚠ The installed services target another file:\n"
-"{p}\n"
-"Click “Install / Update” to point them at the active file."
+"ℹ The background services currently watch this file: {f} (not the one open "
+"in the editor)."
 msgstr ""
 
 msgid "Last push: {t}"
@@ -1160,6 +1224,9 @@ msgid "Confirm the change"
 msgstr ""
 
 msgid "Cancel (keep the current file)"
+msgstr ""
+
+msgid "Push"
 msgstr ""
 
 msgid ""
@@ -1190,6 +1257,29 @@ msgstr ""
 msgid ""
 "Mapping switched to mirror — prime it again to enable real-time deletions: "
 "{s}"
+msgstr ""
+
+msgid ""
+"The destination file is linked to another Proton account:\n"
+"  destination: {b}\n"
+"  source: {a}\n"
+"\n"
+"Transfer refused — the cache must not mix two accounts."
+msgstr ""
+
+msgid "Global exclusions copied"
+msgstr ""
+
+msgid "Global exclusions differ"
+msgstr ""
+
+msgid "Apply and move"
+msgstr ""
+
+msgid "Move cancelled."
+msgstr ""
+
+msgid "Move failed: {e}"
 msgstr ""
 
 msgid "🔑 Sign in to Proton"
@@ -1230,6 +1320,14 @@ msgid ""
 "then prime again."
 msgstr ""
 
+msgid "⏹ Cancelled while waiting for the lock."
+msgstr ""
+
+msgid ""
+"⏳ Waiting for the lock to be released (another pass is running)… (Stop to "
+"cancel)"
+msgstr ""
+
 msgid "⬆ Push mappings to the NAS"
 msgstr ""
 
@@ -1252,7 +1350,22 @@ msgstr ""
 msgid "🟢 NAS reachable — last activity {t} ago"
 msgstr ""
 
+msgid ""
+"The background services watch {units} — that is the file that will be pushed"
+" to the NAS, not the one open in the editor ({open}). Push it?"
+msgstr ""
+
 msgid "Confirm"
+msgstr ""
+
+msgid ""
+"The destination file uses different global exclusions, and applying this file's would make {n} already-primed mapping(s) there no longer ready:\n"
+"  • {names}\n"
+"\n"
+"They would fall back to ⏳ and need re-priming. Other mappings are unaffected.\n"
+"\n"
+"Apply this file's global exclusions to the destination?\n"
+"(Cancel to check and harmonize them yourself first.)"
 msgstr ""
 
 msgid "🔑 Session expired or locked"
@@ -1475,6 +1588,9 @@ msgstr ""
 msgid "   Global exclusions: {n} name(s), {p} pattern(s)"
 msgstr ""
 
+msgid "   ⟳ Restricted to {n} selected mapping(s) (of {t})."
+msgstr ""
+
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
 msgstr ""
@@ -1483,9 +1599,6 @@ msgid "== REAL-TIME sync — subpath of a mapping — {m} =="
 msgstr ""
 
 msgid "   Mapping: {s}  =>  {d}"
-msgstr ""
-
-msgid "   ⟳ Restricted to {n} selected mapping(s) (of {t})."
 msgstr ""
 
 msgid "   ♻ RESET restricted to {n} selected mapping(s) (of {t})."
