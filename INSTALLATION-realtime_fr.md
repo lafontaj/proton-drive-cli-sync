@@ -53,6 +53,15 @@ sudo loginctl enable-linger <utilisateur>
 Le watcher NAS tourne **sur le NAS**, sous le compte `nas`, en service **système**
 (il doit démarrer au boot sans session ouverte). Le GUI ne le pilote pas.
 
+> **Pourquoi un service système (pas `--user`) et sans linger ?** La machine locale
+> utilise des services `--user` avec *linger* car ils vivent dans votre session
+> graphique. Le NAS, c'est différent : **on n'y ouvre jamais de session**. Un service
+> `--user` n'aurait aucune session à laquelle se rattacher, et le linger n'a aucun
+> sens. Un service **système** (`/etc/systemd/system/`, activé avec un simple
+> `sudo systemctl enable`) démarre au boot, tourne sous son propre compte, et ne
+> nécessite ni session ni linger — exactement ce qu'il faut pour un NAS sans écran.
+> N'utilisez **pas** `systemctl --user` ni `enable-linger` sur le NAS.
+
 Sur le NAS :
 
 ```bash

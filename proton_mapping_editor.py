@@ -385,13 +385,6 @@ OPTION_HELP = {
         "Reserve it for an occasional check (e.g. once a month), not for "
         "daily use."
     ),
-    "ignore-cache": _(
-        "Ignore the cache (--ignore-cache)\n\n"
-        "Forces a full re-check on the Proton Drive side, even for folders "
-        "the cache considers already up to date.\n\n"
-        "Slower than a normal pass, but the cache is refreshed at the end. "
-        "Useful if you suspect the cache no longer reflects reality."
-    ),
     "verbose": _(
         "Detailed mode (-v)\n\n"
         "Shows the RAW output of the engine: every file examined (unchanged, "
@@ -405,12 +398,14 @@ OPTION_HELP = {
     ),
     "delete": _(
         "Propagate deletions (--delete)\n\n"
-        "MASTER SWITCH for deletion. Without this box, NO deletion happens "
-        "(the sync is purely additive: it sends, but never erases anything "
-        "on Proton).\n\n"
-        "With this box, every mapping that has “Allow deletion” (set in "
-        "Edit) propagates local deletions to Proton: what is on Proton but "
-        "was deleted locally gets deleted.\n\n"
+        "This box only affects the MANUAL “▶ Run sync” button. Priming and "
+        "Reset ignore it: they always follow each mapping's own configuration "
+        "(its trash field).\n\n"
+        "MASTER SWITCH for a manual run. Without this box, a manual sync is "
+        "purely additive: it sends, but never erases anything on Proton — even "
+        "for mappings set to mirror. With this box, every mapping that has "
+        "“Allow deletion” (set in Edit) propagates local deletions: what is on "
+        "Proton but was deleted locally gets deleted.\n\n"
         "The deletion MODE (trash recoverable for 30 days, or permanent) is "
         "the one defined in each mapping. This box only enables the "
         "propagation; the mapping decides trash or permanent.\n\n"
@@ -931,13 +926,48 @@ class MappingEditor(tk.Tk):
         run_frame = ttk.LabelFrame(self, text=_("Run sync"), padding=8)
         run_frame.pack(side="bottom", fill="x", padx=8, pady=(4, 4))
 
-        opts = ttk.Frame(run_frame)
-        opts.pack(side="top", fill="x")
-        self._add_option(opts, _("Test (dry-run)"), self.opt_dry_run, "dry-run")
-        self._add_option(opts, _("SHA1 check"), self.opt_verify_hash, "verify-hash")
-        self._add_option(opts, _("Ignore cache"), self.opt_ignore_cache, "ignore-cache")
-        self._add_option(opts, _("Verbose"), self.opt_verbose, "verbose")
-        self._add_option(opts, _("Propagate deletions"), self.opt_delete, "delete")
+        # --- Options du passage (ligne principale) ---
+        # « Ignorer cache » (Bloc 4) a été retiré : « ♻ Réinitialiser le mapping »
+        # couvre le même besoin (reconstruction) AVEC la gestion des services.
+        # opt_ignore_cache subsiste (toujours False) pour ne pas toucher à la
+        # construction de commande, mais n'est plus exposée.
+        # Zone options en GRILLE pour aligner verticalement les « ? » de la ligne
+        # principale et de la ligne avancée, et RÉSERVER la place de la ligne
+        # cachée (le GUI ne change pas de hauteur quand on déplie les avancées :
+        # on masque le CONTENU, pas la rangée).
+        optbar = ttk.Frame(run_frame)
+        optbar.pack(side="top", fill="x")
+
+        # Colonne gauche : options du passage, sur 2 rangées (principale + avancée).
+        opts = ttk.Frame(optbar)
+        opts.grid(row=0, column=0, sticky="nw")
+        # Rangée 0 : options courantes, chacune dans sa cellule (case + « ? »).
+        self._add_option_grid(opts, 0, 0, _("Test (dry-run)"), self.opt_dry_run, "dry-run")
+        self._add_option_grid(opts, 0, 2, _("Propagate deletions"), self.opt_delete, "delete")
+        self._adv_visible = False
+        self._adv_toggle = ttk.Button(opts, text=_("Advanced options ▾"),
+                                      command=self._toggle_advanced, width=20)
+        self._adv_toggle.grid(row=0, column=4, padx=(8, 0), sticky="w")
+        # Rangée 1 RÉSERVÉE : les widgets avancés (SHA1) existent toujours et
+        # occupent la rangée, mais restent invisibles tant que non dépliés — la
+        # hauteur de la zone est donc constante. Alignés sous la colonne 0.
+        self._adv_widgets = self._add_option_grid(
+            opts, 1, 0, _("SHA1 check"), self.opt_verify_hash, "verify-hash",
+            return_widgets=True)
+        for w in self._adv_widgets:
+            w.grid_remove()   # réserve la géométrie sans afficher
+
+        # Colonne droite : encadré « Affichage » (réglages de VUE de la fenêtre
+        # d'exécution), à côté du bouton Options avancées.
+        optbar.columnconfigure(0, weight=1)   # pousse l'encadré à droite
+        display = ttk.LabelFrame(optbar, text=_("Display"), padding=6)
+        display.grid(row=0, column=1, rowspan=2, sticky="ne", padx=(12, 0))
+        self._add_option(display, _("Verbose"), self.opt_verbose, "verbose")
+        ttk.Checkbutton(display, text=_("❗ Errors only"),
+                        variable=self.opt_errors_only,
+                        command=self._reapply_output_filter).pack(side="left", padx=(0, 16))
+        ttk.Button(display, text=_("🧹 Clear output"),
+                   command=self.on_clear_output).pack(side="left", padx=2)
 
         actions = ttk.Frame(run_frame)
         actions.pack(side="top", fill="x", pady=(8, 0))
@@ -952,12 +982,6 @@ class MappingEditor(tk.Tk):
         self.stop_button = ttk.Button(actions, text=_("⏹ Stop"), command=self.on_stop_sync, state="disabled")
         self.stop_button.pack(side="left", padx=2)
         ttk.Button(actions, text=_("📋 Copy command"), command=self.on_copy_command).pack(side="left", padx=2)
-        ttk.Button(actions, text=_("🧹 Clear output"), command=self.on_clear_output).pack(side="left", padx=2)
-        # Filtre d'affichage « erreurs seules » (à droite). Re-applique le filtre
-        # à ce qui est déjà affiché quand on (dé)coche, pas seulement au flux à venir.
-        ttk.Checkbutton(actions, text=_("❗ Errors only"),
-                        variable=self.opt_errors_only,
-                        command=self._reapply_output_filter).pack(side="right", padx=2)
 
         # --- Zone centrale partagée : tableau (haut) + sortie (bas) ---
         # Un PanedWindow vertical laisse l'utilisateur ajuster la répartition
@@ -1038,6 +1062,36 @@ class MappingEditor(tk.Tk):
         # Colonnes de chemins : élastiques (absorbent l'agrandissement).
         self.tree.column("source", stretch=True)
         self.tree.column("dest_parent", stretch=True)
+
+    def _add_option_grid(self, parent, row, col, label, var, help_key,
+                         return_widgets=False):
+        """Variante de _add_option en GRILLE : place la case à `row,col` et son
+        bouton « ? » à `row,col+1`, avec un petit espace à droite. Permet
+        d'aligner verticalement les « ? » de plusieurs rangées. Si
+        return_widgets, renvoie (case, aide) pour pouvoir les masquer/réafficher
+        (grid_remove/grid) tout en réservant leur place dans la grille."""
+        cb = ttk.Checkbutton(parent, text=label, variable=var)
+        cb.grid(row=row, column=col, sticky="w", pady=1)
+        btn = ttk.Button(parent, text="?", width=2,
+                         command=lambda k=help_key: self._show_help(k))
+        btn.grid(row=row, column=col + 1, sticky="w", padx=(2, 16))
+        if return_widgets:
+            return (cb, btn)
+
+    def _toggle_advanced(self):
+        """Affiche/masque les options avancées (SHA1). La rangée est TOUJOURS
+        réservée dans la grille (place occupée en permanence) : on ne fait
+        qu'afficher (grid) ou masquer (grid_remove) les widgets, sans changer la
+        hauteur de la fenêtre. Le libellé du bouton suit l'état (▾/▴)."""
+        self._adv_visible = not self._adv_visible
+        if self._adv_visible:
+            for w in self._adv_widgets:
+                w.grid()
+            self._adv_toggle.config(text=_("Advanced options ▴"))
+        else:
+            for w in self._adv_widgets:
+                w.grid_remove()
+            self._adv_toggle.config(text=_("Advanced options ▾"))
 
     def _add_option(self, parent, label, var, help_key):
         """Ajoute une case à cocher suivie d'un petit bouton « ? » d'aide."""
@@ -1554,17 +1608,110 @@ class MappingEditor(tk.Tk):
         return int(sel[0])
 
     def on_edit_mapping(self):
-        """Désormais : ouvre le dialogue complet d'édition du mapping sélectionné."""
+        """Ouvre le dialogue complet d'édition du mapping sélectionné, puis gère
+        les changements de VOCATION (additif <-> miroir) sur un mapping déjà
+        amorcé (Bloc 2) :
+          - additif amorcé -> miroir : le cache ne peut pas rester « prêt » (il
+            n'a jamais réconcilié les suppressions). On PRÉVIENT et, sur
+            confirmation, on INVALIDE l'amorçage du mapping (il repasse ⏳).
+            L'utilisateur ré-amorcera quand il voudra (il peut finir ses autres
+            éditions d'abord).
+          - miroir amorcé -> additif : aucun amorçage requis (on arrête juste de
+            supprimer). Simple information, le cache reste valide.
+        Un mapping jamais amorcé ne déclenche aucun avertissement (Q4)."""
         idx = self._selected_index()
         if idx is None:
             return
-        updated = self._mapping_dialog(self.mappings[idx]["type"], mapping=self.mappings[idx])
+        old = self.mappings[idx]
+        old_mirror = bool(old.get("allow_delete"))
+        # Le mapping est-il DÉJÀ amorcé (prêt pour le temps réel) ?
+        was_primed = (old.get("type") == "folder"
+                      and self._mapping_state_symbol(old) == "✅")
+
+        updated = self._mapping_dialog(old["type"], mapping=old)
         if updated is None:
             return
+        new_mirror = bool(updated.get("allow_delete"))
+
+        # --- Changement de vocation sur un mapping DÉJÀ amorcé ---
+        if was_primed and (new_mirror != old_mirror):
+            if new_mirror:
+                # additif -> miroir : l'amorçage doit être refait.
+                if not dlg_confirm(
+                    self,
+                    _("This mapping was primed as ADDITIVE and you are switching it "
+                      "to MIRROR (deletion enabled).\n\n"
+                      "Its priming can no longer be used as-is: a mirror mapping "
+                      "must reconcile the destination before real-time can handle "
+                      "its deletions. Saving will therefore RESET this mapping's "
+                      "primed state — it becomes unavailable for real-time until you "
+                      "prime it again (in mirror mode).\n\n"
+                      "Tip: it is best to decide a mapping's vocation before it holds "
+                      "a lot of data, so this re-priming stays quick.\n\n"
+                      "Save and reset the primed state?"),
+                    title=_("Change to mirror mode"), kind="warning",
+                    ok_text=_("Save and reset"), cancel_text=_("Cancel")):
+                    return
+                self.mappings[idx] = updated
+                self._invalidate_mapping_cache(updated)
+                self._set_dirty(True)
+                self._refresh_tree()
+                self.status.set(_("Mapping switched to mirror — prime it again to "
+                                  "enable real-time deletions: {s}").format(s=updated["source"]))
+                return
+            else:
+                # miroir -> additif : aucun ré-amorçage requis.
+                dlg_info(
+                    self,
+                    _("This mapping switches from MIRROR to ADDITIVE: it will no "
+                      "longer delete anything on Proton. No re-priming is required — "
+                      "its primed state stays valid.\n\n"
+                      "Note: if you switch it back to mirror later, the next mirror "
+                      "priming will take longer to reconcile the destination again."),
+                    title=_("Change to additive mode"))
+
         self.mappings[idx] = updated
         self._set_dirty(True)
         self._refresh_tree()
         self.status.set(_("Mapping updated: {s}").format(s=updated["source"]))
+
+    def _invalidate_mapping_cache(self, mapping):
+        """Retire du cache l'état « amorcé » (subtree_complete) de la racine du
+        mapping et de tous ses sous-dossiers, de sorte que le mapping repasse ⏳
+        (non prêt pour le temps réel) et devra être ré-amorcé. N'efface pas le
+        reste du cache (les autres mappings). Écriture atomique."""
+        if not self.config_path or mapping.get("type") != "folder":
+            return
+        cache_dir = (appconfig.CACHE_DIR if _HAS_CONFIG
+                     else os.path.expanduser("~/.proton_sync_cache"))
+        name = os.path.basename(self.config_path).replace(".json", "") + ".cache"
+        path = os.path.join(cache_dir, name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return
+        except (OSError, ValueError):
+            return
+        src = os.path.normpath(mapping.get("source", ""))
+        prefix = src + os.sep
+        changed = False
+        for key in list(data.keys()):
+            if key == "__meta__":
+                continue
+            if key == src or key.startswith(prefix):
+                del data[key]
+                changed = True
+        if not changed:
+            return
+        try:
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+            os.replace(tmp, path)
+            self._cache_memo = None   # forcer la relecture
+        except OSError:
+            pass
 
     def on_remove(self):
         idx = self._selected_index()
@@ -2487,21 +2634,30 @@ class MappingEditor(tk.Tk):
         scope = (_("all {n} mapping(s)").format(n=len(sources)) if not sel
                  else _("{n} selected mapping(s)").format(n=len(sources)))
 
-        # Confirmation : l'amorçage lance --delete (corbeille) pour les mappings qui
-        # l'autorisent -> potentiel de suppression dès la 1re passe (Q6).
+        # Amorçage piloté PAR LA CONFIG DE CHAQUE MAPPING — plus aucune option
+        # dans ce dialogue. Le moteur reçoit --delete globalement, mais l'applique
+        # mapping par mapping : `mapping_delete = delete and allow_delete` (voir
+        # proton_sync). Donc chaque mapping suit SA vocation, en un seul passage :
+        #   - corbeille vide  (allow_delete absent) -> additif : rien n'est supprimé
+        #   - corbeille       (delete_mode=trash)   -> miroir corbeille (30 j)
+        #   - suppr. immédiate(delete_mode=permanent)-> miroir définitif
+        # Le delete_mode est lui aussi lu par mapping. Pas besoin de regrouper en
+        # lots : un unique passage --delete réalise nativement le comportement
+        # « chaque mapping avec ses options ».
         names = "\n  • ".join(os.path.basename(s) for s in sources)
         if not dlg_confirm(
             self,
-            _("Prime the cache for {scope}:\n  • {names}\n\n"
-              "This runs a FULL pass with deletion propagation (to TRASH, "
-              "recoverable) for the mappings that allow it — so real-time deletion "
-              "works from the very first pass. The whole tree is analyzed and marked "
-              "ready for real-time.\n\n"
-              "The real-time daemons and the scheduled timer are stopped during "
-              "priming and restarted afterwards. This can take a while on large "
+            _("Prime {scope}:\n  • {names}\n\n"
+              "Each mapping is primed with the options set in its own "
+              "configuration (the trash field): additive mappings upload without "
+              "ever deleting; mirror mappings (trash / permanent) reconcile the "
+              "destination. Once done, the mappings become available for real-time "
+              "processing.\n\n"
+              "The real-time consumer and the scheduled timer are paused during "
+              "priming and restored afterwards. This can take a while on large "
               "folders (it is interruptible and resumes where it left off).\n\n"
               "Start priming?").format(scope=scope, names=names),
-            title=_("Prime cache"), kind="warning",
+            title=_("Prime cache"), kind="question",
             ok_text=_("Start priming"), cancel_text=_("Cancel")):
             self.status.set(_("Priming cancelled."))
             return
@@ -2563,8 +2719,11 @@ class MappingEditor(tk.Tk):
             self,
             _("Reset {n} selected mapping(s):\n  • {names}\n\n"
               "This PURGES their local cache (they fall back to ⏳ “pending”) and "
-              "rebuilds them with a targeted pass — like priming, so the cache comes "
-              "back fully armed for real-time and for deletions.\n\n"
+              "rebuilds them with a targeted pass — like priming. Each mapping is "
+              "rebuilt according to ITS OWN configuration (the trash field): "
+              "additive mappings come back ready for real-time without deleting "
+              "anything; mirror mappings come back fully armed for their deletions "
+              "(trash or permanent, as configured).\n\n"
               "Optionally, tick below to also empty each mapping's REMOTE folder "
               "(sent to Proton TRASH, recoverable 30 days) before rebuilding — under "
               "the mount guard. You will purge the trash yourself once you have "
@@ -2615,7 +2774,13 @@ class MappingEditor(tk.Tk):
 
     def _prime_thread(self, sources):
         """Enveloppe : construit la commande d'amorçage puis délègue à
-        l'orchestration commune."""
+        l'orchestration commune.
+
+        --delete est TOUJOURS passé : le moteur l'applique mapping par mapping
+        (`mapping_delete = delete and allow_delete`), donc les mappings additifs
+        ne suppriment rien tandis que les mappings miroir réconcilient selon leur
+        propre delete_mode. Un seul passage réalise « chaque mapping avec ses
+        options »."""
         # --accept-account-change : ces deux actions (Amorcer/Réinitialiser)
         # sont PRÉCISÉMENT la voie de sortie prévue après un changement de
         # compte Proton — le moteur écarte alors l'ancien cache et reconstruit
@@ -2764,6 +2929,20 @@ class MappingEditor(tk.Tk):
             self.after(0, lambda: self.reset_button.configure(state="normal"))
             self.after(0, lambda: self.run_button.configure(state="normal"))
             self.after(0, lambda: self.stop_button.configure(state="disabled"))
+            # Rafraîchir la colonne « Prêt » IMMÉDIATEMENT à la fin du passage.
+            # Sans ça, _prime_tick (1,5 s) vient de s'arrêter et seul le tick lent
+            # (30 s) finirait par mettre à jour l'affichage -> le crochet ✅
+            # apparaissait avec un délai « aléatoire ». On invalide d'abord le
+            # cache mémoïsé (par mtime) pour lire la version fraîche que le moteur
+            # vient d'écrire, puis on redessine la colonne.
+            def _final_state_refresh():
+                self._cache_memo = None
+                self._refresh_state_column()
+            self.after(0, _final_state_refresh)
+            # Filet : la toute dernière écriture atomique du cache par le moteur
+            # peut arriver un instant après ce finally. Un second rafraîchissement
+            # ~1,2 s plus tard rattrape ce décalage sans attendre le tick lent.
+            self.after(1200, _final_state_refresh)
 
     @staticmethod
     def _extract_path(line):

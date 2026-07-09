@@ -54,6 +54,15 @@ The NAS watcher runs **on the NAS**, under the `nas` account, as a **system**
 service (it must start at boot without an open session). The GUI does not drive
 it.
 
+> **Why a system service (not `--user`) and no linger?** The local machine uses
+> `--user` services plus *linger* because they live in your graphical session.
+> The NAS is different: **no one ever opens a session on it**. A `--user` service
+> there would have no session to attach to, and linger is irrelevant. A **system**
+> service (`/etc/systemd/system/`, enabled with plain `sudo systemctl enable`)
+> starts at boot, runs under its own account, and needs no session and no linger —
+> exactly what a headless NAS requires. Do **not** use `systemctl --user` or
+> `enable-linger` on the NAS.
+
 On the NAS:
 
 ```bash

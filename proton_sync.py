@@ -1750,14 +1750,36 @@ def main():
         n_names = len(global_ex.names)
         n_pat = len(global_ex.patterns)
         print(_("   Global exclusions: {n} name(s), {p} pattern(s)").format(n=n_names, p=n_pat))
+    # ── Restriction éventuelle à certains mappings (--only-source) ──────────
+    # Amorçage ciblé du cache : on ne garde que les mappings choisis, tout en
+    # gardant la sémantique passage complet (marque subtree_complete). Sans
+    # l'option, on traite tous les mappings.
+    # IMPORTANT : appliquée AVANT le message « mode SUPPRESSION » ci-dessous, pour
+    # que le comptage allow_delete porte sur la PORTÉE RÉELLE du passage. Sinon,
+    # amorcer un seul mapping additif afficherait quand même l'avertissement en
+    # comptant les mappings miroir du reste du fichier (bug constaté).
+    if args.only_source:
+        wanted = {os.path.normpath(s) for s in args.only_source}
+        kept = [m for m in mappings if os.path.normpath(m.get("source", "")) in wanted]
+        skipped = len(mappings) - len(kept)
+        mappings = kept
+        print(_("   ⟳ Restricted to {n} selected mapping(s)"
+                " (of {t}).").format(n=len(mappings), t=len(mappings) + skipped))
+
     if args.delete:
         n_del = sum(1 for m in mappings if m.get("allow_delete"))
         n_perm = sum(1 for m in mappings
                      if m.get("allow_delete") and m.get("delete_mode") == "permanent")
-        print(_("   ⚠  DELETION mode active — {n} mapping(s) with allow_delete").format(n=n_del)
-              + (_(", including {n} PERMANENT").format(n=n_perm) if n_perm else ""))
-        if not _HAS_MOUNT_CHECK:
-            print(_("   ⚠  mount_check.py missing: ALL deletions will be "
+        # N'avertir QUE si au moins un mapping de la PORTÉE (après --only-source)
+        # est réellement en miroir. --delete peut être passé globalement
+        # (amorçage/reset) alors que tous les mappings visés sont additifs : dans
+        # ce cas rien ne sera supprimé, et afficher « mode ELIMINATION actif »
+        # serait trompeur et inutilement alarmant.
+        if n_del > 0:
+            print(_("   ⚠  DELETION mode active — {n} mapping(s) with allow_delete").format(n=n_del)
+                  + (_(", including {n} PERMANENT").format(n=n_perm) if n_perm else ""))
+            if not _HAS_MOUNT_CHECK:
+                print(_("   ⚠  mount_check.py missing: ALL deletions will be "
                   "refused (safety guard)."))
 
     # ── Mode TEMPS RÉEL (--subpath) ────────────────────────────────────────
@@ -1803,18 +1825,6 @@ def main():
         return
     # ── Fin du mode temps réel ─────────────────────────────────────────────
 
-    # ── Restriction éventuelle à certains mappings (--only-source) ──────────
-    # Amorçage ciblé du cache : on ne garde que les mappings choisis, tout en
-    # gardant la sémantique passage complet (marque subtree_complete). Sans
-    # l'option, on traite tous les mappings.
-    if args.only_source:
-        wanted = {os.path.normpath(s) for s in args.only_source}
-        kept = [m for m in mappings if os.path.normpath(m.get("source", "")) in wanted]
-        skipped = len(mappings) - len(kept)
-        mappings = kept
-        print(_("   ⟳ Restricted to {n} selected mapping(s)"
-                " (of {t}).").format(n=len(mappings), t=len(mappings) + skipped))
-
     # ── Réinitialisation ciblée (--reset-source [+ --wipe-remote]) ──────────
     # 1) restreint le passage aux mappings choisis ; 2) purge leur cache (retour en
     # ⏳) ; 3) vide optionnellement leur dossier distant (corbeille, sous garde-fou) ;
@@ -1827,9 +1837,11 @@ def main():
         mappings = kept
         print(_("   ♻ RESET restricted to {n} selected mapping(s)"
                 " (of {t}).").format(n=len(mappings), t=len(mappings) + skipped))
-        # La reconstruction se fait TOUJOURS en mode --delete (comme l'amorçage),
-        # pour armer le cache dès ce passage — indépendamment de ce que l'appelant
-        # a passé.
+        # La reconstruction active --delete globalement, MAIS le moteur le filtre
+        # par mapping (`mapping_delete = delete and allow_delete`) : un mapping
+        # additif ne supprime rien et n'arme pas delete_synced (inutile), un
+        # mapping miroir réconcilie son distant selon SON delete_mode et ressort
+        # armé. Chaque mapping est donc reconstruit selon sa propre vocation.
         args.delete = True
         for m in mappings:
             src = m.get("source", "")
