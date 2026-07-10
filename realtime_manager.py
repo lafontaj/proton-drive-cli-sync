@@ -432,6 +432,26 @@ def push_mappings_to_nas(mappings_path):
         with open(stmp, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=2)
         os.replace(stmp, _version_sidecar(target))
+        # Pousser aussi la correspondance de chemins de données (desktop<->NAS),
+        # dans le MÊME dossier config/. Le watcher NAS la lit pour surveiller les
+        # bons dossiers et écrire les marqueurs dans le référentiel des mappings.
+        # Correspondance de chemins PAR UTILISATEUR : nas_path_map-<identité>.json,
+        # comme mappings-<identité>.json. Chaque desktop pousse SA propre table
+        # (le chemin desktop, ex. /media/nas1, peut différer d'une machine à
+        # l'autre) sans écraser celle des autres. Le watcher NAS charge, pour
+        # chaque cible, la table de l'utilisateur concerné. Absente/vide = pas de
+        # traduction pour cet utilisateur (chemins identiques).
+        if _HAS_CONFIG:
+            try:
+                pm = appconfig.nas_path_map()
+                ident = nas_identity(mappings_path)
+                pm_name = f"nas_path_map-{ident}.json"
+                pmtmp = os.path.join(NAS_CONFIG_DIR, pm_name + ".tmp")
+                with open(pmtmp, "w", encoding="utf-8") as f:
+                    json.dump(pm, f, indent=2)
+                os.replace(pmtmp, os.path.join(NAS_CONFIG_DIR, pm_name))
+            except OSError:
+                pass   # non bloquant : le push des mappings a réussi
     except OSError as e:
         return False, _("Push to the NAS failed: {e}").format(e=e)
     user = nas_identity(mappings_path)
@@ -723,10 +743,11 @@ def linger_command():
     return f"sudo loginctl enable-linger {user}"
 
 
-def journal_follow_command(lines=50):
+def journal_follow_command(lines=500):
     """Commande pour SUIVRE en direct le journal des deux démons (watcher local
     + consommateur), sortie nue (-o cat : juste le message, sans préfixe). Affiche
-    d'abord les `lines` dernières lignes pour le contexte, puis suit (-f)."""
+    d'abord les `lines` dernières lignes pour le contexte (assez pour remonter
+    loin même quand beaucoup de marqueurs s'ajoutent), puis suit (-f)."""
     return ["journalctl", "--user",
             "-u", WATCH_NAME, "-u", CONSUME_NAME,
             "-n", str(lines), "-f", "-o", "cat"]

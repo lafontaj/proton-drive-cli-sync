@@ -37,6 +37,7 @@ import csv
 import json
 import time
 import subprocess
+import threading
 
 # Réglages d'installation (dossier de données unifié, présence NAS...) : une
 # SEULE source de vérité partagée par le moteur, le GUI et les démons. Import
@@ -545,14 +546,13 @@ def _count_ready_mappings(config_path):
 
 def _write_status(auth_ok, cycle_seconds, mappings_path=None):
     """Battement de cœur pour l'icône de barre des tâches (tray_indicator.py) :
-    horodatage + état de session + fichier de mappings ACTIF, réécrit à CHAQUE
-    cycle (écriture atomique). L'indicateur en déduit trois états : fichier
-    frais + auth_ok -> connecté ; frais + not auth_ok -> session expirée ;
-    vieux/absent -> démons arrêtés. Le chemin des mappings permet au clic
-    gauche d'ouvrir l'éditeur directement SUR le bon fichier.
-    NB : l'état de session reflète ce que le consommateur SAIT — la sonde
-    d'auth n'a lieu que lorsqu'il y a du travail (par conception, pour éviter
-    toute contention de trousseau) ; au repos, le dernier état connu persiste."""
+    horodatage + état de session + fichier de mappings ACTIF (écriture atomique).
+    L'indicateur en déduit trois états : fichier frais + auth_ok -> connecté ;
+    frais + not auth_ok -> session expirée ; vieux/absent -> démons arrêtés. Le
+    chemin des mappings permet au clic gauche d'ouvrir l'éditeur sur le bon fichier.
+    NB : l'état de session reflète ce que le consommateur SAIT — la sonde d'auth
+    n'a lieu que lorsqu'il y a du travail (pour éviter la contention de trousseau) ;
+    au repos, le dernier état connu persiste."""
     path = appconfig.STATUS_FILE if _HAS_CONFIG else os.path.join(BASE_DIR, "status.json")
     try:
         tmp = path + ".tmp"
@@ -564,6 +564,62 @@ def _write_status(auth_ok, cycle_seconds, mappings_path=None):
         os.replace(tmp, path)
     except OSError:
         pass   # informatif seulement : ne doit jamais gêner le cycle
+
+
+class _Heartbeat:
+    """Bat le status.json à intervalle RÉGULIER depuis un thread dédié, quoi que
+    fasse la boucle principale.
+
+    Sans ça, le battement n'était réécrit qu'ENTRE les cycles (après run_once) :
+    un passage long — p. ex. des centaines de sous-dossiers .git/objects à
+    synchroniser d'affilée — pouvait bloquer run_once plusieurs minutes, laissant
+    le battement vieillir au-delà du seuil « arrêté » du systray. L'icône passait
+    alors au gris « démons arrêtés » alors que le démon était simplement TRÈS
+    occupé. Le thread écrit le battement toutes les ~`interval` secondes en
+    utilisant le dernier état publié par la boucle (auth_ok, cycle, mappings) ;
+    l'affichage reste donc juste même pendant un très long passage."""
+
+    def __init__(self, cycle_seconds, mappings_path, interval=20):
+        self._lock = threading.Lock()
+        self._auth_ok = True
+        self._cycle = int(cycle_seconds)
+        self._mappings_path = mappings_path
+        self._interval = max(5, int(interval))
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self):
+        _write_status(self._auth_ok, self._cycle, self._mappings_path)  # battement immédiat
+        self._thread.start()
+
+    def update(self, auth_ok=None, cycle_seconds=None):
+        """Publie le dernier état connu (appelé par la boucle à chaque cycle).
+        Le thread s'en sert pour ses écritures régulières."""
+        with self._lock:
+            if auth_ok is not None:
+                self._auth_ok = bool(auth_ok)
+            if cycle_seconds is not None:
+                self._cycle = int(cycle_seconds)
+
+    def beat_now(self):
+        """Écrit le battement immédiatement avec l'état courant (utile juste
+        après un cycle pour ne pas attendre l'intervalle du thread)."""
+        with self._lock:
+            _write_status(self._auth_ok, self._cycle, self._mappings_path)
+
+    def _run(self):
+        # Réveil fin (1 s) pour pouvoir s'arrêter vite, mais on n'écrit qu'aux
+        # multiples de l'intervalle — l'écriture est atomique et négligeable.
+        elapsed = 0
+        while not self._stop.wait(1):
+            elapsed += 1
+            if elapsed >= self._interval:
+                elapsed = 0
+                with self._lock:
+                    _write_status(self._auth_ok, self._cycle, self._mappings_path)
+
+    def stop(self):
+        self._stop.set()
 
 
 def main():
@@ -601,6 +657,12 @@ def main():
         log(_("  • {r}/{t} mapping(s) ready for real-time.").format(r=_ready, t=_total))
 
     waiting_reason = None  # None / "locked" (trousseau) / "busy" (verrou tenu)
+    # Thread de battement dédié : garde le status.json frais MÊME pendant un
+    # passage long (run_once peut durer plusieurs minutes sur beaucoup de
+    # sous-dossiers). Sans lui, le systray passait à tort au gris « arrêté ».
+    hb = _Heartbeat(cycle_seconds=load_config()["cycle_seconds"],
+                    mappings_path=args.config)
+    hb.start()
     while True:
         cfg = load_config()  # relu à chaque cycle -> délai modifiable à chaud
         # Charger les mappings frais à chaque cycle (la vérité reste à jour).
@@ -650,12 +712,15 @@ def main():
                 log(_("🔓 Account matter resolved — resuming processing."))
             waiting_reason = None
 
-        # Battement de cœur pour l'icône de barre des tâches, chaque cycle.
-        _write_status(auth_ok=(waiting_reason not in ("locked", "account")),
-                      cycle_seconds=cfg["cycle_seconds"],
-                      mappings_path=args.config)
+        # Battement de cœur : publier l'état courant au thread dédié (qui écrit
+        # à intervalle régulier, y compris pendant un long run_once) et forcer un
+        # battement immédiat maintenant que le cycle est terminé.
+        hb.update(auth_ok=(waiting_reason not in ("locked", "account")),
+                  cycle_seconds=cfg["cycle_seconds"])
+        hb.beat_now()
 
         if args.once:
+            hb.stop()
             break
         time.sleep(cfg["cycle_seconds"])
 

@@ -465,6 +465,20 @@ CONFIG_HELP = {
         "Leave the default unless you know your NAS is mounted at a "
         "different location. Only used when “Use a NAS” is turned on."
     ),
+    "nas-path-map": _(
+        "NAS data-path correspondence\n\n"
+        "Only needed if the NAS sees your DATA folders under different paths "
+        "than this computer does — typically on a Synology/QNAP, where the NAS "
+        "uses /volume1/… internally while this machine mounts the same folders "
+        "under /media/nas1/… (or similar).\n\n"
+        "Your mappings always use THIS computer's paths (left column). The "
+        "watcher, running on the NAS, uses the right column to find those same "
+        "folders on the NAS side. Add one row per volume.\n\n"
+        "This is NOT the technical mount point above — it is the correspondence "
+        "for your actual data folders. Leave the table EMPTY if the NAS and this "
+        "computer use identical paths (the usual case for a Linux NAS mounted "
+        "the same way). The table is pushed to the NAS with your configuration."
+    ),
     "rename-ext-enabled": _(
         "Fix uppercase extensions\n\n"
         "Proton Drive can fail to show a thumbnail, preview or correct icon "
@@ -2526,6 +2540,53 @@ class MappingEditor(tk.Tk):
             ident_entry.pack(side="left")
             help_btn(row2b, "nas-identity")
 
+            # ---- Tableau : correspondance des chemins de DONNÉES desktop<->NAS ----
+            pm_head = ttk.Frame(nas_frame); pm_head.pack(anchor="w", fill="x", pady=(12, 0))
+            ttk.Label(pm_head, text=_("NAS data-path correspondence:")).pack(side="left")
+            help_btn(pm_head, "nas-path-map")
+
+            # En-têtes de colonnes.
+            pm_cols = ttk.Frame(nas_frame); pm_cols.pack(anchor="w", fill="x", pady=(2, 0))
+            ttk.Label(pm_cols, text=_("Seen on this machine (desktop)"),
+                      font=("", 8)).grid(row=0, column=0, sticky="w", padx=(0, 6))
+            ttk.Label(pm_cols, text=_("Seen on the NAS"),
+                      font=("", 8)).grid(row=0, column=1, sticky="w", padx=(0, 6))
+
+            pm_rows_frame = ttk.Frame(nas_frame)
+            pm_rows_frame.pack(anchor="w", fill="x")
+            pm_rows = []   # liste de dicts {frame, local_var, nas_var}
+
+            def pm_add_row(local="", nas=""):
+                rf = ttk.Frame(pm_rows_frame); rf.pack(anchor="w", fill="x", pady=2)
+                lv = tk.StringVar(value=local)
+                nv = tk.StringVar(value=nas)
+                le = ttk.Entry(rf, textvariable=lv, width=26)
+                le.grid(row=0, column=0, padx=(0, 4))
+
+                def browse_local(_v=lv):
+                    d = pick_directory(dlg, title=_("Choose a data folder on this machine"))
+                    if d:
+                        _v.set(d)
+                ttk.Button(rf, text="📁", width=3, command=browse_local).grid(row=0, column=1, padx=(0, 6))
+                ne = ttk.Entry(rf, textvariable=nv, width=24)
+                ne.grid(row=0, column=2, padx=(0, 4))
+                entry = {"frame": rf, "local_var": lv, "nas_var": nv}
+
+                def remove_this(_e=entry):
+                    _e["frame"].destroy()
+                    pm_rows.remove(_e)
+                ttk.Button(rf, text="−", width=3, command=remove_this).grid(row=0, column=3)
+                pm_rows.append(entry)
+                return entry
+
+            # Pré-remplir avec la table existante.
+            for pair in appconfig.nas_path_map():
+                pm_add_row(pair.get("local", ""), pair.get("nas", ""))
+
+            pm_btns = ttk.Frame(nas_frame); pm_btns.pack(anchor="w", fill="x", pady=(2, 0))
+            ttk.Button(pm_btns, text=_("+ Add a correspondence"),
+                       command=lambda: pm_add_row()).pack(side="left")
+
             def sync_mount_state(*_a):
                 state = "normal" if nas_var.get() else "disabled"
                 mount_entry.configure(state=state)
@@ -2580,6 +2641,12 @@ class MappingEditor(tk.Tk):
             if _HAS_CONFIG:
                 appconfig.set_nas_enabled(nas_var.get())
                 appconfig.set_nas_mount_path(mount_var.get())
+                # Table de correspondance des chemins de données (lignes non vides).
+                pairs = [{"local": e["local_var"].get().strip(),
+                          "nas": e["nas_var"].get().strip()}
+                         for e in pm_rows
+                         if e["local_var"].get().strip() and e["nas_var"].get().strip()]
+                appconfig.set_nas_path_map(pairs)
                 # MIGRATION C : si l'identité change et que l'ancienne existe
                 # sur le NAS, proposer le renommage (file + copie de mappings,
                 # billets préservés). Refusée ou non applicable -> le réglage
@@ -4028,6 +4095,11 @@ class RealtimeDialog(tk.Toplevel):
         self._delays_seen = False  # spinboxes renseignées une seule fois (pas d'écrasement)
         self._tail_proc = None     # processus journalctl -f
         self._tail_thread = None
+        # Toutes les lignes brutes reçues (pour pouvoir re-filtrer quand on
+        # (dé)coche « Détaillée » sans relire journalctl). Cap élevé : on garde
+        # beaucoup d'historique pour remonter loin, avec purge du plus ancien.
+        self._event_lines = []
+        self._EVENT_MAX = 5000
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self._build()
@@ -4205,6 +4277,15 @@ class RealtimeDialog(tk.Toplevel):
         self.autoscroll_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(ev_bar, text=_("Auto-scroll"),
                         variable=self.autoscroll_var).pack(side="left")
+        # « Détaillée » : filtre d'AFFICHAGE (ne change pas ce que les démons
+        # journalisent). Décochée (défaut) = vue épurée centrée sur ce qui se
+        # synchronise (lignes « → synchro : <dossier> », leur résultat, et les
+        # événements notables) ; le bruit fin des watchers (ADD/DEL de marqueurs)
+        # est masqué. Cochée = tout le détail. Re-filtre l'historique déjà affiché.
+        self.detailed_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(ev_bar, text=_("Detailed"),
+                        variable=self.detailed_var,
+                        command=self._reapply_event_filter).pack(side="left", padx=(12, 0))
         ttk.Button(ev_bar, text=_("🧹 Clear"), command=self._clear_events).pack(side="right")
         # Text + scrollbars verticale ET horizontale : wrap="none" garde une ligne
         # par événement (alignement des horodatages), et la scrollbar horizontale
@@ -4306,13 +4387,64 @@ class RealtimeDialog(tk.Toplevel):
     def _append_event(self, text):
         if not self._alive or not self.winfo_exists():
             return
+        # Mémoriser la ligne brute (pour re-filtrage), avec purge du plus ancien.
+        self._event_lines.append(text)
+        if len(self._event_lines) > self._EVENT_MAX:
+            del self._event_lines[:len(self._event_lines) - self._EVENT_MAX]
+        # N'afficher que si elle passe le filtre courant (Détaillée ou épuré).
+        if not self._event_visible(text):
+            return
         self.events.configure(state="normal")
         self.events.insert("end", text)
         if self.autoscroll_var.get():
             self.events.see("end")
         self.events.configure(state="disabled")
 
+    def _event_visible(self, line):
+        """Décide si une ligne de journal s'affiche dans le mode courant.
+        Détaillée cochée -> tout. Décochée (épuré) -> on garde ce qui renseigne
+        sur CE QUI SE SYNCHRONISE (« → synchro : <dossier> », résultats, erreurs)
+        et les événements notables ; on masque le bruit fin des watchers (ADD/DEL
+        de marqueurs) et les lignes systemd techniques."""
+        if self.detailed_var.get():
+            return True
+        s = line.strip()
+        if not s:
+            return False
+        # Bruit masqué en mode épuré : marqueurs ADD/DEL des watchers, et lignes
+        # techniques de systemd (Started/Stopped/Consumed…).
+        if ("-> marqueur sur" in s or "-> marker on" in s
+                or s.startswith("ADD ") or s.startswith("DEL ")):
+            return False
+        if ("proton-consume.service" in s or "proton-watch.service" in s
+                or "proton-nas-watch.service" in s):
+            return False
+        # Gardé en mode épuré : ce qui montre l'activité de synchro utile.
+        keep_markers = ("→ synchro", "→ sync", "✓ ok", "✗", "❌", "⛔", "⚠",
+                        "🚫", "⏳", "🔓", "⊘",
+                        "[account-changed]", "[auth-failed]",
+                        # messages d'état notables du démon
+                        "démarré", "daemon started", "Surveillance", "watching",
+                        "rattrapage", "catch", "session", "verrou", "lock",
+                        "compte", "account", "prêt", "ready")
+        return any(m in s for m in keep_markers)
+
+    def _reapply_event_filter(self):
+        """Reconstruit l'affichage depuis le buffer selon le mode courant
+        (appelé quand on (dé)coche « Détaillée »)."""
+        if not self._alive or not self.winfo_exists():
+            return
+        self.events.configure(state="normal")
+        self.events.delete("1.0", "end")
+        visible = [l for l in self._event_lines if self._event_visible(l)]
+        if visible:
+            self.events.insert("end", "".join(visible))
+        if self.autoscroll_var.get():
+            self.events.see("end")
+        self.events.configure(state="disabled")
+
     def _clear_events(self):
+        self._event_lines = []
         self.events.configure(state="normal")
         self.events.delete("1.0", "end")
         self.events.configure(state="disabled")

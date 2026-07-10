@@ -2771,3 +2771,41 @@ msgstr ""
 
 msgid "Real-time — watching {f}"
 msgstr "Echtzeit — Überwachung {f}"
+
+msgid "Detailed"
+msgstr "Detailliert"
+
+msgid "NAS data-path correspondence:"
+msgstr "NAS-Datenpfad-Zuordnung:"
+
+msgid "Seen on this machine (desktop)"
+msgstr "Auf diesem Rechner sichtbar (Desktop)"
+
+msgid "Seen on the NAS"
+msgstr "Auf dem NAS sichtbar"
+
+msgid "Choose a data folder on this machine"
+msgstr "Datenordner auf diesem Rechner wählen"
+
+msgid "+ Add a correspondence"
+msgstr "+ Zuordnung hinzufügen"
+
+msgid ""
+"NAS data-path correspondence\n"
+"\n"
+"Only needed if the NAS sees your DATA folders under different paths than this computer does — typically on a Synology/QNAP, where the NAS uses /volume1/… internally while this machine mounts the same folders under /media/nas1/… (or similar).\n"
+"\n"
+"Your mappings always use THIS computer's paths (left column). The watcher, running on the NAS, uses the right column to find those same folders on the NAS side. Add one row per volume.\n"
+"\n"
+"This is NOT the technical mount point above — it is the correspondence for your actual data folders. Leave the table EMPTY if the NAS and this computer use identical paths (the usual case for a Linux NAS mounted the same way). The table is pushed to the NAS with your configuration."
+msgstr ""
+"NAS-Datenpfad-Zuordnung\n"
+"\n"
+"Nur nötig, wenn das NAS Ihre DATEN-Ordner unter anderen Pfaden sieht als dieser Rechner — typischerweise bei einem Synology/QNAP, wo das NAS intern /volume1/… verwendet, während dieser Rechner dieselben Ordner unter /media/nas1/… (oder ähnlich) einbindet.\n"
+"\n"
+"Ihre Zuordnungen verwenden immer die Pfade DIESES Rechners (linke Spalte). Der Watcher auf dem NAS nutzt die rechte Spalte, um dieselben Ordner auf der NAS-Seite zu finden. Fügen Sie eine Zeile pro Volume hinzu.\n"
+"\n"
+"Dies ist NICHT der technische Einhängepunkt oben — es ist die Zuordnung Ihrer tatsächlichen Datenordner. Lassen Sie die Tabelle LEER, wenn NAS und Rechner identische Pfade verwenden (der Normalfall bei einem gleich eingebundenen Linux-NAS). Die Tabelle wird mit Ihrer Konfiguration an das NAS übertragen."
+
+msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
+msgstr "  Pfad-Tabellen: {n} Zuordnung(en) über {u} Benutzer desktop<->NAS."

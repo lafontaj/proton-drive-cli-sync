@@ -113,30 +113,106 @@ def _load_mappings_file(path):
     return []
 
 
-def build_targets(users_mappings):
+# ─────────────────────────────────────────────────────────────────────────
+#  Correspondance des chemins de données desktop <-> NAS
+# ─────────────────────────────────────────────────────────────────────────
+# Le watcher NAS voit peut-être les dossiers de données sous d'autres chemins que
+# ceux écrits dans les mappings (cas Synology : /volume1/... côté NAS vs
+# /media/nas1/... dans les mappings, référentiel desktop). La table de
+# correspondance, poussée par le desktop dans config/nas_path_map-<user>.json,
+# deux traductions symétriques :
+#   • local -> NAS : pour SURVEILLER le bon dossier réel sur le NAS ;
+#   • NAS -> local : pour écrire le marqueur dans le référentiel des mappings
+#     (celui que le consommateur comprend, côté desktop).
+# La substitution est réimplémentée ici (le watcher ne dépend pas de config.py) :
+# c'est un simple remplacement de préfixe à frontière de segment. Table absente
+# ou vide = aucune traduction (installation à chemins identiques, cas Linux
+# monté pareil des deux côtés).
+def load_path_maps(config_dir=CONFIG_DIR):
+    """Charge les tables de correspondance PAR UTILISATEUR depuis
+    config/nas_path_map-<user>.json. Retourne {user: [ {local, nas}, ... ]}.
+    Chaque desktop pousse sa propre table (son montage peut différer). Un
+    utilisateur sans fichier (ou fichier vide/illisible) n'a pas d'entrée ->
+    aucune traduction pour lui."""
+    maps = {}
+    for path in glob.glob(os.path.join(config_dir, "nas_path_map-*.json")):
+        base = os.path.basename(path)
+        # nas_path_map-<user>.json -> user
+        user = base[len("nas_path_map-"):-len(".json")]
+        if not user:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except (OSError, ValueError):
+            continue
+        pairs = []
+        if isinstance(raw, list):
+            for it in raw:
+                if isinstance(it, dict):
+                    loc = (it.get("local") or "").strip()
+                    nas = (it.get("nas") or "").strip()
+                    if loc and nas:
+                        pairs.append({"local": loc, "nas": nas})
+        if pairs:
+            maps[user] = pairs
+    return maps
+
+
+def _translate_path(path, direction, pairs):
+    """Traduit un chemin par substitution de préfixe à frontière de segment.
+    direction : 'local_to_nas' ou 'nas_to_local'. Aucune paire correspondante
+    (ou liste vide) -> chemin inchangé."""
+    if not pairs or not path:
+        return path
+    norm = os.path.normpath(path)
+    for it in pairs:
+        src = os.path.normpath(it["local"] if direction == "local_to_nas" else it["nas"])
+        dst = os.path.normpath(it["nas"] if direction == "local_to_nas" else it["local"])
+        if norm == src:
+            return dst
+        prefix = src.rstrip("/") + os.sep
+        if norm.startswith(prefix):
+            return os.path.normpath(dst.rstrip("/") + os.sep + norm[len(prefix):])
+    return path
+
+
+def build_targets(users_mappings, path_maps=None):
     """Construit la liste des cibles à surveiller, avec leur propriétaire.
 
     users_mappings : {user: [mappings...]}
+    path_maps : tables de correspondance PAR UTILISATEUR {user: [ {local, nas} ]}.
     Retourne une liste de dicts :
       {"watch_dir": ..., "type": "folder"|"file", "file_name": ...,
        "user": <user>, "mapping_source": <source du mapping>}
-    Seules les sources NAS sont retenues — identifiées par le champ
-    'source_kind' == 'nfs' DÉJÀ PRÉSENT dans chaque mapping (rempli à la
-    création via mount_check.detect_source_kind, poussé avec le mapping comme
-    le reste). Aucune liste de préfixes à maintenir côté NAS : la même
-    information circule déjà d'un bout à l'autre du projet, on la réutilise
-    telle quelle plutôt que de la dupliquer sous une autre forme.
+
+    `watch_dir` est le chemin RÉEL à surveiller sur le NAS : la `source` du
+    mapping (référentiel desktop) traduite local->NAS via la table de CET
+    utilisateur. Sans table (ou chemins identiques), watch_dir == source.
+    `mapping_source` reste le chemin desktop d'origine : il sert à écrire le
+    marqueur dans le référentiel des mappings (après re-traduction NAS->local du
+    chemin d'événement).
+
+    Seules les sources NAS sont retenues — identifiées par le champ 'source_kind'
+    == 'nfs' DÉJÀ PRÉSENT dans chaque mapping (rempli à la création via
+    mount_check.detect_source_kind, poussé avec le mapping comme le reste).
     """
+    if path_maps is None:
+        path_maps = {}
     targets = []
     for user, mappings in users_mappings.items():
+        pairs = path_maps.get(user, [])
         for m in mappings:
             source = m.get("source", "")
             mtype = m.get("type", "folder")
             if m.get("source_kind") != "nfs":
                 continue
+            # Chemin réel à surveiller sur le NAS (desktop -> NAS), table de CET user.
+            watch_real = _translate_path(os.path.normpath(source),
+                                         "local_to_nas", pairs)
             if mtype == "folder":
                 targets.append({
-                    "watch_dir": os.path.normpath(source),
+                    "watch_dir": watch_real,
                     "type": "folder", "file_name": None,
                     "user": user, "mapping_source": os.path.normpath(source),
                 })
@@ -174,9 +250,17 @@ def queue_for_user(user, queue_dir=QUEUE_DIR):
     return os.path.join(queue_dir, user)
 
 
-def emit_marker(path, is_delete, is_dir, targets, queue_dir=QUEUE_DIR, log=None):
+def emit_marker(path, is_delete, is_dir, targets, queue_dir=QUEUE_DIR, log=None,
+                path_maps=None):
     """Calcule le marqueur pour un événement et le dépose dans la file de chaque
-    utilisateur concerné. Retourne la liste des fichiers-marqueurs écrits."""
+    utilisateur concerné. Retourne la liste des fichiers-marqueurs écrits.
+
+    `path` et `targets` sont en référentiel NAS (ce que voit inotify). Le chemin
+    ÉCRIT dans le marqueur est retraduit NAS->local via la table de CHAQUE
+    utilisateur concerné (`path_maps` = {user: [pairs]}), pour que le consommateur
+    de cet utilisateur (côté desktop) le reconnaisse comme la source d'un mapping."""
+    if path_maps is None:
+        path_maps = {}
     target_dir, want_delete = marker_for_event(path, is_delete, is_dir)
     # L'aiguillage se fait sur le chemin de l'ÉVÉNEMENT (pas le target_dir, qui
     # peut être un parent en cas de suppression) — mais comme le parent est dans
@@ -189,13 +273,17 @@ def emit_marker(path, is_delete, is_dir, targets, queue_dir=QUEUE_DIR, log=None)
         users = users_for_path(path, targets)
     written = []
     for user in users:
+        # Chemin à INSCRIRE dans le marqueur : référentiel desktop de CET
+        # utilisateur (retraduction NAS->local avec SA table).
+        marker_path = _translate_path(target_dir, "nas_to_local",
+                                      path_maps.get(user, []))
         qd = queue_for_user(user, queue_dir)
         try:
-            p = write_marker(qd, target_dir, want_delete)
+            p = write_marker(qd, marker_path, want_delete)
             written.append(p)
             if log:
                 tag = "DEL" if want_delete else "ADD"
-                log(f"  {tag} [{user}] {path} -> {target_dir}")
+                log(f"  {tag} [{user}] {path} -> {marker_path}")
         except OSError as e:
             if log:
                 log(_("  ⚠ marker write ({u}) failed: {e}").format(u=user, e=e))
@@ -224,12 +312,20 @@ def startup_catchup(targets, queue_dir=QUEUE_DIR, log=None):
         # (user, target_dir) EFFECTIF, pour ne pas déposer deux marqueurs si deux
         # mappings 'file' partagent le même dossier parent (ex. deux conteneurs
         # VeraCrypt dans /media/nas1/Conteneurs).
-        target_dir = t["mapping_source"] if t["type"] == "folder" else t["watch_dir"]
+        # target_dir = chemin ÉCRIT dans le marqueur (référentiel desktop, celui
+        # des mappings) ; watch_real = chemin RÉEL sur le NAS (pour tester
+        # l'existence). Sans table de correspondance, les deux sont identiques.
+        if t["type"] == "folder":
+            target_dir = t["mapping_source"]   # référentiel desktop
+            watch_real = t["watch_dir"]        # référentiel NAS
+        else:
+            target_dir = t["watch_dir"]
+            watch_real = t["watch_dir"]
         key = (t["user"], target_dir)
         if key in seen:
             continue
         seen.add(key)
-        if not os.path.isdir(target_dir):
+        if not os.path.isdir(watch_real):
             if log:
                 log(_("  ⚠ catch-up: folder missing, skipped: {p}").format(p=target_dir))
             continue
@@ -274,13 +370,21 @@ def _log_orphan_queues(config_dir, queue_dir, log):
 
 
 def load_all_targets(config_dir=CONFIG_DIR, log=None):
-    """Charge les mappings de tous les utilisateurs et construit les cibles."""
+    """Charge les mappings de tous les utilisateurs et construit les cibles.
+    Retourne (targets, path_maps) : les tables de correspondance PAR UTILISATEUR
+    sont chargées ici pour être réutilisées à l'émission des marqueurs sans les
+    relire à chaque événement."""
     users = discover_users(config_dir)
     if not users and log:
         log(_("No mappings copy in {d} "
             "(the GUI must push them there).").format(d=config_dir))
     users_mappings = {u: _load_mappings_file(p) for u, p in users.items()}
-    return build_targets(users_mappings)
+    path_maps = load_path_maps(config_dir)
+    if path_maps and log:
+        total = sum(len(v) for v in path_maps.values())
+        log(_("  Path maps: {n} correspondence(s) across {u} user(s) "
+              "desktop<->NAS.").format(n=total, u=len(path_maps)))
+    return build_targets(users_mappings, path_maps), path_maps
 
 
 def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
@@ -293,7 +397,7 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
             ts = time.strftime("%H:%M:%S")
             print(f"[{ts}] {msg}", flush=True)
 
-    targets = load_all_targets(config_dir, log=log)
+    targets, path_maps = load_all_targets(config_dir, log=log)
     _log_orphan_queues(config_dir, queue_dir, log)
     if not targets:
         log(_("No NAS target to watch. The NAS watcher has nothing to do."))
@@ -323,7 +427,7 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
             is_delete = bool(event.mask & (pyinotify.IN_DELETE | pyinotify.IN_MOVED_FROM))
             is_dir = bool(event.mask & pyinotify.IN_ISDIR)
             emit_marker(event.pathname, is_delete, is_dir, targets,
-                        queue_dir=queue_dir, log=log)
+                        queue_dir=queue_dir, log=log, path_maps=path_maps)
 
         def _emit_create(self, event):
             if event.mask & pyinotify.IN_ISDIR:

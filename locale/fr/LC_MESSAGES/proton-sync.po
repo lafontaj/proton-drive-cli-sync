@@ -3201,6 +3201,46 @@ msgstr ""
 msgid "Real-time — watching {f}"
 msgstr "Temps réel — Surveillance {f}"
 
+msgid "Detailed"
+msgstr "Détaillée"
+
+msgid "NAS data-path correspondence:"
+msgstr "Correspondance des chemins de données NAS :"
+
+msgid "Seen on this machine (desktop)"
+msgstr "Vu sur cette machine (desktop)"
+
+msgid "Seen on the NAS"
+msgstr "Vu sur le NAS"
+
+msgid "Choose a data folder on this machine"
+msgstr "Choisir un dossier de données sur cette machine"
+
+msgid "+ Add a correspondence"
+msgstr "+ Ajouter une correspondance"
+
+msgid ""
+"NAS data-path correspondence\n"
+"\n"
+"Only needed if the NAS sees your DATA folders under different paths than this computer does — typically on a Synology/QNAP, where the NAS uses /volume1/… internally while this machine mounts the same folders under /media/nas1/… (or similar).\n"
+"\n"
+"Your mappings always use THIS computer's paths (left column). The watcher, running on the NAS, uses the right column to find those same folders on the NAS side. Add one row per volume.\n"
+"\n"
+"This is NOT the technical mount point above — it is the correspondence for your actual data folders. Leave the table EMPTY if the NAS and this computer use identical paths (the usual case for a Linux NAS mounted the same way). The table is pushed to the NAS with your configuration."
+msgstr ""
+"Correspondance des chemins de données NAS\n"
+"\n"
+"Nécessaire uniquement si le NAS voit vos dossiers de DONNÉES sous d'autres chemins que cet ordinateur — typiquement sur un Synology/QNAP, où le NAS utilise /volume1/… en interne tandis que cette machine monte les mêmes dossiers sous /media/nas1/… (ou similaire).\n"
+"\n"
+"Vos mappings utilisent toujours les chemins de CET ordinateur (colonne de gauche). Le watcher, sur le NAS, utilise la colonne de droite pour retrouver ces mêmes dossiers côté NAS. Ajoutez une ligne par volume.\n"
+"\n"
+"Ce n'est PAS le point de montage technique ci-dessus — c'est la correspondance de vos vrais dossiers de données. Laissez la table VIDE si le NAS et cet ordinateur utilisent des chemins identiques (le cas habituel pour un NAS Linux monté de la même façon). La table est poussée vers le NAS avec votre configuration."
+
+msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
+msgstr ""
+"  Tables de chemins : {n} correspondance(s) sur {u} utilisateur(s) "
+"desktop<->NAS."
+
 #~ msgid ""
 #~ "NAS identity (account name)\n"
 #~ "\n"

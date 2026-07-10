@@ -84,6 +84,16 @@ msgid ""
 msgstr ""
 
 msgid ""
+"NAS data-path correspondence\n"
+"\n"
+"Only needed if the NAS sees your DATA folders under different paths than this computer does — typically on a Synology/QNAP, where the NAS uses /volume1/… internally while this machine mounts the same folders under /media/nas1/… (or similar).\n"
+"\n"
+"Your mappings always use THIS computer's paths (left column). The watcher, running on the NAS, uses the right column to find those same folders on the NAS side. Add one row per volume.\n"
+"\n"
+"This is NOT the technical mount point above — it is the correspondence for your actual data folders. Leave the table EMPTY if the NAS and this computer use identical paths (the usual case for a Linux NAS mounted the same way). The table is pushed to the NAS with your configuration."
+msgstr ""
+
+msgid ""
 "Fix uppercase extensions\n"
 "\n"
 "Proton Drive can fail to show a thumbnail, preview or correct icon for a file whose extension is written in UPPERCASE (e.g. “PHOTO.JPG” instead of “photo.jpg”) — even though the file itself is perfectly fine.\n"
@@ -816,7 +826,7 @@ msgstr ""
 msgid "❌ proton-drive not found — check its path."
 msgstr ""
 
-msgid "Real-time — {u}"
+msgid "Real-time — watching {f}"
 msgstr ""
 
 msgid "3) Mappings push to the NAS"
@@ -1197,6 +1207,9 @@ msgstr ""
 msgid "Auto-scroll"
 msgstr ""
 
+msgid "Detailed"
+msgstr ""
+
 msgid "🧹 Clear"
 msgstr ""
 
@@ -1295,6 +1308,21 @@ msgid "NAS mount point: "
 msgstr ""
 
 msgid "NAS identity (account name): "
+msgstr ""
+
+msgid "NAS data-path correspondence:"
+msgstr ""
+
+msgid "Seen on this machine (desktop)"
+msgstr ""
+
+msgid "Seen on the NAS"
+msgstr ""
+
+msgid "Choose a data folder on this machine"
+msgstr ""
+
+msgid "+ Add a correspondence"
 msgstr ""
 
 msgid "Fix uppercase extensions"
@@ -2048,6 +2076,9 @@ msgid "  ⊘ no user for {p} (ignored)"
 msgstr ""
 
 msgid "No mappings copy in {d} (the GUI must push them there)."
+msgstr ""
+
+msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
 msgstr ""
 
 msgid "Startup catch-up: {n} marker(s) written."

@@ -57,6 +57,14 @@ DEFAULTS = {
     "rename_ext_collision_suffix": "_ProtonEditExt",
     "tray_enabled": False,            # icône d'état dans la barre des tâches (tray_indicator.py)
     "account_name": None,             # identité NAS stable (None = auto : amorçage intelligent)
+    # Correspondance des chemins de DONNÉES entre cette machine (desktop) et le
+    # NAS, pour le cas où le NAS voit les mêmes dossiers sous d'autres chemins
+    # (ex. Synology : /volume1/... côté NAS vs /media/nas1/... côté desktop).
+    # Liste de paires {"local": "<chemin desktop>", "nas": "<chemin NAS>"}.
+    # VIDE = chemins identiques des deux côtés (cas d'un NAS Linux monté à
+    # l'identique) -> aucune traduction. Utilisée UNIQUEMENT par le watcher NAS
+    # (surveillance + écriture des marqueurs) ; poussée avec la config.
+    "nas_path_map": [],
 }
 
 # Caractères interdits dans le suffixe de collision : casseraient un nom de
@@ -130,6 +138,67 @@ def set_nas_mount_path(path):
     if not path:
         return False
     return _put("nas_mount_path", path)
+
+
+def nas_path_map():
+    """Liste de paires de correspondance de chemins de données desktop<->NAS.
+    Chaque élément : {"local": "<chemin desktop>", "nas": "<chemin NAS>"}. Filtre
+    les entrées mal formées ou vides. Liste vide = aucune traduction."""
+    raw = get("nas_path_map")
+    out = []
+    if isinstance(raw, list):
+        for it in raw:
+            if not isinstance(it, dict):
+                continue
+            loc = (it.get("local") or "").strip()
+            nas = (it.get("nas") or "").strip()
+            if loc and nas:
+                out.append({"local": loc, "nas": nas})
+    return out
+
+
+def set_nas_path_map(pairs):
+    """Persiste la liste de paires (chacune {local, nas}). Ignore les entrées
+    incomplètes. Accepte une liste vide (= pas de traduction)."""
+    clean = []
+    for it in (pairs or []):
+        if not isinstance(it, dict):
+            continue
+        loc = (it.get("local") or "").strip()
+        nas = (it.get("nas") or "").strip()
+        if loc and nas:
+            clean.append({"local": loc, "nas": nas})
+    return _put("nas_path_map", clean)
+
+
+def translate_path(path, direction, pairs=None):
+    """Traduit un chemin d'un référentiel à l'autre par substitution de préfixe.
+
+    direction = "local_to_nas" : desktop -> NAS (ex. /media/nas1/x -> /volume1/x),
+                utilisée par le watcher NAS pour savoir quel dossier RÉEL surveiller.
+    direction = "nas_to_local" : NAS -> desktop (ex. /volume1/x -> /media/nas1/x),
+                utilisée par le watcher NAS pour écrire le marqueur dans le
+                référentiel des mappings (compris par le consommateur).
+
+    Applique la PREMIÈRE paire dont le préfixe source correspond (frontière de
+    segment : /media/nas1 correspond à /media/nas1 et /media/nas1/..., pas à
+    /media/nas10). Si aucune paire ne correspond (ou liste vide), renvoie le
+    chemin inchangé — donc l'installation à chemins identiques n'est pas affectée.
+    """
+    if pairs is None:
+        pairs = nas_path_map()
+    if not pairs:
+        return path
+    norm = os.path.normpath(path)
+    for it in pairs:
+        src = os.path.normpath(it["local"] if direction == "local_to_nas" else it["nas"])
+        dst = os.path.normpath(it["nas"] if direction == "local_to_nas" else it["local"])
+        if norm == src:
+            return dst
+        prefix = src.rstrip("/") + os.sep
+        if norm.startswith(prefix):
+            return os.path.normpath(dst.rstrip("/") + os.sep + norm[len(prefix):])
+    return path
 
 
 def proton_cli_path():

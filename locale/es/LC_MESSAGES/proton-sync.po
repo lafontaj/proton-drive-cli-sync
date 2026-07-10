@@ -2762,3 +2762,43 @@ msgstr ""
 
 msgid "Real-time — watching {f}"
 msgstr "Tiempo real — Vigilancia {f}"
+
+msgid "Detailed"
+msgstr "Detallada"
+
+msgid "NAS data-path correspondence:"
+msgstr "Correspondencia de rutas de datos NAS:"
+
+msgid "Seen on this machine (desktop)"
+msgstr "Visto en esta máquina (escritorio)"
+
+msgid "Seen on the NAS"
+msgstr "Visto en el NAS"
+
+msgid "Choose a data folder on this machine"
+msgstr "Elegir una carpeta de datos en esta máquina"
+
+msgid "+ Add a correspondence"
+msgstr "+ Añadir una correspondencia"
+
+msgid ""
+"NAS data-path correspondence\n"
+"\n"
+"Only needed if the NAS sees your DATA folders under different paths than this computer does — typically on a Synology/QNAP, where the NAS uses /volume1/… internally while this machine mounts the same folders under /media/nas1/… (or similar).\n"
+"\n"
+"Your mappings always use THIS computer's paths (left column). The watcher, running on the NAS, uses the right column to find those same folders on the NAS side. Add one row per volume.\n"
+"\n"
+"This is NOT the technical mount point above — it is the correspondence for your actual data folders. Leave the table EMPTY if the NAS and this computer use identical paths (the usual case for a Linux NAS mounted the same way). The table is pushed to the NAS with your configuration."
+msgstr ""
+"Correspondencia de rutas de datos NAS\n"
+"\n"
+"Solo se necesita si el NAS ve sus carpetas de DATOS con rutas diferentes a las de este equipo — típicamente en un Synology/QNAP, donde el NAS usa /volume1/… internamente mientras esta máquina monta las mismas carpetas en /media/nas1/… (o similar).\n"
+"\n"
+"Sus asignaciones usan siempre las rutas de ESTE equipo (columna izquierda). El watcher, en el NAS, usa la columna derecha para encontrar esas mismas carpetas en el lado del NAS. Añada una fila por volumen.\n"
+"\n"
+"Esto NO es el punto de montaje técnico de arriba — es la correspondencia de sus carpetas de datos reales. Deje la tabla VACÍA si el NAS y este equipo usan rutas idénticas (el caso habitual para un NAS Linux montado de la misma forma). La tabla se envía al NAS con su configuración."
+
+msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
+msgstr ""
+"  Tablas de rutas: {n} correspondencia(s) en {u} usuario(s) "
+"escritorio<->NAS."
