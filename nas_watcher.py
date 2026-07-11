@@ -23,8 +23,11 @@ Différences avec le watcher local (couche 3) :
 La logique pure (sélection des cibles, aiguillage, rattrapage) est testable sans
 pyinotify. Le branchement pyinotify est testé sur le NAS.
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import os
 import sys
+import threading
 
 # i18n (import guardé : sans i18n.py, messages en anglais — langue source).
 try:
@@ -422,14 +425,55 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
 
     wm = pyinotify.WatchManager()
 
+    # Self-test (chantier v1.5.0) : registre passif des événements + thread qui
+    # traite les demandes de test. PUREMENT ADDITIF — n'influence pas l'émission
+    # des marqueurs. Import tolérant : si le module manque, le watcher marche pareil.
+    _st_registry = None
+    _st_stop = None
+    _st_thread = None
+    try:
+        import nas_selftest_watcher as _stw
+        _st_registry = _stw.EventRegistry()
+    except Exception:
+        _stw = None
+
+    def _is_selftest_witness(pathname):
+        """True si le chemin est un fichier lié au self-test (témoin OU fichier de
+        contrôle du canal). Ces fichiers ne doivent jamais générer de marqueur de
+        synchro. Couvre : les témoins `.proton-selftest-*` (dans les dossiers de
+        données testés) et les fichiers de contrôle request-/ready-/reply- (dans
+        le dossier selftest/ du montage partagé, qui peut se retrouver sous un
+        watch temporaire quand on teste le montage partagé lui-même)."""
+        base = os.path.basename(pathname or "")
+        if base.startswith(".proton-selftest-"):
+            return True
+        if "/selftest/" in pathname or pathname.endswith("/selftest"):
+            if (base.startswith("request-") or base.startswith("ready-")
+                    or base.startswith("reply-")):
+                return True
+        return False
+
     class Handler(pyinotify.ProcessEvent):
         def _emit(self, event):
+            # Alimenter le registre self-test (passif), puis, si c'est un témoin
+            # de test, NE PAS émettre de marqueur (isolation : un témoin ne doit
+            # jamais entrer dans le flux de synchro).
+            if _st_registry is not None:
+                _st_registry.note(event.pathname)
+            if _is_selftest_witness(event.pathname):
+                return
             is_delete = bool(event.mask & (pyinotify.IN_DELETE | pyinotify.IN_MOVED_FROM))
             is_dir = bool(event.mask & pyinotify.IN_ISDIR)
             emit_marker(event.pathname, is_delete, is_dir, targets,
                         queue_dir=queue_dir, log=log, path_maps=path_maps)
 
         def _emit_create(self, event):
+            # Un CREATE de témoin self-test doit AUSSI être noté (l'inotify l'a vu)
+            # mais jamais émis. Les dossiers créés continuent d'être émis normalement.
+            if _st_registry is not None:
+                _st_registry.note(event.pathname)
+            if _is_selftest_witness(event.pathname):
+                return
             if event.mask & pyinotify.IN_ISDIR:
                 self._emit(event)
 
@@ -451,7 +495,50 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
         wm.add_watch(wd, mask, rec=True, auto_add=True)
 
     log(_("Watching. (Ctrl+C to stop.)"))
-    notifier.loop()
+
+    # Démarrer le thread self-test (traite les demandes déposées par le desktop
+    # dans NAS_BASE/selftest/). Isolé, tolérant : s'il échoue, le watcher continue.
+    if _stw is not None and _st_registry is not None:
+        try:
+            nas_base = os.path.dirname(os.path.normpath(config_dir))  # .../proton-sync
+            sdir = _stw.selftest_dir(nas_base)
+            os.makedirs(sdir, exist_ok=True)
+
+            # Callbacks pour poser/retirer un watch TEMPORAIRE (test découplé d'un
+            # mapping). add_watch retourne le dict {path: wd} de pyinotify ; on le
+            # passe tel quel à rm_watch pour retirer.
+            def _st_add_watch(path):
+                if not os.path.isdir(path):
+                    return None
+                return wm.add_watch(path, mask, rec=True, auto_add=True)
+
+            def _st_rm_watch(token):
+                if not token:
+                    return
+                for wd in token.values():
+                    if wd and wd > 0:
+                        try:
+                            wm.rm_watch(wd)
+                        except Exception:
+                            pass
+
+            _st_stop = threading.Event()
+            _st_thread = threading.Thread(
+                target=_stw.poll_requests,
+                args=(nas_base, _st_registry),
+                kwargs={"log": log, "stop_event": _st_stop,
+                        "add_watch": _st_add_watch, "rm_watch": _st_rm_watch},
+                daemon=True)
+            _st_thread.start()
+            log(_("  Self-test listener active (correspondence checks)."))
+        except Exception:
+            pass   # jamais bloquer le watcher pour le self-test
+
+    try:
+        notifier.loop()
+    finally:
+        if _st_stop is not None:
+            _st_stop.set()
 
 
 def _check_watch_capacity(targets, log):

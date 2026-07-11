@@ -24,6 +24,8 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import os
 import sys
 
@@ -127,13 +129,20 @@ def load_config():
 # ─────────────────────────────────────────────────────────────────────────
 #  Lecture des files de marqueurs
 # ─────────────────────────────────────────────────────────────────────────
-def read_markers(queue_dirs):
+def read_markers(queue_dirs, selftest_log=None):
     """Lit tous les marqueurs présents dans les dossiers de file donnés.
 
     Un marqueur est un fichier dont le CONTENU est le chemin du dossier touché
-    (une ligne). On retourne une liste de tuples (marker_file_path, target_dir).
-    Les marqueurs illisibles ou vides sont signalés pour suppression (target_dir
-    = None) afin que l'appelant les nettoie.
+    (une ligne). On retourne une liste de tuples (marker_file_path, target_dir,
+    want_delete). Les marqueurs illisibles ou vides sont signalés pour suppression
+    (target_dir = None) afin que l'appelant les nettoie.
+
+    ÉTANCHÉITÉ DU SELF-TEST : un marqueur de test de correspondance NAS
+    ({"selftest": true, ...}) est INTERCEPTÉ ICI, au point d'entrée unique, AVANT
+    toute logique de synchro. Il est traité (réponse écrite dans son canal de
+    retour) puis supprimé, et n'est JAMAIS ajouté à la liste des marqueurs
+    normaux — le moteur ne le voit donc jamais. C'est le garde-fou central : un
+    marqueur de test ne peut pas déclencher de synchro/suppression.
     """
     out = []
     for qdir in queue_dirs:
@@ -151,9 +160,65 @@ def read_markers(queue_dirs):
             except OSError:
                 out.append((mpath, None, False))  # illisible -> à nettoyer
                 continue
+            # ---- Interception self-test AVANT toute interprétation de 'path' ----
+            if _is_selftest_marker(content):
+                _handle_selftest_marker(mpath, content, log=selftest_log)
+                continue   # jamais ajouté à la liste normale (étanche)
             target, want_delete = _parse_marker(content)
             out.append((mpath, target, want_delete))
     return out
+
+
+def _is_selftest_marker(content):
+    """True si le contenu est un marqueur de self-test ({"selftest": true}).
+    Vérifié AVANT toute exploitation d'un éventuel champ 'path' — la détection
+    doit primer pour garantir l'étanchéité vis-à-vis du moteur."""
+    if not content:
+        return False
+    try:
+        data = json.loads(content)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and data.get("selftest") is True
+
+
+def _handle_selftest_marker(marker_path, content, log=None):
+    """Traite un marqueur de self-test SANS jamais toucher au moteur : écrit la
+    confirmation dans le fichier de réponse indiqué (canal de retour desktop<->NAS)
+    puis supprime le marqueur de test.
+
+    Format attendu du marqueur : {"selftest": true, "id": "<uuid>",
+    "reply": "<chemin absolu du fichier de réponse>"}. Le champ 'reply' pointe
+    vers un fichier (sur le montage partagé) que le desktop surveille. On y écrit
+    {"id": "<uuid>", "seen": true, "ts": <epoch>} de façon atomique.
+
+    Ce marqueur NE CONTIENT PAS de champ 'path' exploitable par le moteur ; même
+    s'il en contenait un, il n'est jamais transmis (intercepté en amont).
+    """
+    try:
+        data = json.loads(content)
+    except ValueError:
+        data = {}
+    test_id = data.get("id")
+    reply_path = data.get("reply")
+    # Écrire la réponse (le desktop l'attend pour conclure « inotify a capté »).
+    if isinstance(reply_path, str) and reply_path:
+        try:
+            payload = {"id": test_id, "seen": True, "ts": time.time()}
+            tmp = reply_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+            os.replace(tmp, reply_path)
+            if log:
+                log(_("  🔎 self-test marker acknowledged (id {i}).").format(i=test_id))
+        except OSError as e:
+            if log:
+                log(_("  ⚠ self-test reply write failed: {e}").format(e=e))
+    # Nettoyer le marqueur de test (jamais laissé traîner).
+    try:
+        os.remove(marker_path)
+    except OSError:
+        pass
 
 
 def _parse_marker(content):
@@ -473,7 +538,7 @@ def run_once(state, queue_dirs, mappings, config_path, debounce_seconds, now,
     Dans les deux cas, les marqueurs restent en file et les entrées de debounce
     restent mûres -> tout sera traité tel quel dès que la voie sera libre.
     """
-    markers = read_markers(queue_dirs)
+    markers = read_markers(queue_dirs, selftest_log=log)
     for mpath, target, want_delete in markers:
         if target is None:
             _cleanup([mpath])  # marqueur illisible/vide : on nettoie

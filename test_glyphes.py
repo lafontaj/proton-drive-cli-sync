@@ -19,6 +19,8 @@ Repère ceux qui sont ABSENTS (carré □, croix, « ? ») ou TROMPEURS (méconn
 et note leur code U+XXXX. Renvoie-moi la liste (ou une capture) : on remplacera
 seulement ceux-là.
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import tkinter as tk
 from tkinter import ttk
 import unicodedata
@@ -28,7 +30,7 @@ GROUPES = [
     ("Séparateurs / puces / flèches (attendus fiables)", [
         "─", "•", "→", "←", "↑", "↓",
     ]),
-    ("Emojis confirmés OK par Jean (monochrome)", [
+    ("Emojis confirmés OK (monochrome)", [
         "🗑", "⏳", "✅",
     ]),
     ("Emojis pictogrammes (même famille — à vérifier)", [

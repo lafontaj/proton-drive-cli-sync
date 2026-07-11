@@ -3,6 +3,8 @@
 Réglages validés : corps 13 pt, interligne 1.5, DejaVu Sans ; emoji remplacés
 par des équivalents imprimables (pastilles colorées, glyphes couverts).
 Usage : python3 build_pdf.py SOURCE.md SORTIE.pdf [TITRE]"""
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import sys, subprocess, markdown
 
 src, out = sys.argv[1], sys.argv[2]

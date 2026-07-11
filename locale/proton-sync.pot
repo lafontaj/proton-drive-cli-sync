@@ -716,6 +716,9 @@ msgstr ""
 msgid "NAS"
 msgstr ""
 
+msgid "Not tested yet."
+msgstr ""
+
 msgid "File extensions"
 msgstr ""
 
@@ -1322,7 +1325,21 @@ msgstr ""
 msgid "Choose a data folder on this machine"
 msgstr ""
 
+msgid "Correspondence test"
+msgstr ""
+
+msgid "Fill both the desktop path and the NAS path before testing."
+msgstr ""
+
 msgid "+ Add a correspondence"
+msgstr ""
+
+msgid "Test all"
+msgstr ""
+
+msgid ""
+"Test: ● green = works · ● yellow = issue · ● red = paths don't match · click"
+" a dot for details"
 msgstr ""
 
 msgid "Fix uppercase extensions"
@@ -1399,6 +1416,9 @@ msgstr ""
 msgid "🔑 Session expired or locked"
 msgstr ""
 
+msgid "Test"
+msgstr ""
+
 msgid ""
 "The identity “{a}” exists on the NAS (marker queue and/or mappings copy).\n"
 "\n"
@@ -1471,6 +1491,9 @@ msgid "Priming error: {e}"
 msgstr ""
 
 msgid "🔑 Connected — {u}"
+msgstr ""
+
+msgid "Test error: {e}"
 msgstr ""
 
 msgid "permanently deleted"
@@ -1822,6 +1845,9 @@ msgstr ""
 msgid "🔓 Session opened — resuming processing."
 msgstr ""
 
+msgid "  🔎 self-test marker acknowledged (id {i})."
+msgstr ""
+
 msgid "    ✗ failure (code {c}) — markers kept for retry"
 msgstr ""
 
@@ -1837,6 +1863,9 @@ msgid ""
 msgstr ""
 
 msgid "🔓 Lock released — resuming processing."
+msgstr ""
+
+msgid "  ⚠ self-test reply write failed: {e}"
 msgstr ""
 
 msgid "🔓 Account matter resolved — resuming processing."
@@ -1912,6 +1941,9 @@ msgid ""
 msgstr ""
 
 msgid "Signed out of Proton."
+msgstr ""
+
+msgid "Self-test module unavailable."
 msgstr ""
 
 msgid ""
@@ -2072,6 +2104,9 @@ msgstr ""
 msgid "NAS watcher started — {n} target(s):"
 msgstr ""
 
+msgid "  Self-test listener active (correspondence checks)."
+msgstr ""
+
 msgid "  ⊘ no user for {p} (ignored)"
 msgstr ""
 
@@ -2147,4 +2182,45 @@ msgstr ""
 msgid ""
 "Tray indicator unavailable: {e}\n"
 "Install the packages: python3-gi gir1.2-xapp-1.0"
+msgstr ""
+
+msgid ""
+"Not tested: no response from the NAS watcher — is the service running and "
+"the NAS reachable?"
+msgstr ""
+
+msgid "OK: {l} ↔ {n} match and the real-time chain works end to end."
+msgstr ""
+
+msgid ""
+"The NAS path {n} does not exist — check the correspondence or the mount."
+msgstr ""
+
+msgid ""
+"The NAS watcher cannot write into {n} — check permissions on the NAS side."
+msgstr ""
+
+msgid ""
+"inotify does not report changes in {n} even for local writes — this "
+"filesystem may not support it; real-time cannot work here."
+msgstr ""
+
+msgid ""
+"Could not write the test file on this machine — check permissions on {l}."
+msgstr ""
+
+msgid ""
+"Mismatch: what this machine sees as {l} is not the same folder the NAS sees "
+"as {n} — the correspondence is wrong."
+msgstr ""
+
+msgid ""
+"Paths match ({l} ↔ {n}), and inotify works locally, but changes written from"
+" this machine are not detected — the NAS may not deliver inotify events for "
+"remote (SMB/NFS) writes."
+msgstr ""
+
+msgid ""
+"Paths match ({l} ↔ {n}), but the marker could not be written — check "
+"permissions on the marker queue."
 msgstr ""

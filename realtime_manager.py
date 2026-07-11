@@ -24,6 +24,8 @@ Tout est centré sur l'utilisateur courant et son fichier de mappings actif.
 Conçu pour tourner SANS privilèges (session utilisateur). Le linger (sudo) est
 seulement LU et rappelé, jamais modifié ici.
 """
+__version__ = "1.1.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import os
 import re
 import json
@@ -352,8 +354,9 @@ def push_scripts_to_nas():
     if not nas_reachable():
         return False, _("scripts not pushed (NAS unreachable)")
     files = ["nas_watcher.py", "local_watcher.py", "config.py", "i18n.py",
-             "mount_check.py"]
+             "mount_check.py", "nas_selftest.py", "nas_selftest_watcher.py"]
     pushed = 0
+    pushed_names = []                         # noms réellement copiés (pour le message)
     try:
         os.makedirs(NAS_BASE, exist_ok=True)
         for name in files:
@@ -368,7 +371,9 @@ def push_scripts_to_nas():
                 shutil.copyfile(src, tmp)
                 os.replace(tmp, dst)
                 pushed += 1
+                pushed_names.append(name)
         # locale/ (catalogues .mo/.po) : miroir léger.
+        locale_pushed = 0
         src_locale = os.path.join(APP_DIR, "locale")
         if os.path.isdir(src_locale):
             for root, _dirs, fnames in os.walk(src_locale):
@@ -379,7 +384,9 @@ def push_scripts_to_nas():
                     s = os.path.join(root, fn); d = os.path.join(dst_dir, fn)
                     if _sha256_of_file(s) != _sha256_of_file(d):
                         shutil.copyfile(s, d)
-                        pushed += 1
+                        locale_pushed += 1
+        if locale_pushed:
+            pushed_names.append(_("translation catalogues"))
         # .service : déposé à côté (jamais activé à distance).
         svc_src = os.path.join(APP_DIR, "nas_watcher.service")
         svc_changed = False
@@ -391,13 +398,21 @@ def push_scripts_to_nas():
     except OSError as e:
         return False, _("scripts partly pushed ({e})").format(e=e)
     if svc_changed:
-        return True, _("NAS scripts updated ({n} file(s)). The service file "
+        return True, _("NAS scripts updated: {files}. The service file also "
                        "changed: on the NAS, review proton-sync/"
                        "nas_watcher.service.new, then run "
                        "“sudo systemctl daemon-reload && sudo systemctl restart "
-                       "proton-nas-watch.service”.").format(n=pushed)
-    if pushed:
-        return True, _("NAS scripts updated ({n} file(s)).").format(n=pushed)
+                       "proton-nas-watch.service”.").format(
+                           files=", ".join(pushed_names))
+    if pushed_names:
+        # Lister les fichiers poussés + rappeler le redémarrage du watcher : un
+        # script mis à jour n'est actif qu'après relance du service NAS (l'ancien
+        # code reste en mémoire sinon). Transparence : l'utilisateur voit
+        # EXACTEMENT ce qui a été copié.
+        return True, _("NAS scripts updated: {files}.\nTo apply, restart the NAS "
+                       "watcher: “sudo systemctl restart "
+                       "proton-nas-watch.service”.").format(
+                           files=", ".join(pushed_names))
     return True, None                        # déjà à jour : rien à signaler
 
 
@@ -959,3 +974,138 @@ def status(mappings_path):
         "queues": queues,
         "active_mappings_path": mappings_path,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+#  Self-test des correspondances de chemins NAS (chantier v1.5.0) — PILOTE
+#  DESKTOP (Protocole 1). Voir nas_selftest.py (verdict) et
+#  nas_selftest_watcher.py (côté watcher).
+# ─────────────────────────────────────────────────────────────────────────
+def run_selftest(local_prefix, nas_prefix, timeout=20.0, poll=0.4):
+    """Teste UNE correspondance de chemin (local_prefix <-> nas_prefix) de bout
+    en bout, sans jamais toucher au moteur de synchro. Retourne (couleur, message)
+    via nas_selftest.verdict().
+
+    Protocole 1 (desktop pilote) :
+      1. dépose une demande dans NAS_BASE/selftest/request-<id>.json ;
+      2. écrit un témoin DISTANT dans son propre montage (local_prefix/…) — c'est
+         la phase A vue du desktop ;
+      3. attend la réponse reply-<id>.json (le watcher a fait B puis observé A) ;
+      4. complète les observations (remote_witness_written) et appelle verdict().
+
+    Invariant : purement additif, aucune écriture dans les files de marqueurs,
+    aucun appel moteur. En cas d'absence de réponse -> timed_out (jaune).
+    """
+    import uuid
+    try:
+        import nas_selftest
+    except Exception:
+        return ("yellow", _("Self-test module unavailable."))
+
+    test_id = uuid.uuid4().hex[:12]
+    sdir = os.path.join(NAS_BASE, "selftest")
+    req_path = os.path.join(sdir, f"request-{test_id}.json")
+    reply_path = os.path.join(sdir, f"reply-{test_id}.json")
+    ready_path = os.path.join(sdir, f"ready-{test_id}")
+    remote_name = f".proton-selftest-A-{test_id}"
+
+    # Le dossier de test, côté DESKTOP, est le préfixe local lui-même ; côté NAS,
+    # c'est le préfixe NAS (le watcher y posera un watch temporaire). Le témoin
+    # distant est écrit à la racine du montage local.
+    local_witness_path = os.path.join(local_prefix, remote_name)
+
+    obs = nas_selftest.SelfTestObservation(
+        local_prefix=local_prefix, nas_prefix=nas_prefix)
+
+    # 1) Déposer la demande.
+    try:
+        os.makedirs(sdir, exist_ok=True)
+        req = {
+            "id": test_id,
+            "local_prefix": local_prefix,
+            "nas_prefix": nas_prefix,
+            "nas_test_dir": nas_prefix,          # le watcher teste ce dossier NAS
+            "remote_witness": remote_name,
+            # Les fichiers de contrôle (ready/reply) vivent dans le dossier
+            # selftest/ du montage PARTAGÉ, vu à des chemins différents des deux
+            # côtés (/media/home_nas côté desktop, /home/nas côté NAS). On envoie
+            # donc les NOMS SEULS ; le watcher les résout avec SON propre chemin
+            # de base (son selftest/), et le desktop lit au sien. Même fichier
+            # physique, chemins d'accès différents.
+            "reply_name": f"reply-{test_id}.json",
+            "ready_name": f"ready-{test_id}",
+        }
+        tmp = req_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(req, f)
+        os.replace(tmp, req_path)
+    except OSError:
+        # Impossible d'écrire la demande sur le montage partagé : NAS injoignable.
+        obs.timed_out = True
+        return nas_selftest.verdict(obs, _)
+
+    # 2) Attendre le signal READY (watch temporaire posé + phase B faite), PUIS
+    #    écrire le témoin distant — sinon l'écriture arriverait avant le watch et
+    #    l'inotify ne la capterait pas (faux jaune). Si pas de ready dans le
+    #    délai, le watcher est probablement absent -> on écrit quand même (la
+    #    présence physique restera testable) et le timeout tranchera.
+    ready_deadline = time.time() + timeout
+    ready_name = f"ready-{test_id}"
+    while time.time() < ready_deadline:
+        try:
+            if ready_name in os.listdir(sdir):
+                break
+        except OSError:
+            if os.path.exists(ready_path):
+                break
+        time.sleep(poll)
+    try:
+        with open(local_witness_path, "w", encoding="utf-8") as f:
+            f.write("selftest-A")
+        obs.remote_witness_written = True
+    except OSError:
+        obs.remote_witness_written = False
+
+    # 3) Attendre la réponse (le watcher fait B puis observe A). Comme pour le
+    #    témoin côté NAS, os.path.exists peut renvoyer un résultat CACHÉ sur NFS
+    #    et rater le reply-* fraîchement créé par le NAS. On reliste le dossier
+    #    (invalide le cache d'attributs) et on teste par le nom.
+    reply = None
+    reply_name = f"reply-{test_id}.json"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            present = reply_name in os.listdir(sdir)
+        except OSError:
+            present = os.path.exists(reply_path)
+        if present:
+            try:
+                with open(reply_path, "r", encoding="utf-8") as f:
+                    reply = json.load(f)
+                break
+            except (OSError, ValueError):
+                pass
+        time.sleep(poll)
+
+    # 4) Nettoyer le témoin distant et les fichiers de test.
+    for p in (local_witness_path, reply_path, req_path, ready_path):
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+    if reply is None:
+        obs.timed_out = True
+        return nas_selftest.verdict(obs, _)
+
+    # Fusionner les observations du watcher avec ce que le desktop sait.
+    obs.nas_dir_exists = bool(reply.get("nas_dir_exists"))
+    obs.local_witness_written = bool(reply.get("local_witness_written"))
+    obs.local_inotify_caught = bool(reply.get("local_inotify_caught"))
+    obs.remote_witness_seen_on_nas = bool(reply.get("remote_witness_seen_on_nas"))
+    obs.remote_inotify_caught = bool(reply.get("remote_inotify_caught"))
+    # marker_written : non testé dans ce circuit (le témoin est isolé du moteur) ;
+    # on considère la chaîne « watcher » validée si l'inotify distant a capté.
+    obs.marker_written = obs.remote_inotify_caught
+
+    return nas_selftest.verdict(obs, _)

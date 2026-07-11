@@ -26,6 +26,8 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import argparse
 import atexit
 import datetime
@@ -87,10 +89,10 @@ else:
     )
     # Verrou pour empêcher deux exécutions simultanées sous le même compte
     # Linux. Placé sous le home plutôt que /tmp/ pour que chaque utilisateur
-    # (Jean, Maryse) ait son propre verrou.
+    # (un par utilisateur) ait son propre verrou.
     LOCK_FILE = os.path.expanduser("~/.proton_sync.lock")
     # Répertoire des fichiers de cache. Un cache par fichier de mappings,
-    # indexé par le nom du JSON (Jean et Maryse ont chacun le leur).
+    # indexé par le nom du JSON (chaque utilisateur a le sien).
     CACHE_DIR = os.path.expanduser("~/.proton_sync_cache")
     # Journal DÉDIÉ des échecs d'upload (option #2) : chaque fichier qui
     # refuse de monter (même après ré-essai individuel) y est consigné, une
@@ -895,7 +897,7 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
             if ok2:
                 no_thumb += 1
                 print(_("      ✓ uploaded WITHOUT thumbnail (no Proton preview): {p}").format(p=p))
-                # Trace persistante de la raison (Jean : le journal doit la garder).
+                # Trace persistante de la raison (le journal doit la garder).
                 log_failure(p, remote_parent, why, kind="NO-THUMB")
                 continue
             why = why2   # échec réel même sans vignette -> on tombe dans le cas échec

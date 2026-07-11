@@ -9,9 +9,11 @@ claires. Conçu pour tourner SANS privilèges (session utilisateur courante).
 Limite connue : `loginctl enable-linger` exige sudo et N'est PAS gérée ici. On se
 contente de LIRE l'état du linger et de rappeler la commande à l'utilisateur.
 
-Tout est centré sur l'utilisateur courant : le GUI de Jean gère la planification
-de Jean, celui de Maryse celle de Maryse (sessions et homes séparés).
+Tout est centré sur l'utilisateur courant : chaque GUI gère la planification
+de son propre utilisateur (sessions et homes séparés).
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import os
 import re
 import json

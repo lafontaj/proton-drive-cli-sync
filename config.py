@@ -30,6 +30,8 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import json
 import os
 
@@ -169,6 +171,56 @@ def set_nas_path_map(pairs):
         if loc and nas:
             clean.append({"local": loc, "nas": nas})
     return _put("nas_path_map", clean)
+
+
+def _pair_key(local, nas):
+    """Clé stable identifiant une paire de correspondance EXACTE. Le verdict n'est
+    valable que pour cette clé : dès que local ou nas change, la clé change et le
+    verdict mémorisé ne correspond plus (il faut re-tester)."""
+    return f"{(local or '').strip()}|{(nas or '').strip()}"
+
+
+def selftest_verdict(local, nas):
+    """Retourne la couleur mémorisée pour cette paire EXACTE ('green'/'yellow'/
+    'red') ou None si jamais testée / invalidée. Le stockage est un dict
+    {clé: couleur} sous 'nas_path_selftest'."""
+    store = get("nas_path_selftest")
+    if not isinstance(store, dict):
+        return None
+    v = store.get(_pair_key(local, nas))
+    return v if v in ("green", "yellow", "red") else None
+
+
+def set_selftest_verdict(local, nas, color):
+    """Mémorise la couleur du dernier test pour cette paire EXACTE. color=None
+    efface l'entrée (ex. la paire a été éditée -> verdict caduc)."""
+    store = get("nas_path_selftest")
+    if not isinstance(store, dict):
+        store = {}
+    else:
+        store = dict(store)
+    key = _pair_key(local, nas)
+    if color in ("green", "yellow", "red"):
+        store[key] = color
+    else:
+        store.pop(key, None)
+    return _put("nas_path_selftest", store)
+
+
+def pair_covering(path, pairs=None):
+    """Retourne la paire {local, nas} dont le préfixe 'local' couvre `path`
+    (frontière de segment), ou None. Sert à savoir si un mapping dépend d'une
+    correspondance déclarée (et donc s'il faut vérifier son verdict de test)."""
+    if pairs is None:
+        pairs = nas_path_map()
+    if not pairs:
+        return None
+    norm = os.path.normpath(path)
+    for it in pairs:
+        src = os.path.normpath(it["local"])
+        if norm == src or norm.startswith(src.rstrip("/") + os.sep):
+            return it
+    return None
 
 
 def translate_path(path, direction, pairs=None):

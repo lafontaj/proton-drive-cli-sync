@@ -26,6 +26,8 @@ La PARTIE LOGIQUE (marker_for_event, classify, ...) est pure et testable sans
 pyinotify. La PARTIE BRANCHEMENT (WatchManager, boucle d'événements) nécessite
 pyinotify et de vrais dossiers — testée sur la machine locale.
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import os
 import sys
 

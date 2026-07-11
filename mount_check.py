@@ -19,6 +19,8 @@ Si le NAS tombe, ces montages disparaissent et le chemin retombe sur du local
 (ext4) — ce qu'on détecte et qui doit bloquer les suppressions pour une source
 déclarée « nfs ».
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import os
 
 

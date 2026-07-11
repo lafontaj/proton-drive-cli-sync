@@ -2802,3 +2802,147 @@ msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
 msgstr ""
 "  Tablas de rutas: {n} correspondencia(s) en {u} usuario(s) "
 "escritorio<->NAS."
+
+msgid "Not tested yet."
+msgstr "Aún no probado."
+
+msgid "Correspondence test"
+msgstr "Prueba de correspondencia"
+
+msgid "Fill both the desktop path and the NAS path before testing."
+msgstr "Complete la ruta de escritorio Y la ruta NAS antes de probar."
+
+msgid "Test all"
+msgstr "Probar todo"
+
+msgid ""
+"Test: ● green = works · ● yellow = issue · ● red = paths don't match · click"
+" a dot for details"
+msgstr ""
+"Prueba: ● verde = funciona · ● amarillo = problema · ● rojo = rutas no "
+"coinciden · clic en un punto para detalles"
+
+msgid "Test error: {e}"
+msgstr "Error de prueba: {e}"
+
+msgid "Self-test module unavailable."
+msgstr "Módulo de autoprueba no disponible."
+
+msgid "  Self-test listener active (correspondence checks)."
+msgstr "  Escucha de autoprueba activa (pruebas de correspondencia)."
+
+msgid ""
+"Not tested: no response from the NAS watcher — is the service running and "
+"the NAS reachable?"
+msgstr ""
+"No probado: sin respuesta del watcher NAS — ¿el servicio está en marcha y el"
+" NAS es accesible?"
+
+msgid "OK: {l} ↔ {n} match and the real-time chain works end to end."
+msgstr ""
+"OK: {l} ↔ {n} coinciden y la cadena en tiempo real funciona de extremo a "
+"extremo."
+
+msgid ""
+"The NAS path {n} does not exist — check the correspondence or the mount."
+msgstr ""
+"La ruta NAS {n} no existe — verifique la correspondencia o el montaje."
+
+msgid ""
+"The NAS watcher cannot write into {n} — check permissions on the NAS side."
+msgstr ""
+"El watcher NAS no puede escribir en {n} — verifique los permisos del lado "
+"NAS."
+
+msgid ""
+"inotify does not report changes in {n} even for local writes — this "
+"filesystem may not support it; real-time cannot work here."
+msgstr ""
+"inotify no reporta cambios en {n} ni siquiera para escrituras locales — este"
+" sistema de archivos puede no soportarlo; el tiempo real no puede funcionar "
+"aquí."
+
+msgid ""
+"Could not write the test file on this machine — check permissions on {l}."
+msgstr ""
+"No se pudo escribir el archivo de prueba en esta máquina — verifique los "
+"permisos en {l}."
+
+msgid ""
+"Mismatch: what this machine sees as {l} is not the same folder the NAS sees "
+"as {n} — the correspondence is wrong."
+msgstr ""
+"Discordancia: lo que esta máquina ve como {l} no es la misma carpeta que el "
+"NAS ve como {n} — la correspondencia es incorrecta."
+
+msgid ""
+"Paths match ({l} ↔ {n}), and inotify works locally, but changes written from"
+" this machine are not detected — the NAS may not deliver inotify events for "
+"remote (SMB/NFS) writes."
+msgstr ""
+"Las rutas coinciden ({l} ↔ {n}), e inotify funciona localmente, pero los "
+"cambios escritos desde esta máquina no se detectan — el NAS puede no "
+"entregar eventos inotify para escrituras remotas (SMB/NFS)."
+
+msgid ""
+"Paths match ({l} ↔ {n}), but the marker could not be written — check "
+"permissions on the marker queue."
+msgstr ""
+"Las rutas coinciden ({l} ↔ {n}), pero no se pudo escribir el marcador — "
+"verifique los permisos de la cola de marcadores."
+
+msgid "  🔎 self-test marker acknowledged (id {i})."
+msgstr "  🔎 marcador de autoprueba confirmado (id {i})."
+
+msgid "  ⚠ self-test reply write failed: {e}"
+msgstr "  ⚠ fallo al escribir la respuesta de autoprueba: {e}"
+
+msgid "Test"
+msgstr "Test"
+
+msgid "its last test FAILED (paths do not match)"
+msgstr "su última prueba FALLÓ (las rutas no coinciden)"
+
+msgid "its last test reported a problem"
+msgstr "su última prueba reportó un problema"
+
+msgid "it has not been tested yet"
+msgstr "aún no ha sido probada"
+
+msgid "Correspondence not validated"
+msgstr "Correspondencia no validada"
+
+msgid "Add anyway"
+msgstr "Añadir de todos modos"
+
+msgid ""
+"This folder is on the NAS and depends on the path correspondence {l} ↔ {n}, but {d}.\n"
+"\n"
+"If the correspondence is wrong, real-time sync may not work for this folder. You can check it in Configuration (coloured dots next to each correspondence).\n"
+"\n"
+"Add this mapping anyway?"
+msgstr ""
+"Esta carpeta está en el NAS y depende de la correspondencia de rutas {l} ↔ {n}, pero {d}.\n"
+"\n"
+"Si la correspondencia es incorrecta, la sincronización en tiempo real puede no funcionar para esta carpeta. Puede verificarla en Configuración (puntos de color junto a cada correspondencia).\n"
+"\n"
+"¿Añadir esta asignación de todos modos?"
+
+msgid ""
+"NAS scripts updated: {files}. The service file also changed: on the NAS, "
+"review proton-sync/nas_watcher.service.new, then run “sudo systemctl daemon-"
+"reload && sudo systemctl restart proton-nas-watch.service”."
+msgstr ""
+"Scripts NAS actualizados: {files}. El archivo de servicio también cambió: en"
+" el NAS, revise proton-sync/nas_watcher.service.new, luego ejecute «sudo "
+"systemctl daemon-reload && sudo systemctl restart proton-nas-watch.service»."
+
+msgid ""
+"NAS scripts updated: {files}.\n"
+"To apply, restart the NAS watcher: “sudo systemctl restart proton-nas-watch.service”."
+msgstr ""
+"Scripts NAS actualizados: {files}.\n"
+"Para aplicar, reinicie el watcher NAS: «sudo systemctl restart proton-nas-watch.service»."
+
+msgid "translation catalogues"
+msgstr "catálogos de traducción"

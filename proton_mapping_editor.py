@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Éditeur de mappings + lanceur de synchro pour Proton Drive (Jean / Maryse).
+Éditeur de mappings + lanceur de synchro pour Proton Drive (multi-comptes).
 
 Deux rôles :
   1. Éditer la liste des paires source (local) / destination (Proton Drive)
@@ -12,6 +12,8 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import json
 import os
 import queue
@@ -267,7 +269,7 @@ def dlg_confirm_checkbox(parent, message, checkbox_text, title=None,
 
 # Icône de la fenêtre (barre des tâches, Alt+Tab).
 # Doit être un PNG nommé « icone.png », placé dans le MÊME dossier que ce script
-# (c.-à-d. ~/Logiciels/Proton-drive/icone.png). Chaque utilisateur (Jean, Maryse)
+# (c.-à-d. ~/Logiciels/Proton-drive/icone.png). Chaque utilisateur
 # y dépose l'image de son choix sous ce nom — aucune modification du code requise.
 # Si le fichier est absent, l'application démarre quand même, sans icône perso.
 WINDOW_ICON_PATH = os.path.join(
@@ -627,7 +629,7 @@ class RemoteFolderPicker(tk.Toplevel):
         # Enfant factice -> le nœud est dépliable ; remplacé au premier dépliage.
         self.tree.insert(iid, "end", iid=iid + self._DUMMY, text=_("Loading…"))
 
-    # Racines PROPOSÉES comme destination (liste blanche, décision Jean) :
+    # Racines PROPOSÉES comme destination (liste blanche, décision de conception) :
     # /my-files (l'espace du compte) et /shared-with-me (dossiers partagés en
     # écriture — l'intérêt même du sélecteur). Les autres contextes sont
     # écartés : /trash et /photos-trash (aucun sens comme destination),
@@ -1604,6 +1606,43 @@ class MappingEditor(tk.Tk):
                 new_m["allow_delete"] = True
                 new_m["delete_mode"] = mode_var.get()
                 new_m["source_kind"] = chosen_kind
+
+            # AVERTISSEMENT FORT (chantier v1.5.0) : si ce mapping est NFS et que
+            # sa source dépend d'une correspondance de chemin déclarée, vérifier le
+            # verdict du dernier self-test de CETTE paire. Rouge / jamais testée /
+            # invalidée -> on avertit et on demande confirmation. Vert -> on laisse
+            # passer sans bruit. On NE bloque PAS en dur (pas d'impasse) ; on
+            # renvoie l'utilisateur vers Configuration où les points colorés vivent.
+            if _HAS_CONFIG and new_m.get("source_kind") == "nfs":
+                try:
+                    pair = appconfig.pair_covering(new_m["source"])
+                except Exception:
+                    pair = None
+                if pair:
+                    try:
+                        verdict = appconfig.selftest_verdict(pair["local"], pair["nas"])
+                    except Exception:
+                        verdict = None
+                    if verdict != "green":
+                        if verdict == "red":
+                            detail = _("its last test FAILED (paths do not match)")
+                        elif verdict == "yellow":
+                            detail = _("its last test reported a problem")
+                        else:
+                            detail = _("it has not been tested yet")
+                        if not dlg_confirm(
+                            dlg,
+                            _("This folder is on the NAS and depends on the path "
+                              "correspondence {l} ↔ {n}, but {d}.\n\n"
+                              "If the correspondence is wrong, real-time sync may not "
+                              "work for this folder. You can check it in "
+                              "Configuration (coloured dots next to each "
+                              "correspondence).\n\nAdd this mapping anyway?").format(
+                                  l=pair["local"], n=pair["nas"], d=detail),
+                            title=_("Correspondence not validated"), kind="warning",
+                            ok_text=_("Add anyway"), cancel_text=_("Cancel")):
+                            return
+
             result["value"] = new_m
             dlg.destroy()
 
@@ -2570,22 +2609,128 @@ class MappingEditor(tk.Tk):
                 ttk.Button(rf, text="📁", width=3, command=browse_local).grid(row=0, column=1, padx=(0, 6))
                 ne = ttk.Entry(rf, textvariable=nv, width=24)
                 ne.grid(row=0, column=2, padx=(0, 4))
-                entry = {"frame": rf, "local_var": lv, "nas_var": nv}
+
+                # Point de statut coloré (gris = non testé, puis vert/jaune/rouge).
+                # Pastille de statut dessinée (Canvas) : indépendante de la
+                # police, la couleur est garantie (le glyphe ● n'était pas fiable
+                # dans tous les environnements Tk). Gris = non testé.
+                status = tk.Canvas(rf, width=16, height=16, highlightthickness=0, bd=0)
+                _dot_id = status.create_oval(3, 3, 13, 13, fill="#999999", outline="")
+                status.grid(row=0, column=3, padx=(4, 2))
+                status._dot_id = _dot_id
+
+                def set_dot(color, _c=status):
+                    """Peindre la pastille de statut (color = code hex)."""
+                    try:
+                        _c.itemconfigure(_c._dot_id, fill=color)
+                    except Exception:
+                        pass
+                status._set_dot = set_dot
+
+                last_msg = {"text": _("Not tested yet.")}
+
+                # Infobulle : afficher le message du dernier test au survol/clic.
+                def show_status_msg(_e=None):
+                    dlg_info(dlg, last_msg["text"], title=_("Correspondence test"))
+                status.bind("<Button-1>", show_status_msg)
+
+                entry = {"frame": rf, "local_var": lv, "nas_var": nv,
+                         "status": status, "last_msg": last_msg, "color": None}
+
+                def run_test(_e=entry):
+                    loc = _e["local_var"].get().strip()
+                    na = _e["nas_var"].get().strip()
+                    if not loc or not na:
+                        dlg_info(dlg, _("Fill both the desktop path and the NAS path "
+                                        "before testing."), title=_("Correspondence test"))
+                        return
+                    _e["status"]._set_dot("#3b82f6")  # bleu = en cours
+
+                    def worker():
+                        try:
+                            color, msg = realtime_manager.run_selftest(loc, na)
+                        except Exception as ex:
+                            color, msg = "yellow", _("Test error: {e}").format(e=ex)
+                        def apply():
+                            palette = {"green": "#22c55e", "yellow": "#eab308",
+                                       "red": "#ef4444"}
+                            _e["status"]._set_dot(palette.get(color, "#999999"))
+                            _e["last_msg"]["text"] = msg
+                            _e["color"] = color
+                            # Mémoriser le verdict pour la paire EXACTE testée
+                            # (consulté à l'ajout d'un mapping).
+                            if _HAS_CONFIG:
+                                try:
+                                    appconfig.set_selftest_verdict(loc, na, color)
+                                except Exception:
+                                    pass
+                        try:
+                            dlg.after(0, apply)
+                        except Exception:
+                            pass
+                    import threading as _th
+                    _th.Thread(target=worker, daemon=True).start()
+
+                # Éditer un champ INVALIDE le verdict : point -> gris, verdict
+                # mémorisé effacé (il ne correspondrait plus à la paire affichée).
+                # On ne relance PAS le test (évite les tests en rafale à la frappe).
+                def invalidate(*_a, _e=entry):
+                    if _e["color"] is not None:
+                        # Effacer l'ancien verdict (ancienne paire) si connu.
+                        pass
+                    _e["status"]._set_dot("#999999")
+                    _e["last_msg"]["text"] = _("Not tested yet.")
+                    _e["color"] = None
+                lv.trace_add("write", invalidate)
+                nv.trace_add("write", invalidate)
+
+                ttk.Button(rf, text=_("Test"), width=6,
+                           command=run_test).grid(row=0, column=4, padx=(2, 4))
 
                 def remove_this(_e=entry):
                     _e["frame"].destroy()
                     pm_rows.remove(_e)
-                ttk.Button(rf, text="−", width=3, command=remove_this).grid(row=0, column=3)
+                ttk.Button(rf, text="−", width=3, command=remove_this).grid(row=0, column=5)
                 pm_rows.append(entry)
                 return entry
 
             # Pré-remplir avec la table existante.
             for pair in appconfig.nas_path_map():
-                pm_add_row(pair.get("local", ""), pair.get("nas", ""))
+                e = pm_add_row(pair.get("local", ""), pair.get("nas", ""))
+                # Restaurer le point coloré du dernier test mémorisé pour cette
+                # paire EXACTE (le trace_add l'a mis au gris pendant le remplissage).
+                if _HAS_CONFIG:
+                    try:
+                        c = appconfig.selftest_verdict(pair.get("local", ""),
+                                                       pair.get("nas", ""))
+                    except Exception:
+                        c = None
+                    if c:
+                        palette = {"green": "#22c55e", "yellow": "#eab308",
+                                   "red": "#ef4444"}
+                        e["status"]._set_dot(palette.get(c, "#999999"))
+                        e["color"] = c
 
             pm_btns = ttk.Frame(nas_frame); pm_btns.pack(anchor="w", fill="x", pady=(2, 0))
             ttk.Button(pm_btns, text=_("+ Add a correspondence"),
                        command=lambda: pm_add_row()).pack(side="left")
+
+            def test_all():
+                for e in pm_rows:
+                    # Déclenche le test de chaque ligne remplie (chacun dans son thread).
+                    if e["local_var"].get().strip() and e["nas_var"].get().strip():
+                        for w in e["frame"].winfo_children():
+                            if isinstance(w, ttk.Button) and w.cget("text") == _("Test"):
+                                w.invoke()
+                                break
+            ttk.Button(pm_btns, text=_("Test all"),
+                       command=test_all).pack(side="left", padx=(6, 0))
+
+            # Légende des couleurs (cliquer un point donne le détail).
+            ttk.Label(nas_frame, font=("", 8), foreground="#666666",
+                      text=_("Test: ● green = works · ● yellow = issue · "
+                             "● red = paths don't match · click a dot for details")
+                      ).pack(anchor="w", pady=(2, 0))
 
             def sync_mount_state(*_a):
                 state = "normal" if nas_var.get() else "disabled"
@@ -4075,8 +4220,8 @@ class RealtimeDialog(tk.Toplevel):
         watched = realtime_manager.read_units_mappings_path() or mappings_path
         self.title(_("Real-time — watching {f}").format(
             f=os.path.basename(watched)))
-        # Taille relative à l'écran, centrée — s'adapte aux deux postes (Jean en
-        # pleine résolution, Maryse en résolution réduite / texte agrandi) sans
+        # Taille relative à l'écran, centrée — s'adapte aux deux postes (l'un en
+        # pleine résolution, l'autre en résolution réduite / texte agrandi) sans
         # qu'une taille fixe convienne mal à l'un ou à l'autre. Plafonnée pour ne
         # pas devenir démesurée sur un très grand moniteur.
         sw = self.winfo_screenwidth()
@@ -4315,7 +4460,7 @@ class RealtimeDialog(tk.Toplevel):
     def _init_sash(self):
         """Cale la position initiale du séparateur : formulaire à ~520 px (assez
         pour les boutons), le reste au journal, en garantissant au journal au
-        moins 360 px. Sur un petit écran (Maryse) la fenêtre est plus étroite,
+        moins 360 px. Sur un petit écran la fenêtre est plus étroite,
         donc le formulaire se réduit un peu mais le journal reste utilisable. On
         réessaie tant que le PanedWindow n'a pas encore sa taille réelle."""
         try:

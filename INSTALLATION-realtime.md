@@ -68,7 +68,11 @@ On the NAS:
 ```bash
 # Required files in /home/nasuser/proton-sync/ (copy them together):
 #   nas_watcher.py, local_watcher.py (shared helpers), mount_check.py,
-#   i18n.py + the locale/ folder (translations; without them, logs in English).
+#   config.py, i18n.py, nas_selftest.py, nas_selftest_watcher.py (correspondence
+#   self-test) + the locale/ folder (translations; without them, logs in English).
+#   NB: after the first install, the GUI pushes and updates all these files
+#   automatically (see "Updating" below) — no need to copy them by hand,
+#   including locale/.
 # pyinotify installed (python3-pyinotify or pip).
 # Log language: follows the NAS's LANG; to force it:
 #   echo '{"language": "fr"}' > /home/nasuser/proton-sync/settings.json
@@ -83,6 +87,57 @@ The watcher reads the mapping copies in `/home/nasuser/proton-sync/config/`
 (`mappings-user1.json`, `mappings-user2.json`…) — that's what **the GUI pushes**
 via *Real-time → ⬆ Push mappings to the NAS*. It hot-reloads these copies, so a
 new push is picked up without restarting the service.
+
+---
+
+## 2 bis. Updating (new version of the scripts)
+
+When you install a new version of the application, the NAS-side scripts (watcher,
+helpers, translation catalogues) must be updated **and** the NAS service
+restarted. The GUI does the copying for you; two manual steps remain: restart the
+GUI, and restart the NAS watcher.
+
+**Procedure, in this order:**
+
+1. **Replace the `.py` files in the application folder** (`APP_DIR`, e.g.
+   `~/Logiciels/Proton-drive/`) with the new version.
+
+2. **⚠ Fully close the GUI, then reopen it.** *This is mandatory:* while the GUI
+   is running it executes the **old** code loaded in memory — including the old
+   update logic. Skipping this is the #1 cause of updates that "don't push". The
+   GUI must be relaunched to load the new code before pushing anything.
+
+3. In the GUI: **Real-time → 🔧 Install / Update** (the daemons button — **not**
+   "⬆ Push mappings", which only pushes mappings). This copies every changed
+   script **and** the `locale/` catalogues to the NAS. The confirmation message
+   **lists exactly what was pushed** (e.g. `nas_watcher.py, config.py,
+   translation catalogues`). If an expected file is missing though it changed,
+   step 2 (restarting the GUI) was skipped.
+
+4. **Restart the NAS watcher** (over SSH, on the NAS) — a copied script only
+   becomes active after the service is restarted:
+
+   ```bash
+   sudo systemctl restart proton-nas-watch.service
+   ```
+
+   (If the GUI message also reported a change to the `.service` file, follow the
+   full command it shows instead, with `daemon-reload`.)
+
+5. **Check the NAS has the new version** (numbers must match the workstation):
+
+   ```bash
+   grep -h "__version__" /home/nasuser/proton-sync/*.py
+   ```
+
+> **Two accounts (separate sessions):** repeat the procedure from **each** user
+> session. Each GUI pushes using its own user's NAS identity and mount; the NAS
+> watcher is shared and only needs restarting once (step 4), after the last push.
+
+> **Tip — check a propagation:** each `.py` file carries its own
+> `__version__ = "MAJOR.MINOR.PATCH"` tracking that file's own history
+> (independent of published releases). Compare `grep __version__ <file>` on the
+> workstation and on the NAS to confirm a specific file was pushed.
 
 ---
 

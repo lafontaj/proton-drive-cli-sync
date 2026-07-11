@@ -20,6 +20,8 @@ L'applet se termine de lui-même si le réglage « tray_enabled » passe à Fals
 
 Clic gauche : ouvre l'éditeur de mappings. Clic droit : menu (Ouvrir / Quitter).
 """
+__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+
 import json
 import os
 import subprocess

@@ -1,7 +1,7 @@
 #!/bin/bash
 # build_locales.sh — Development tool: (re)compile the translation catalogs.
 #
-# NEVER required in production (neither on the local machine nor on the NAS):
+# NEVER required in production (neither on the desktop nor on the NAS):
 # the compiled .mo files are shipped alongside the .po sources. Run this only
 # after editing a .po file (requires the 'gettext' package: sudo apt install gettext).
 #
