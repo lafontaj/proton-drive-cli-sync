@@ -1,4 +1,4 @@
-🇬🇧 English | 🇫🇷 [Français](README.fr.md)
+🇬🇧 English | 🇫🇷 [Français](README_fr.md)
 
 # Proton Drive sync via the official CLI (Linux)
 
