@@ -3387,6 +3387,114 @@ msgstr ""
 msgid "translation catalogues"
 msgstr "catalogues de traduction"
 
+msgid ""
+"Last test: OK (paths match and the real-time chain works). Re-test for a "
+"fresh check."
+msgstr ""
+"Dernier test : OK (les chemins correspondent et la chaîne temps réel "
+"fonctionne). Re-testez pour une vérification fraîche."
+
+msgid "Last test: a problem was reported. Re-test for details."
+msgstr "Dernier test : un problème a été signalé. Re-testez pour le détail."
+
+msgid "Last test: paths did not match. Re-test for details."
+msgstr ""
+"Dernier test : les chemins ne correspondaient pas. Re-testez pour le détail."
+
+msgid "Copy"
+msgstr "Copier"
+
+msgid "Copied ✓"
+msgstr "Copié ✓"
+
+msgid ""
+"NAS scripts updated: {files}. The service file also changed — on the NAS, "
+"review proton-sync/nas_watcher.service.new, then run the command below."
+msgstr ""
+"Scripts NAS mis à jour : {files}. Le fichier de service a aussi changé — sur"
+" le NAS, vérifiez proton-sync/nas_watcher.service.new, puis lancez la "
+"commande ci-dessous."
+
+msgid ""
+"NAS scripts updated: {files}.\n"
+"To apply, restart the NAS watcher with the command below."
+msgstr ""
+"Scripts NAS mis à jour : {files}.\n"
+"Pour appliquer, redémarrez le watcher NAS avec la commande ci-dessous."
+
+msgid "< 0.01 GB"
+msgstr "< 0,01 Go"
+
+msgid "{gb:.2f} GB"
+msgstr "{gb:.2f} Go"
+
+msgid "Uploading — {n} file(s), {size}"
+msgstr "Envoi — {n} fichier(s), {size}"
+
+msgid "⬆ {name} — {pct:.0f}%"
+msgstr "⬆ {name} — {pct:.0f} %"
+
+msgid "🔓 Session opened — starting the pass."
+msgstr "🔓 Session ouverte — lancement du passage."
+
+msgid "🔓 Lock released — starting the pass."
+msgstr "🔓 Verrou libéré — lancement du passage."
+
+msgid "✓ Pass finished."
+msgstr "✓ Passage terminé."
+
+msgid "🔓 Account matter resolved — starting the pass."
+msgstr "🔓 Problème de compte résolu — lancement du passage."
+
+msgid "🔴 NAS unreachable — please check."
+msgstr "🔴 NAS injoignable — veuillez vérifier."
+
+msgid "⚪ Local mode — no NAS configured."
+msgstr "⚪ Mode local — aucun NAS configuré."
+
+msgid "🔴 NAS configured but unreachable — please check."
+msgstr "🔴 NAS configuré mais injoignable — veuillez vérifier."
+
+msgid "▶ NAS back online — resuming NAS mappings."
+msgstr "▶ NAS de retour — reprise des mappings NAS."
+
+msgid ""
+"⏸ NAS unreachable — NAS mappings suspended, local mode active. Local "
+"mappings keep syncing."
+msgstr ""
+"⏸ NAS injoignable — mappings NAS suspendus, mode local actif. Les mappings "
+"locaux continuent de se synchroniser."
+
+msgid "NAS disabled — local mode only."
+msgstr "NAS désactivé — mode local uniquement."
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"The background daemons were restarted to apply the new NAS identity."
+msgstr ""
+"Configuration enregistrée.\n"
+"\n"
+"Les démons d'arrière-plan ont été redémarrés pour appliquer la nouvelle identité NAS."
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"Changes apply automatically (the window uses them at its next launch)."
+msgstr ""
+"Configuration enregistrée.\n"
+"\n"
+"Les changements s'appliquent automatiquement (la fenêtre les utilise à son prochain lancement)."
+
+msgid ""
+"The identity “{a}” exists on the NAS (marker queue and/or mappings copy).\n"
+"\n"
+"Migrate it to “{b}”? Everything is simply renamed — pending markers and continuity are preserved."
+msgstr ""
+"L'identité « {a} » existe sur le NAS (file de marqueurs et/ou copie des mappings).\n"
+"\n"
+"La migrer vers « {b} » ? Tout est simplement renommé — les marqueurs en attente et la continuité sont préservés."
+
 #~ msgid ""
 #~ "NAS identity (account name)\n"
 #~ "\n"
@@ -3537,3 +3645,9 @@ msgstr "catalogues de traduction"
 
 #~ msgid "Empty cache"
 #~ msgstr "Cache vide"
+
+msgid "Proton Drive sync — NAS scripts out of date: open the editor and run Install / Update"
+msgstr "Synchro Proton Drive — scripts NAS obsolètes : ouvrez l'éditeur et lancez Installer / Mettre à jour"
+
+msgid "⚠ NAS scripts out of date — run Install / Update to push them, then restart the NAS watcher."
+msgstr "⚠ Scripts NAS obsolètes — lancez Installer / Mettre à jour pour les pousser, puis redémarrez le watcher NAS."

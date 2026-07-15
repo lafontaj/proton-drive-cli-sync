@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -596,6 +596,8 @@ def run_cli(args, json_output=False):
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+
+
 def check_auth():
     """Vérifie que le CLI peut s'authentifier (trousseau déverrouillé, session
     ouverte). Retourne (True, None) si OK, (False, message) sinon.
@@ -826,6 +828,36 @@ def _upload_one(local_path, remote_parent, skip_thumbnails=False):
     return res.returncode == 0, " | ".join(parts)
 
 
+def _emit_progress(**fields):
+    """Émet une ligne de progression machine-lisible sur stdout, préfixée
+    @@PROGRESS, que le GUI intercepte pour alimenter sa barre de progression
+    (et retire du journal). Non traduite (protocole interne, pas destiné à
+    l'utilisateur directement). Robuste : n'échoue jamais.
+
+    Champs utilisés au Temps 1 :
+      state=start|done   — début / fin d'un envoi de lot
+      files=<n>          — nombre de fichiers du lot (si state=start)
+      bytes=<n>          — taille totale du lot en octets (si state=start)
+    """
+    try:
+        parts = " ".join(f"{k}={v}" for k, v in fields.items())
+        print("@@PROGRESS " + parts, flush=True)
+    except Exception:
+        pass
+
+
+def _sum_sizes(paths):
+    """Somme des tailles (octets) des chemins existants. Ignore les erreurs
+    (fichier disparu entre-temps) — la somme reste indicative."""
+    total = 0
+    for p in paths:
+        try:
+            total += os.path.getsize(p)
+        except OSError:
+            pass
+    return total
+
+
 def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
     """Retourne True si tout s'est bien passé (y compris si la liste est vide ou en
     dry-run), False en cas d'échec d'upload.
@@ -847,7 +879,21 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
     # crochets, etc. échouent avec « No paths matched »).
     cli_paths = [_glob_escape_local_path(p) for p in local_paths]
     cmd = ["filesystem", "upload", "-f", "replace", "-d", "merge"] + cli_paths + [remote_parent]
-    res = run_cli(cmd)
+    # Progression (Temps 1) : signaler le lot en cours (nb de fichiers + taille
+    # totale) AVANT l'envoi groupé, puis la fin APRÈS. Le GUI affiche un indicateur
+    # discret « Envoi en cours — N fichiers, X Go » pendant ce temps.
+    #
+    # NOTE : le suivi PAR FICHIER (pourcentage intra-fichier) a été évalué puis
+    # écarté. Le CLI n'émet son pourcentage que vers un vrai terminal (TTY) ; dès
+    # que sa sortie est lue via un pipe (ce que fait forcément le moteur), il
+    # supprime la progression. La capter exigerait un pseudo-terminal (pty) au
+    # parsing fragile — disproportionné tant que le CLI n'offre pas d'option de
+    # progression machine-lisible. Voir CONTEXTE.md.
+    _emit_progress(state="start", files=len(local_paths), bytes=_sum_sizes(local_paths))
+    try:
+        res = run_cli(cmd)
+    finally:
+        _emit_progress(state="done")
     if res.returncode == 0:
         print(_("    ✅ {n} file(s) sent to {p}").format(n=len(local_paths), p=remote_parent))
         if verbose and res.stdout.strip():

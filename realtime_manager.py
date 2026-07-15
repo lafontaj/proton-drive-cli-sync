@@ -24,13 +24,14 @@ Tout est centré sur l'utilisateur courant et son fichier de mappings actif.
 Conçu pour tourner SANS privilèges (session utilisateur). Le linger (sudo) est
 seulement LU et rappelé, jamais modifié ici.
 """
-__version__ = "1.1.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.4.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import re
 import json
 import glob
 import time
+import socket
 import shutil
 import hashlib
 import getpass
@@ -54,6 +55,15 @@ try:
     _HAS_CONFIG = True
 except ImportError:
     _HAS_CONFIG = False
+
+# mount_check : sert à lire /proc/mounts (source des montages) SANS toucher au
+# montage lui-même — indispensable pour sonder le NAS sans bloquer sur un
+# montage NFS mort. Import tolérant.
+try:
+    import mount_check
+    _HAS_MOUNT_CHECK = True
+except ImportError:
+    _HAS_MOUNT_CHECK = False
 
 # ─────────────────────────────────────────────────────────────────────────
 #  Emplacements (alignés sur les démons des couches 1–4)
@@ -94,6 +104,13 @@ NAS_MOUNT = appconfig.nas_mount_path() if _HAS_CONFIG else "/media/home_nas"
 NAS_BASE = os.path.join(NAS_MOUNT, "proton-sync")
 NAS_CONFIG_DIR = os.path.join(NAS_BASE, "config")   # mappings-<user>.json poussés
 NAS_QUEUE_DIR = os.path.join(NAS_BASE, "queue")     # queue/<user>/
+
+# Scripts dont le WATCHER NAS a besoin — SEULE source de vérité, partagée par
+# push_scripts_to_nas() (qui les copie) et nas_scripts_stale() (qui détecte
+# l'écart sans copier). Les deux fonctions doivent rester alignées : ne jamais
+# dupliquer cette liste ailleurs.
+_NAS_SCRIPT_FILES = ["nas_watcher.py", "local_watcher.py", "config.py", "i18n.py",
+                     "mount_check.py", "nas_selftest.py", "nas_selftest_watcher.py"]
 
 # systemd --user (mêmes conventions que schedule_manager).
 SYSTEMD_USER_DIR = os.path.expanduser("~/.config/systemd/user")
@@ -201,14 +218,73 @@ def _sha256_of_file(path):
         return None
 
 
+def _nas_server_ip():
+    """Retourne l'IP (ou l'hôte) du serveur NFS portant NAS_MOUNT, ou None.
+
+    Lit /proc/mounts (via mount_check) — un fichier texte du noyau qui NE BLOQUE
+    JAMAIS, même si le serveur NFS est mort. On n'appelle SURTOUT PAS
+    detect_source_kind ici : elle fait os.path.exists() qui, lui, bloque sur un
+    montage NFS effondré. Le mount_src d'un NFS a la forme « IP:/export » (ex.
+    192.168.1.10:/home/nas) → on extrait la partie avant le « : »."""
+    if not _HAS_MOUNT_CHECK:
+        return None
+    try:
+        mounts = mount_check._read_mounts()          # [(src, point, fstype), …]
+    except Exception:
+        return None
+    # Chercher le montage dont le point porte NAS_MOUNT (le plus long préfixe).
+    best = None
+    best_len = -1
+    for src, point, fstype in mounts:
+        if fstype in ("nfs", "nfs4") and (
+                NAS_MOUNT == point or NAS_MOUNT.startswith(point.rstrip("/") + "/")):
+            if len(point) > best_len:
+                best, best_len = src, len(point)
+    if not best:
+        return None
+    # best = « IP:/export » → IP avant le « : » (gère aussi IPv6 entre crochets).
+    if best.startswith("["):                          # [IPv6]:/export
+        end = best.find("]")
+        return best[1:end] if end != -1 else None
+    host = best.split(":", 1)[0]
+    return host or None
+
+
+def _nas_port_open(host, port=2049, timeout=1.0):
+    """Sonde TCP courte : True si une connexion s'ouvre vers host:port dans le
+    délai imparti. Non bloquant au-delà de `timeout`. Sert à savoir si le serveur
+    NFS répond AVANT de tenter un stat sur le montage (qui, lui, bloquerait sur
+    un montage mort)."""
+    if not host:
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (OSError, socket.timeout):
+        return False
+
+
 def nas_reachable():
     """True si le NAS est monté et son dossier proton-sync accessible.
 
     Coupe NET si le mode local seul est actif (nas_enabled=False) : aucune
-    tentative d'E/S sur NAS_MOUNT — pas de « tentative puis échec » répété à
-    chaque rafraîchissement, juste une réponse immédiate et honnête."""
+    tentative d'E/S sur NAS_MOUNT — réponse immédiate et honnête.
+
+    NON BLOQUANT même si le serveur NFS est mort : on sonde d'abord le port NFS
+    (2049) du serveur via une connexion TCP courte (timeout 1 s). Si le serveur
+    ne répond pas, on retourne False SANS jamais toucher au montage (os.path.*
+    sur un montage NFS `hard` effondré BLOQUE indéfiniment). Le serveur répond →
+    le stat qui suit ne bloquera pas."""
     if _HAS_CONFIG and not appconfig.nas_enabled():
         return False
+    # Sonde TCP préalable : ne toucher au montage que si le serveur NFS répond.
+    host = _nas_server_ip()
+    if host is not None:
+        if not _nas_port_open(host, 2049, timeout=1.0):
+            return False                              # serveur muet → injoignable
+        # Serveur vivant : le stat ci-dessous ne bloquera pas.
+    # (host None = pas de montage NFS trouvé : on tente quand même le stat, qui
+    #  répondra vite s'il n'y a pas de montage réseau — cas local/absent.)
     try:
         if os.path.ismount(NAS_MOUNT):
             return os.path.isdir(NAS_BASE)
@@ -350,11 +426,10 @@ def push_scripts_to_nas():
     doit jamais empêcher l'installation locale. Retourne (ok, détail) — ok=False
     seulement si le NAS est censé être là mais inaccessible."""
     if _HAS_CONFIG and not appconfig.nas_enabled():
-        return True, None                    # mode local seul : rien à pousser
+        return True, None, None              # mode local seul : rien à pousser
     if not nas_reachable():
-        return False, _("scripts not pushed (NAS unreachable)")
-    files = ["nas_watcher.py", "local_watcher.py", "config.py", "i18n.py",
-             "mount_check.py", "nas_selftest.py", "nas_selftest_watcher.py"]
+        return False, _("scripts not pushed (NAS unreachable)"), None
+    files = _NAS_SCRIPT_FILES
     pushed = 0
     pushed_names = []                         # noms réellement copiés (pour le message)
     try:
@@ -396,24 +471,80 @@ def push_scripts_to_nas():
                 shutil.copyfile(svc_src, svc_dst)
                 svc_changed = True
     except OSError as e:
-        return False, _("scripts partly pushed ({e})").format(e=e)
+        return False, _("scripts partly pushed ({e})").format(e=e), None
     if svc_changed:
+        # Le fichier .service a changé : commande complète (daemon-reload + restart).
+        cmd = ("sudo systemctl daemon-reload && "
+               "sudo systemctl restart proton-nas-watch.service")
         return True, _("NAS scripts updated: {files}. The service file also "
-                       "changed: on the NAS, review proton-sync/"
-                       "nas_watcher.service.new, then run "
-                       "“sudo systemctl daemon-reload && sudo systemctl restart "
-                       "proton-nas-watch.service”.").format(
-                           files=", ".join(pushed_names))
+                       "changed — on the NAS, review proton-sync/"
+                       "nas_watcher.service.new, then run the command below.").format(
+                           files=", ".join(pushed_names)), cmd
     if pushed_names:
         # Lister les fichiers poussés + rappeler le redémarrage du watcher : un
         # script mis à jour n'est actif qu'après relance du service NAS (l'ancien
         # code reste en mémoire sinon). Transparence : l'utilisateur voit
-        # EXACTEMENT ce qui a été copié.
+        # EXACTEMENT ce qui a été copié. La commande exacte est fournie à part
+        # (champ copiable dans le dialogue).
+        cmd = "sudo systemctl restart proton-nas-watch.service"
         return True, _("NAS scripts updated: {files}.\nTo apply, restart the NAS "
-                       "watcher: “sudo systemctl restart "
-                       "proton-nas-watch.service”.").format(
-                           files=", ".join(pushed_names))
-    return True, None                        # déjà à jour : rien à signaler
+                       "watcher with the command below.").format(
+                           files=", ".join(pushed_names)), cmd
+    return True, None, None                   # déjà à jour : rien à signaler
+
+
+def nas_scripts_stale():
+    """True si un déploiement de scripts vers le NAS est EN ATTENTE — c.-à-d. si
+    push_scripts_to_nas() copierait au moins un fichier (script, catalogue locale
+    ou .service). LECTURE SEULE : ne copie rien, ne prend aucun verrou. Jumelle
+    de push_scripts_to_nas ; même liste (_NAS_SCRIPT_FILES) et mêmes critères de
+    comparaison (sha256), pour ne jamais diverger de ce qui serait réellement
+    poussé.
+
+    Renvoie False (rien à signaler) dans les cas où l'alerte n'a pas de sens :
+      - mode local seul (nas_enabled=False) : pas de NAS voulu, donc pas d'écart.
+      - NAS injoignable : on ne peut pas comparer ; l'état « NAS absent » est déjà
+        géré ailleurs (C-bis), on n'alarme pas ici. Réutilise la sonde TCP NON
+        bloquante nas_reachable().
+      - incident d'accès NAS pendant la comparaison : on ne crée pas de faux
+        positif.
+
+    NE détecte PAS « le watcher NAS n'a pas encore rechargé les scripts poussés »
+    (ça, c'est le redémarrage sudo sur le NAS) — seulement l'écart de CONTENU
+    poste↔disque NAS. Le flux de push affiche, lui, le rappel de redémarrage.
+    """
+    if _HAS_CONFIG and not appconfig.nas_enabled():
+        return False
+    if not nas_reachable():
+        return False
+    try:
+        for name in _NAS_SCRIPT_FILES:
+            src = os.path.join(APP_DIR, name)
+            if not os.path.exists(src):
+                continue                       # script absent localement : ignoré
+            dst = os.path.join(NAS_BASE, name)
+            if _sha256_of_file(src) != _sha256_of_file(dst):
+                return True
+        # locale/ (catalogues .mo/.po) : même critère que le push.
+        src_locale = os.path.join(APP_DIR, "locale")
+        if os.path.isdir(src_locale):
+            for root, _dirs, fnames in os.walk(src_locale):
+                rel = os.path.relpath(root, APP_DIR)
+                dst_dir = os.path.join(NAS_BASE, rel)
+                for fn in fnames:
+                    s = os.path.join(root, fn)
+                    d = os.path.join(dst_dir, fn)
+                    if _sha256_of_file(s) != _sha256_of_file(d):
+                        return True
+        # .service déposé à côté (nas_watcher.service.new).
+        svc_src = os.path.join(APP_DIR, "nas_watcher.service")
+        if os.path.exists(svc_src):
+            svc_dst = os.path.join(NAS_BASE, "nas_watcher.service.new")
+            if _sha256_of_file(svc_src) != _sha256_of_file(svc_dst):
+                return True
+    except OSError:
+        return False                           # incident NAS : pas de faux positif
+    return False
 
 
 def push_mappings_to_nas(mappings_path):
@@ -661,30 +792,47 @@ def install_or_update_units(mappings_path, enable=True):
     session. Retourne (ok, message)."""
     ensure_nas_identity(mappings_path)
     if not mappings_path:
-        return False, _("No active mappings file.")
+        return False, _("No active mappings file."), None
     try:
         _write(WATCH_PATH, build_watch_service_text(mappings_path))
         _write(CONSUME_PATH, build_consume_service_text(mappings_path))
     except OSError as e:
-        return False, _("Failed to write the systemd files: {e}").format(e=e)
+        return False, _("Failed to write the systemd files: {e}").format(e=e), None
     rc, out, err = daemon_reload()
     if rc != 0:
-        return False, _("daemon-reload failed: {e}").format(e=err or out)
+        return False, _("daemon-reload failed: {e}").format(e=err or out), None
     if enable:
         for unit in (WATCH_NAME, CONSUME_NAME):
             rc, out, err = _run(["systemctl", "--user", "enable", "--now", unit])
             if rc != 0:
-                return False, _("Enabling {u} failed: {e}").format(u=unit, e=err or out)
+                return False, _("Enabling {u} failed: {e}").format(u=unit, e=err or out), None
+    # Pousser les scripts vers le NAS AVANT tout redémarrage. Raison : le consumer,
+    # à son (re)démarrage, exécute son contrôle d'écart de scripts NAS « au
+    # démarrage ». Si le push n'a pas encore eu lieu, il lit l'ANCIEN état du NAS,
+    # conclut à un écart et rallume l'alerte pour rien — il faudrait alors un 2e
+    # clic (2e restart) pour que le contrôle voie enfin l'état poussé. En poussant
+    # D'ABORD, le contrôle au démarrage voit le NAS à jour → l'alerte s'éteint dès
+    # le 1er clic. (Confort : le push n'échoue jamais l'installation locale ; on
+    # ajoute juste une note + commande si utile.)
+    _ok, note, cmd = push_scripts_to_nas()
+    if enable:
+        # RESTART explicite après enable --now : « enable --now » DÉMARRE un
+        # service arrêté mais ne REDÉMARRE PAS un service DÉJÀ EN COURS. Or après
+        # une mise à jour du code (.py remplacés sur disque), le processus en
+        # cours garde l'ANCIEN code en mémoire (règle d'or). Sans ce restart,
+        # « Installer / Mettre à jour » laisserait tourner l'ancien watcher/
+        # consumer — l'utilisateur croirait le nouveau code actif alors qu'il ne
+        # l'est pas. Le restart force le rechargement du code fraîchement déployé.
+        for unit in (WATCH_NAME, CONSUME_NAME):
+            rc, out, err = _run(["systemctl", "--user", "restart", unit])
+            if rc != 0:
+                return False, _("Restarting {u} failed: {e}").format(u=unit, e=err or out), None
         base = _("Daemons installed and started (auto-restart at session login).")
     else:
         base = _("Daemons installed (not started).")
-    # Pousser les scripts vers le NAS pour le garder synchronisé (évite un
-    # service NAS en échec après un déploiement partiel). Confort : n'échoue
-    # jamais l'installation locale ; on ajoute juste une note si utile.
-    _ok, note = push_scripts_to_nas()
     if note:
         base = base + "\n" + note
-    return True, base
+    return True, base, cmd
 
 
 def start_daemons():
@@ -947,6 +1095,23 @@ def clean_queues(mappings_path, include_local=True, include_nas=True):
 # ─────────────────────────────────────────────────────────────────────────
 #  Vue d'ensemble pour le GUI
 # ─────────────────────────────────────────────────────────────────────────
+def _consumer_scripts_stale():
+    """Lit le champ nas_scripts_stale du battement status.json écrit par le
+    consumer — SOURCE UNIQUE partagée avec le systray. Ainsi la fenêtre Temps réel
+    et l'icône affichent le MÊME verdict (celui calculé par le consumer, throttlé),
+    plutôt que de recalculer un sha256 NFS à chaque rafraîchissement (~3 s).
+    Lecture seule et tolérante : False si le fichier manque/illisible ou si la clé
+    est absente (rétrocompatible avec un ancien consumer)."""
+    try:
+        path = (appconfig.STATUS_FILE if _HAS_CONFIG
+                else os.path.join(os.path.expanduser("~/.proton-drive-sync"),
+                                  "status.json"))
+        with open(path, "r", encoding="utf-8") as f:
+            return bool(json.load(f).get("nas_scripts_stale", False))
+    except (OSError, ValueError):
+        return False
+
+
 def status(mappings_path):
     """Agrège tout l'état nécessaire à la fenêtre temps réel."""
     cfg = read_config()
@@ -973,6 +1138,7 @@ def status(mappings_path):
         "nas": nas_observe(),
         "queues": queues,
         "active_mappings_path": mappings_path,
+        "nas_scripts_stale": _consumer_scripts_stale(),
     }
 
 

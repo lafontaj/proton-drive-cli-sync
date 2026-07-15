@@ -2954,3 +2954,117 @@ msgstr ""
 
 msgid "translation catalogues"
 msgstr "Übersetzungskataloge"
+
+msgid ""
+"Last test: OK (paths match and the real-time chain works). Re-test for a "
+"fresh check."
+msgstr ""
+"Letzter Test: OK (Pfade stimmen überein und die Echtzeitkette funktioniert)."
+" Für eine frische Prüfung erneut testen."
+
+msgid "Last test: a problem was reported. Re-test for details."
+msgstr "Letzter Test: ein Problem wurde gemeldet. Für Details erneut testen."
+
+msgid "Last test: paths did not match. Re-test for details."
+msgstr ""
+"Letzter Test: Pfade stimmten nicht überein. Für Details erneut testen."
+
+msgid "Copy"
+msgstr "Kopieren"
+
+msgid "Copied ✓"
+msgstr "Kopiert ✓"
+
+msgid ""
+"NAS scripts updated: {files}. The service file also changed — on the NAS, "
+"review proton-sync/nas_watcher.service.new, then run the command below."
+msgstr ""
+"NAS-Skripte aktualisiert: {files}. Die Service-Datei hat sich ebenfalls "
+"geändert — prüfen Sie auf dem NAS proton-sync/nas_watcher.service.new und "
+"führen Sie dann den Befehl unten aus."
+
+msgid ""
+"NAS scripts updated: {files}.\n"
+"To apply, restart the NAS watcher with the command below."
+msgstr ""
+"NAS-Skripte aktualisiert: {files}.\n"
+"Zum Anwenden den NAS-Watcher mit dem Befehl unten neu starten."
+
+msgid "< 0.01 GB"
+msgstr "< 0,01 GB"
+
+msgid "{gb:.2f} GB"
+msgstr "{gb:.2f} GB"
+
+msgid "Uploading — {n} file(s), {size}"
+msgstr "Hochladen — {n} Datei(en), {size}"
+
+msgid "⬆ {name} — {pct:.0f}%"
+msgstr "⬆ {name} — {pct:.0f} %"
+
+msgid "🔓 Session opened — starting the pass."
+msgstr "🔓 Sitzung geöffnet — Durchlauf wird gestartet."
+
+msgid "🔓 Lock released — starting the pass."
+msgstr "🔓 Sperre freigegeben — Durchlauf wird gestartet."
+
+msgid "✓ Pass finished."
+msgstr "✓ Durchlauf beendet."
+
+msgid "🔓 Account matter resolved — starting the pass."
+msgstr "🔓 Kontoproblem behoben — Durchlauf wird gestartet."
+
+msgid "🔴 NAS unreachable — please check."
+msgstr "🔴 NAS nicht erreichbar — bitte prüfen."
+
+msgid "⚪ Local mode — no NAS configured."
+msgstr "⚪ Lokaler Modus — kein NAS konfiguriert."
+
+msgid "🔴 NAS configured but unreachable — please check."
+msgstr "🔴 NAS konfiguriert, aber nicht erreichbar — bitte prüfen."
+
+msgid "▶ NAS back online — resuming NAS mappings."
+msgstr "▶ NAS wieder online — NAS-Mappings werden fortgesetzt."
+
+msgid ""
+"⏸ NAS unreachable — NAS mappings suspended, local mode active. Local "
+"mappings keep syncing."
+msgstr ""
+"⏸ NAS nicht erreichbar — NAS-Mappings ausgesetzt, lokaler Modus aktiv. "
+"Lokale Mappings werden weiter synchronisiert."
+
+msgid "NAS disabled — local mode only."
+msgstr "NAS deaktiviert — nur lokaler Modus."
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"The background daemons were restarted to apply the new NAS identity."
+msgstr ""
+"Konfiguration gespeichert.\n"
+"\n"
+"Die Hintergrunddienste wurden neu gestartet, um die neue NAS-Identität anzuwenden."
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"Changes apply automatically (the window uses them at its next launch)."
+msgstr ""
+"Konfiguration gespeichert.\n"
+"\n"
+"Änderungen werden automatisch übernommen (das Fenster verwendet sie beim nächsten Start)."
+
+msgid ""
+"The identity “{a}” exists on the NAS (marker queue and/or mappings copy).\n"
+"\n"
+"Migrate it to “{b}”? Everything is simply renamed — pending markers and continuity are preserved."
+msgstr ""
+"Die Identität „{a}“ existiert auf dem NAS (Marker-Warteschlange und/oder Mappings-Kopie).\n"
+"\n"
+"Zu „{b}“ migrieren? Alles wird einfach umbenannt — ausstehende Marker und Kontinuität bleiben erhalten."
+
+msgid "Proton Drive sync — NAS scripts out of date: open the editor and run Install / Update"
+msgstr "Proton Drive Synchronisierung — NAS-Skripte veraltet: Editor öffnen und Installieren / Aktualisieren ausführen"
+
+msgid "⚠ NAS scripts out of date — run Install / Update to push them, then restart the NAS watcher."
+msgstr "⚠ NAS-Skripte veraltet — Installieren / Aktualisieren ausführen, um sie zu übertragen, dann den NAS-Watcher neu starten."

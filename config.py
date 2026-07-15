@@ -30,7 +30,7 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.1.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -52,7 +52,12 @@ _SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
 # ─────────────────────────────────────────────────────────────────────────
 
 DEFAULTS = {
-    "nas_enabled": True,
+    # Défaut False : un nouvel utilisateur démarre en mode LOCAL SEUL (pas de NAS),
+    # sans messages « NAS injoignable » parasites. Activer un NAS est un choix
+    # explicite (case « Use a NAS » + point de montage + identité + chemins). Ne
+    # touche PAS les installs existantes : leur settings.json contient déjà la clé
+    # nas_enabled, donc get() lit leur valeur, pas ce défaut.
+    "nas_enabled": False,
     "nas_mount_path": "/media/home_nas",
     "proton_cli_path": None,          # None = résolution intégrée (voir resolve_proton_cli)
     "rename_ext_enabled": True,

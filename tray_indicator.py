@@ -3,9 +3,12 @@
 tray_indicator.py — Icône d'état dans la barre des tâches (zone de
 notification) : double flèche circulaire aux couleurs de Proton.
 
-Trois états, décidés à partir du battement de cœur (status.json) écrit par le
+Quatre états, décidés à partir du battement de cœur (status.json) écrit par le
 consommateur temps réel à chaque cycle :
   • VIOLET            : démons actifs + session Proton considérée valide ;
+  • VIOLET + « ! »    : démons actifs, mais des scripts NAS sont en attente de
+                        déploiement (écart poste↔NAS) — ouvrir l'éditeur et lancer
+                        Installer/Mettre à jour. Avertissement (la synchro tourne) ;
   • GRIS + X ROUGE    : démons actifs mais session expirée/trousseau verrouillé
                         (constaté par le consommateur en tentant de traiter) ;
   • GRIS              : démons arrêtés (battement absent ou trop vieux).
@@ -20,7 +23,7 @@ L'applet se termine de lui-même si le réglage « tray_enabled » passe à Fals
 
 Clic gauche : ouvre l'éditeur de mappings. Clic droit : menu (Ouvrir / Quitter).
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.1.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -50,9 +53,10 @@ STATUS_FILE = (appconfig.STATUS_FILE if _HAS_CONFIG
 EDITOR = os.path.join(APP_DIR, "proton_mapping_editor.py")
 
 ICONS = {
-    "ok":      os.path.join(APP_DIR, "tray_connected.png"),
-    "expired": os.path.join(APP_DIR, "tray_expired.png"),
-    "stopped": os.path.join(APP_DIR, "tray_stopped.png"),
+    "ok":            os.path.join(APP_DIR, "tray_connected.png"),
+    "scripts_stale": os.path.join(APP_DIR, "tray_scripts.png"),
+    "expired":       os.path.join(APP_DIR, "tray_expired.png"),
+    "stopped":       os.path.join(APP_DIR, "tray_stopped.png"),
 }
 
 REFRESH_SECONDS = 5     # cadence de lecture du battement de cœur
@@ -65,7 +69,8 @@ _MIN_STALE_SECONDS = 90
 
 def decide_state(status, now):
     """État de l'icône à partir du contenu de status.json (dict ou None).
-    Fonction PURE (testable sans GTK). Retourne 'ok' | 'expired' | 'stopped'."""
+    Fonction PURE (testable sans GTK).
+    Retourne 'ok' | 'scripts_stale' | 'expired' | 'stopped'."""
     if not isinstance(status, dict):
         return "stopped"
     ts = status.get("ts")
@@ -76,7 +81,14 @@ def decide_state(status, now):
     stale_after = max(3 * cycle, _MIN_STALE_SECONDS)
     if now - ts > stale_after:
         return "stopped"
-    return "ok" if status.get("auth_ok", True) else "expired"
+    # Priorité : stopped > expired > scripts_stale > ok. « scripts_stale » est un
+    # AVERTISSEMENT (la synchro tourne, mais des scripts NAS sont à déployer),
+    # donc SOUS les états critiques (démons arrêtés, session expirée).
+    if not status.get("auth_ok", True):
+        return "expired"
+    if status.get("nas_scripts_stale"):
+        return "scripts_stale"
+    return "ok"
 
 
 def read_status():
@@ -101,9 +113,11 @@ def build_editor_cmd(status):
 
 
 TOOLTIPS = {
-    "ok":      lambda: _("Proton Drive sync — active, session OK"),
-    "expired": lambda: _("Proton Drive sync — session expired or keyring locked"),
-    "stopped": lambda: _("Proton Drive sync — daemons stopped"),
+    "ok":            lambda: _("Proton Drive sync — active, session OK"),
+    "scripts_stale": lambda: _("Proton Drive sync — NAS scripts out of date: "
+                               "open the editor and run Install / Update"),
+    "expired":       lambda: _("Proton Drive sync — session expired or keyring locked"),
+    "stopped":       lambda: _("Proton Drive sync — daemons stopped"),
 }
 
 

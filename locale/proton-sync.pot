@@ -2224,3 +2224,9 @@ msgid ""
 "Paths match ({l} ↔ {n}), but the marker could not be written — check "
 "permissions on the marker queue."
 msgstr ""
+
+msgid "Proton Drive sync — NAS scripts out of date: open the editor and run Install / Update"
+msgstr ""
+
+msgid "⚠ NAS scripts out of date — run Install / Update to push them, then restart the NAS watcher."
+msgstr ""

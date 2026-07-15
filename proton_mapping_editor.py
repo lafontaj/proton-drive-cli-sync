@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -119,7 +119,8 @@ class StyledDialog(tk.Toplevel):
 
     def __init__(self, parent, message, kind="info", title=None,
                  ok_text="OK", cancel_text=None,
-                 checkbox_text=None, checkbox_default=False):
+                 checkbox_text=None, checkbox_default=False,
+                 command=None):
         super().__init__(parent)
         # CACHÉE pendant la construction : un Toplevel devient visible dès sa
         # création, à la position par défaut du gestionnaire de fenêtres, PUIS
@@ -191,6 +192,34 @@ class StyledDialog(tk.Toplevel):
                  font=("DejaVu Sans", 10), justify="left", wraplength=420,
                  anchor="w").pack(anchor="w")
 
+        # Bloc COMMANDE COPIABLE (optionnel) : champ sélectionnable en lecture
+        # seule (police monospace) + bouton « Copier » qui met la commande dans
+        # le presse-papier. Évite à l'utilisateur de retaper une commande shell.
+        if command:
+            cmd_frame = tk.Frame(body, bg=DLG_BG)
+            cmd_frame.pack(anchor="w", fill="x", pady=(12, 0))
+            cmd_entry = tk.Entry(cmd_frame, font=("DejaVu Sans Mono", 9),
+                                 relief="solid", bd=1, readonlybackground="#f4f4f8",
+                                 fg=DLG_TEXT)
+            cmd_entry.insert(0, command)
+            cmd_entry.configure(state="readonly")
+            cmd_entry.pack(side="left", fill="x", expand=True, ipady=3)
+
+            def copy_cmd(_c=command, _e=cmd_entry):
+                try:
+                    self.clipboard_clear()
+                    self.clipboard_append(_c)
+                    copy_btn.configure(text=_("Copied ✓"))
+                    self.after(1500, lambda: copy_btn.configure(text=_("Copy")))
+                except Exception:
+                    pass
+            copy_btn = tk.Button(cmd_frame, text=_("Copy"), command=copy_cmd,
+                                 bg="#e8e8ef", fg=DLG_TEXT,
+                                 activebackground="#dadae5", activeforeground=DLG_TEXT,
+                                 font=("DejaVu Sans", 9), relief="flat",
+                                 padx=12, pady=3, cursor="hand2", bd=0)
+            copy_btn.pack(side="left", padx=(8, 0))
+
         if checkbox_text:
             tk.Checkbutton(body, text=checkbox_text, variable=self._cb_var,
                            bg=DLG_BG, fg=DLG_TEXT, activebackground=DLG_BG,
@@ -207,6 +236,21 @@ class StyledDialog(tk.Toplevel):
         # révéler déjà en place. wait_visibility avant grab_set : un grab sur
         # une fenêtre pas encore affichée échoue (« window not viewable »).
         self.update_idletasks()
+        # Largeur minimale : la bande d'accent (pictogramme + titre) est plus
+        # large qu'un message court. Sans plancher, la fenêtre se dimensionne sur
+        # le message et le titre déborde/se chevauche (constaté avec « Pas encore
+        # testé. »). On garantit au moins de quoi afficher la bande entière.
+        try:
+            # Plancher plus large si une commande copiable est affichée (les
+            # commandes shell sont longues et ne doivent pas être tronquées).
+            floor = 560 if command else 380
+            need_w = max(self.winfo_reqwidth(), floor)
+            need_h = self.winfo_reqheight()
+            self.minsize(need_w, need_h)
+            if self.winfo_reqwidth() < floor:
+                self.geometry(f"{need_w}x{need_h}")
+        except Exception:
+            pass
         self._center_on(parent)
         self.deiconify()
         try:
@@ -231,20 +275,20 @@ class StyledDialog(tk.Toplevel):
             pass
 
 
-def dlg_info(parent, message, title=None):
-    StyledDialog(parent, message, kind="info", title=title)
+def dlg_info(parent, message, title=None, command=None):
+    StyledDialog(parent, message, kind="info", title=title, command=command)
 
 
-def dlg_error(parent, message, title=None):
-    StyledDialog(parent, message, kind="error", title=title)
+def dlg_error(parent, message, title=None, command=None):
+    StyledDialog(parent, message, kind="error", title=title, command=command)
 
 
-def dlg_warning(parent, message, title=None):
-    StyledDialog(parent, message, kind="warning", title=title)
+def dlg_warning(parent, message, title=None, command=None):
+    StyledDialog(parent, message, kind="warning", title=title, command=command)
 
 
-def dlg_success(parent, message, title=None):
-    StyledDialog(parent, message, kind="success", title=title)
+def dlg_success(parent, message, title=None, command=None):
+    StyledDialog(parent, message, kind="success", title=title, command=command)
 
 
 def dlg_confirm(parent, message, title=None, kind="question",
@@ -1067,6 +1111,21 @@ class MappingEditor(tk.Tk):
         self.output = scrolledtext.ScrolledText(out_frame, height=10, wrap="none",
                                                 font=("monospace", 9), state="disabled")
         self.output.pack(side="top", fill="both", expand=True)
+
+        # Barre de progression (Temps 1) : zone SÉPARÉE sous le journal. Affiche
+        # l'envoi en cours (nb de fichiers + taille) sans se noyer dans le flux
+        # de lignes. Masquée au repos. Alimentée par les lignes @@PROGRESS
+        # émises par le moteur (interceptées, jamais écrites au journal).
+        self.progress_frame = ttk.Frame(out_frame)
+        # (pack fait/défait dynamiquement : caché au repos)
+        # Indicateur d'envoi DISCRET : texte seul, pas de barre animée
+        # « balayante » (jugée agressante visuellement). Affiche « ⬆ Envoi en
+        # cours — N fichiers, X Go » pendant un envoi, masqué au repos.
+        self.progress_label = ttk.Label(self.progress_frame, text="", font=("", 9),
+                                         anchor="w")
+        self.progress_label.pack(side="left", fill="x", expand=True, padx=(2, 0))
+        self._progress_active = False
+
         paned.add(out_frame, weight=3)
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -2710,6 +2769,20 @@ class MappingEditor(tk.Tk):
                                    "red": "#ef4444"}
                         e["status"]._set_dot(palette.get(c, "#999999"))
                         e["color"] = c
+                        # Restaurer aussi un message cohérent avec la couleur
+                        # (seule la couleur est mémorisée ; on reconstruit un
+                        # libellé d'état. Re-tester donne le détail complet frais).
+                        restored = {
+                            "green": _("Last test: OK (paths match and the "
+                                       "real-time chain works). Re-test for a "
+                                       "fresh check."),
+                            "yellow": _("Last test: a problem was reported. "
+                                        "Re-test for details."),
+                            "red": _("Last test: paths did not match. "
+                                     "Re-test for details."),
+                        }.get(c)
+                        if restored:
+                            e["last_msg"]["text"] = restored
 
             pm_btns = ttk.Frame(nas_frame); pm_btns.pack(anchor="w", fill="x", pady=(2, 0))
             ttk.Button(pm_btns, text=_("+ Add a correspondence"),
@@ -2812,10 +2885,7 @@ class MappingEditor(tk.Tk):
                             _("The identity “{a}” exists on the NAS (marker "
                               "queue and/or mappings copy).\n\nMigrate it to "
                               "“{b}”? Everything is simply renamed — pending "
-                              "markers and continuity are preserved.\n\n"
-                              "Afterwards, restart the background services "
-                              "(⚡ Real-time… → Install / Update) so they "
-                              "follow the new name.").format(
+                              "markers and continuity are preserved.").format(
                               a=old_ident, b=new_ident),
                             title=_("NAS identity"),
                             ok_text=_("Migrate"),
@@ -2835,13 +2905,33 @@ class MappingEditor(tk.Tk):
                 # l'activation ; extinction d'elle-même à la désactivation).
                 appconfig.set_tray_enabled(tray_var.get())
                 self._apply_tray_setting(tray_var.get())
+
+            # Redémarrage AUTOMATIQUE des démons SEULEMENT si un réglage FIGÉ a
+            # changé. Analyse du code : le seul réglage lu au DÉMARRAGE du consumer
+            # (hors boucle) est l'identité (account_name → _user_from_config). Tous
+            # les autres réglages pertinents sont relus dynamiquement à chaque
+            # cycle (nas_enabled, nas_mount_path) ou à chaque passage du moteur
+            # (rename_ext_*), donc ils s'appliquent seuls — aucun redémarrage requis.
+            # On redémarre donc silencieusement uniquement quand l'identité change.
+            identity_changed = bool(
+                _HAS_CONFIG and _HAS_REALTIME
+                and old_ident != (ident_var.get() or "").strip())
+            restarted = False
+            if identity_changed:
+                try:
+                    realtime_manager.restart_daemons()
+                    restarted = True
+                except Exception:
+                    restarted = False
+
             dlg.destroy()
-            dlg_info(
-                self,
-                _("Configuration saved.\n\n"
-                  "It will apply to this window at its next launch, and to "
-                  "the background daemons at their next restart."),
-                title=_("Configuration"))
+            if restarted:
+                msg = _("Configuration saved.\n\nThe background daemons were "
+                        "restarted to apply the new NAS identity.")
+            else:
+                msg = _("Configuration saved.\n\nChanges apply automatically "
+                        "(the window uses them at its next launch).")
+            dlg_info(self, msg, title=_("Configuration"))
 
         ttk.Button(btns, text=_("Cancel"),
                    command=dlg.destroy).pack(side="right", padx=4)
@@ -3012,8 +3102,62 @@ class MappingEditor(tk.Tk):
     def _feed_output(self, line):
         """Affiche une ligne du moteur selon le filtre courant, et la bufferise via
         le log disque (le vrai flux complet). L'appelant écrit toujours la ligne
-        entière dans le log disque, quel que soit le filtre d'affichage."""
+        entière dans le log disque, quel que soit le filtre d'affichage.
+
+        Les lignes de progression (préfixe @@PROGRESS) sont INTERCEPTÉES ici :
+        elles alimentent la barre de progression et ne sont JAMAIS écrites au
+        journal (sinon elles pollueraient le flux)."""
+        if line.lstrip().startswith("@@PROGRESS"):
+            self._handle_progress_line(line.strip())
+            return
         self._render_line(line)
+
+    def _handle_progress_line(self, line):
+        """Parse une ligne @@PROGRESS et met à jour l'indicateur d'envoi (dans le
+        thread GUI via after). Format : @@PROGRESS k=v k=v … . Parsing DÉFENSIF :
+        un champ manquant ou un format inattendu ne casse rien (ligne ignorée).
+
+        Seuls state=start (afficher « Envoi en cours — N fichiers, X Go ») et
+        state=done (masquer) sont traités."""
+        fields = {}
+        try:
+            for tok in line.split()[1:]:            # sauter « @@PROGRESS »
+                if "=" in tok:
+                    k, v = tok.split("=", 1)
+                    fields[k] = v
+        except Exception:
+            return
+        state = fields.get("state")
+        if state == "start":
+            files = fields.get("files", "?")
+            try:
+                gb = int(fields.get("bytes", "0")) / (1024 ** 3)
+                size_txt = _("{gb:.2f} GB").format(gb=gb) if gb >= 0.01 else _("< 0.01 GB")
+            except Exception:
+                size_txt = "?"
+            txt = _("Uploading — {n} file(s), {size}").format(n=files, size=size_txt)
+            self.after(0, lambda: self._show_progress(txt))
+        elif state == "done":
+            self.after(0, self._hide_progress)
+
+    def _show_progress(self, text):
+        """Affiche l'indicateur d'envoi discret (texte seul, pas de barre animée)."""
+        try:
+            self.progress_label.configure(text="⬆ " + text)
+            if not self._progress_active:
+                self.progress_frame.pack(side="top", fill="x", pady=(4, 0))
+                self._progress_active = True
+        except Exception:
+            pass
+
+    def _hide_progress(self):
+        """Masque l'indicateur d'envoi (fin d'un envoi)."""
+        try:
+            if self._progress_active:
+                self.progress_frame.pack_forget()
+                self._progress_active = False
+        except Exception:
+            pass
 
     def _render_line(self, line):
         """Décide de l'affichage d'UNE ligne selon les filtres courants :
@@ -3191,6 +3335,7 @@ class MappingEditor(tk.Tk):
             if not self.opt_verbose.get() and getattr(self, "_folders_shown", 0) == 0 and code == 0:
                 self._append_output(_("  ✓ Nothing to update — everything is already in sync.") + "\n")
             self._append_output("\n" + _("=== Finished (code {c}) — log: {p} ===").format(c=code, p=log_path) + "\n\n")
+            self.after(0, self._hide_progress)   # filet : masquer la barre si un « done » a été manqué
             self.after(0, lambda: self.status.set(_("Sync finished (code {c}).").format(c=code)))
             # Un vrai passage fait autorité sur l'état d'auth : s'il a rapporté un
             # échec d'authentification, l'indicateur doit le refléter (plus fiable
@@ -4376,11 +4521,23 @@ class RealtimeDialog(tk.Toplevel):
                               "active on its own. The GUI does not control it: it observes its "
                               "activity through the NFS queue."),
                       foreground=self.C_MUTED, wraplength=WL, justify="left").pack(anchor="w", pady=(4, 0))
+            # Écart de scripts NAS (déploiement en attente) — même champ que le
+            # systray (nas_scripts_stale). Packé dynamiquement par _apply_status :
+            # visible seulement quand un push de scripts est requis.
+            self.nas_scripts_var = tk.StringVar(value="")
+            self.nas_scripts_label = ttk.Label(n, textvariable=self.nas_scripts_var,
+                                                font=("", 10, "bold"),
+                                                foreground=self.C_WARN,
+                                                wraplength=WL, justify="left")
         else:
             self.nas_var = tk.StringVar(value="")
             # Même besoin que drift_label : _apply_status() configure sa couleur
             # sans condition -> widget réel mais jamais affiché.
             self.nas_label = ttk.Label(form, textvariable=self.nas_var)
+            # Idem pour l'alerte de scripts NAS : widget réel jamais affiché en
+            # mode local (nas_scripts_stale y est toujours False).
+            self.nas_scripts_var = tk.StringVar(value="")
+            self.nas_scripts_label = ttk.Label(form, textvariable=self.nas_scripts_var)
             no_nas = ttk.LabelFrame(form, text=_("3-4) NAS features"), padding=10)
             no_nas.pack(side="top", fill="x", padx=10, pady=6)
             ttk.Label(no_nas, text=_("Local-only mode is active (see Configuration…): "
@@ -4571,7 +4728,13 @@ class RealtimeDialog(tk.Toplevel):
                         # messages d'état notables du démon
                         "démarré", "daemon started", "Surveillance", "watching",
                         "rattrapage", "catch", "session", "verrou", "lock",
-                        "compte", "account", "prêt", "ready")
+                        "compte", "account", "prêt", "ready",
+                        # fin de passage (dédoublement du message de reprise) :
+                        # « ✓ Passage terminé » / « ✓ Pass finished » — n'est pas
+                        # capté par « ✓ ok », d'où l'ajout explicite.
+                        "Passage terminé", "Pass finished", "Durchlauf beendet",
+                        "Pasada finalizada", "Passaggio completato",
+                        "Passagem concluída")
         return any(m in s for m in keep_markers)
 
     def _reapply_event_filter(self):
@@ -4709,10 +4872,17 @@ class RealtimeDialog(tk.Toplevel):
         else:
             self.pushed_var.set("")
 
-        # Observation NAS (section 4).
+        # Observation NAS (section 4) — trois états distincts :
+        #   A. pas de NAS voulu (nas_enabled=False) : neutre, informatif ;
+        #   B. NAS voulu et joignable : vert ;
+        #   C. NAS voulu mais absent : rouge, orienté action.
         nas = st["nas"]
-        if not nas["reachable"]:
-            self.nas_var.set(_("🔴 NAS unreachable (NFS mount missing)"))
+        nas_wanted = (appconfig.nas_enabled() if _HAS_CONFIG else True)
+        if not nas_wanted:
+            self.nas_var.set(_("⚪ Local mode — no NAS configured."))
+            self.nas_label.config(foreground=self.C_MUTED)
+        elif not nas["reachable"]:
+            self.nas_var.set(_("🔴 NAS configured but unreachable — please check."))
             self.nas_label.config(foreground=self.C_ERR)
         else:
             if nas["last_activity"]:
@@ -4720,6 +4890,19 @@ class RealtimeDialog(tk.Toplevel):
             else:
                 self.nas_var.set(_("🟢 NAS reachable — no pending marker"))
             self.nas_label.config(foreground=self.C_OK)
+
+        # Écart de scripts NAS (déploiement en attente) : MÊME champ que le systray
+        # (nas_scripts_stale, écrit par le consumer). Affiché seulement si présent,
+        # et pointe vers l'action à faire. pack/pack_forget idempotents.
+        if st.get("nas_scripts_stale"):
+            self.nas_scripts_var.set(_("⚠ NAS scripts out of date — run "
+                                       "Install / Update to push them, then restart "
+                                       "the NAS watcher."))
+            self.nas_scripts_label.config(foreground=self.C_WARN)
+            self.nas_scripts_label.pack(anchor="w", pady=(4, 0))
+        else:
+            self.nas_scripts_var.set("")
+            self.nas_scripts_label.pack_forget()
 
         # Files (section 5).
         q = st["queues"]
@@ -4805,8 +4988,8 @@ class RealtimeDialog(tk.Toplevel):
                                ok_text=_("Confirm the change"),
                                cancel_text=_("Cancel (keep the current file)")):
                 return
-        ok, msg = realtime_manager.install_or_update_units(self.mappings_path, enable=True)
-        (dlg_success if ok else dlg_error)(self, msg, title=_("Daemons"))
+        ok, msg, cmd = realtime_manager.install_or_update_units(self.mappings_path, enable=True)
+        (dlg_success if ok else dlg_error)(self, msg, title=_("Daemons"), command=cmd)
         self._refresh()
 
     def on_start(self):

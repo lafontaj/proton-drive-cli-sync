@@ -24,7 +24,7 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -49,6 +49,31 @@ try:
     _HAS_CONFIG = True
 except ImportError:
     _HAS_CONFIG = False
+
+# nas_reachable() : sonde NAS NON BLOQUANTE (TCP port 2049 via /proc/mounts,
+# chantier C) — réutilisée telle quelle pour éviter toute divergence de logique.
+# Import guardé : sans realtime_manager, on considère le NAS joignable (repli
+# historique, comportement inchangé pour qui n'a pas le module).
+try:
+    from realtime_manager import nas_reachable as _nas_reachable
+    _HAS_NAS_PROBE = True
+except ImportError:
+    _HAS_NAS_PROBE = False
+
+    def _nas_reachable():
+        return True
+
+# nas_scripts_stale() : détection LECTURE SEULE d'un déploiement de scripts NAS
+# en attente (écart de contenu poste↔disque NAS). Import guardé : sans le module,
+# on considère qu'il n'y a pas d'écart (repli neutre, aucune fausse alerte).
+try:
+    from realtime_manager import nas_scripts_stale as _nas_scripts_stale
+    _HAS_SCRIPTS_PROBE = True
+except ImportError:
+    _HAS_SCRIPTS_PROBE = False
+
+    def _nas_scripts_stale():
+        return False
 
 # Dossier parent unifié (dossier de données unifié, config.py — migration
 # automatique et sûre depuis l'ancien ~/.proton_sync, voir config.py).
@@ -522,7 +547,8 @@ def _default_log(msg):
 
 
 def run_once(state, queue_dirs, mappings, config_path, debounce_seconds, now,
-             log, runner=None, auth_check=None, lock_check=None):
+             log, runner=None, auth_check=None, lock_check=None,
+             on_lock_acquired=None):
     """Un cycle : lire les marqueurs, mettre à jour le debounce, traiter les
     dossiers mûrs (séquentiellement). Facteur testable de la boucle.
 
@@ -556,6 +582,12 @@ def run_once(state, queue_dirs, mappings, config_path, debounce_seconds, now,
         return "locked"
     if lock_check is not None and not lock_check():
         return "busy"
+
+    # Auth + verrou OK : on VA traiter. Signaler la reprise MAINTENANT (avant le
+    # passage), pour que « verrou libéré » précède les lignes de synchro plutôt
+    # que d'arriver après coup (le statut « done » ne revient qu'en fin de passage).
+    if on_lock_acquired is not None:
+        on_lock_acquired()
 
     state.account_flag = False
     processed_any = False
@@ -609,7 +641,8 @@ def _count_ready_mappings(config_path):
     return (ready, total)
 
 
-def _write_status(auth_ok, cycle_seconds, mappings_path=None):
+def _write_status(auth_ok, cycle_seconds, mappings_path=None,
+                  nas_scripts_stale=False):
     """Battement de cœur pour l'icône de barre des tâches (tray_indicator.py) :
     horodatage + état de session + fichier de mappings ACTIF (écriture atomique).
     L'indicateur en déduit trois états : fichier frais + auth_ok -> connecté ;
@@ -617,7 +650,13 @@ def _write_status(auth_ok, cycle_seconds, mappings_path=None):
     chemin des mappings permet au clic gauche d'ouvrir l'éditeur sur le bon fichier.
     NB : l'état de session reflète ce que le consommateur SAIT — la sonde d'auth
     n'a lieu que lorsqu'il y a du travail (pour éviter la contention de trousseau) ;
-    au repos, le dernier état connu persiste."""
+    au repos, le dernier état connu persiste.
+
+    nas_scripts_stale : True si un déploiement de scripts vers le NAS est en
+    attente (écart de contenu poste↔disque NAS). Le systray en fait un 4e état
+    (avertissement « ! », moins prioritaire que expired/stopped) et la fenêtre
+    Temps réel le reflète. Défaut False (rétrocompatible : les lecteurs qui
+    ignorent la clé se comportent comme avant)."""
     path = appconfig.STATUS_FILE if _HAS_CONFIG else os.path.join(BASE_DIR, "status.json")
     try:
         tmp = path + ".tmp"
@@ -625,7 +664,8 @@ def _write_status(auth_ok, cycle_seconds, mappings_path=None):
             json.dump({"ts": time.time(), "auth_ok": bool(auth_ok),
                        "cycle_seconds": int(cycle_seconds),
                        "mappings_path": (os.path.abspath(mappings_path)
-                                         if mappings_path else None)}, f)
+                                         if mappings_path else None),
+                       "nas_scripts_stale": bool(nas_scripts_stale)}, f)
         os.replace(tmp, path)
     except OSError:
         pass   # informatif seulement : ne doit jamais gêner le cycle
@@ -649,15 +689,17 @@ class _Heartbeat:
         self._auth_ok = True
         self._cycle = int(cycle_seconds)
         self._mappings_path = mappings_path
+        self._nas_scripts_stale = False
         self._interval = max(5, int(interval))
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self):
-        _write_status(self._auth_ok, self._cycle, self._mappings_path)  # battement immédiat
+        _write_status(self._auth_ok, self._cycle, self._mappings_path,
+                      self._nas_scripts_stale)                     # battement immédiat
         self._thread.start()
 
-    def update(self, auth_ok=None, cycle_seconds=None):
+    def update(self, auth_ok=None, cycle_seconds=None, nas_scripts_stale=None):
         """Publie le dernier état connu (appelé par la boucle à chaque cycle).
         Le thread s'en sert pour ses écritures régulières."""
         with self._lock:
@@ -665,12 +707,15 @@ class _Heartbeat:
                 self._auth_ok = bool(auth_ok)
             if cycle_seconds is not None:
                 self._cycle = int(cycle_seconds)
+            if nas_scripts_stale is not None:
+                self._nas_scripts_stale = bool(nas_scripts_stale)
 
     def beat_now(self):
         """Écrit le battement immédiatement avec l'état courant (utile juste
         après un cycle pour ne pas attendre l'intervalle du thread)."""
         with self._lock:
-            _write_status(self._auth_ok, self._cycle, self._mappings_path)
+            _write_status(self._auth_ok, self._cycle, self._mappings_path,
+                          self._nas_scripts_stale)
 
     def _run(self):
         # Réveil fin (1 s) pour pouvoir s'arrêter vite, mais on n'écrit qu'aux
@@ -681,7 +726,8 @@ class _Heartbeat:
             if elapsed >= self._interval:
                 elapsed = 0
                 with self._lock:
-                    _write_status(self._auth_ok, self._cycle, self._mappings_path)
+                    _write_status(self._auth_ok, self._cycle, self._mappings_path,
+                                  self._nas_scripts_stale)
 
     def stop(self):
         self._stop.set()
@@ -698,16 +744,22 @@ def main():
 
     user = _user_from_config(args.config)
     os.makedirs(LOCAL_QUEUE, exist_ok=True)
-    # Mode local seul (nas_enabled=False) : on ne sonde même pas la file NAS —
-    # coupure nette plutôt qu'une tentative-puis-échec à chaque cycle.
-    nas_on = (appconfig.nas_enabled() if _HAS_CONFIG else True)
-    queue_dirs = [LOCAL_QUEUE] + ([_nas_queue_for(user)] if nas_on else [])
 
     log = _default_log
     state = DebounceState()
 
+    # État NAS DYNAMIQUE (réévalué à chaque cycle) : le switch nas_enabled
+    # (intention de l'utilisateur) combiné à la joignabilité réelle du NAS pilote
+    # si on surveille la file NAS. Trois états :
+    #   A. nas_enabled=False           -> pas de NAS voulu : file NAS jamais lue.
+    #   B. nas_enabled=True + joignable -> normal : file NAS lue.
+    #   C. nas_enabled=True + absent    -> suspendu : file NAS ignorée le temps de
+    #      l'absence, reprise au retour (les marqueurs restent sur le NAS ; le
+    #      startup_catchup du watcher NAS rebalaie tout à son redémarrage).
+    # _nas_state mémorise l'état courant pour ne journaliser qu'aux TRANSITIONS.
+    _nas_state = None      # None (pas encore évalué) / "off" / "on" / "absent"
+
     log(_("Real-time daemon started (user {u}).").format(u=user))
-    log(_("  Watched queues: {q}").format(q=queue_dirs))
     log(_("  Engine: {p}").format(p=ENGINE))
 
     # Compte informatif : combien de mappings sont prêts pour le temps réel
@@ -728,6 +780,16 @@ def main():
     hb = _Heartbeat(cycle_seconds=load_config()["cycle_seconds"],
                     mappings_path=args.config)
     hb.start()
+
+    # Détection d'écart de scripts NAS (alerte systray + fenêtre Temps réel) :
+    # évaluée AU DÉMARRAGE (moment d'un déploiement — le consumer vient d'être
+    # redémarré) puis toutes les ~NAS_SCRIPTS_CHECK_INTERVAL secondes — PAS à
+    # chaque cycle (sha256 de ~15 fichiers via NFS). _nas_scripts_stale() est
+    # LECTURE SEULE et déjà gardée (renvoie False en mode local ou NAS absent),
+    # donc sûre et non bloquante à appeler ici.
+    NAS_SCRIPTS_CHECK_INTERVAL = 300           # 5 min
+    _last_scripts_check = None                 # monotonic du dernier contrôle
+    _scripts_stale = False                     # dernier verdict connu (publié au battement)
     while True:
         cfg = load_config()  # relu à chaque cycle -> délai modifiable à chaud
         # Charger les mappings frais à chaque cycle (la vérité reste à jour).
@@ -740,18 +802,73 @@ def main():
         except (OSError, ValueError, KeyError):
             mappings = []
 
+        # ── État NAS dynamique : recalculé À CHAQUE CYCLE ────────────────────
+        # Le switch nas_enabled (intention) + la joignabilité réelle décident si
+        # on surveille la file NAS. On ne sonde le NAS QUE si l'utilisateur en
+        # veut un (nas_enabled=True) — un utilisateur sans NAS ne sonde jamais.
+        # Trois états, journalisés UNIQUEMENT aux transitions (pas à chaque cycle).
+        want_nas = (appconfig.nas_enabled() if _HAS_CONFIG else True)
+        if not want_nas:
+            new_state = "off"
+        elif _nas_reachable():
+            new_state = "on"
+        else:
+            new_state = "absent"
+
+        if new_state != _nas_state:
+            # Transition : journaliser une seule ligne claire.
+            if new_state == "on" and _nas_state == "absent":
+                log(_("▶ NAS back online — resuming NAS mappings."))
+            elif new_state == "absent":
+                log(_("⏸ NAS unreachable — NAS mappings suspended, "
+                      "local mode active. Local mappings keep syncing."))
+            elif new_state == "off" and _nas_state is not None:
+                log(_("NAS disabled — local mode only."))
+            _nas_state = new_state
+
+        # File NAS incluse seulement dans l'état « on » (NAS voulu ET joignable).
+        # État « absent » (C.1) : file NAS IGNORÉE le temps de l'absence — les
+        # marqueurs restent sur le NAS et seront repris au retour (le
+        # startup_catchup du watcher NAS rebalaie tout à son redémarrage).
+        queue_dirs = [LOCAL_QUEUE]
+        if new_state == "on":
+            queue_dirs.append(_nas_queue_for(user))
+
+        # ── Écart de scripts NAS (throttlé ~5 min) ───────────────────────────
+        # Recalcule au plus toutes les 5 min (et une fois au démarrage). Le
+        # verdict s'auto-efface : dès que les scripts concordent (après un push),
+        # le contrôle suivant repasse à False. Publié au battement plus bas.
+        now_m = time.monotonic()
+        if (_last_scripts_check is None
+                or (now_m - _last_scripts_check) >= NAS_SCRIPTS_CHECK_INTERVAL):
+            _last_scripts_check = now_m
+            _scripts_stale = _nas_scripts_stale()
+
+        # Callback appelé par run_once JUSTE AVANT le traitement (verrou obtenu).
+        # Si on sortait d'une attente, on annonce la reprise MAINTENANT — avant
+        # les lignes de synchro — plutôt qu'après coup. Ne signale rien si on ne
+        # sortait pas d'une attente (cycle normal).
+        def _announce_resume(_wr=waiting_reason):
+            if _wr == "locked":
+                log(_("🔓 Session opened — starting the pass."))
+            elif _wr == "busy":
+                log(_("🔓 Lock released — starting the pass."))
+            elif _wr == "account":
+                log(_("🔓 Account matter resolved — starting the pass."))
+
         status = run_once(state, queue_dirs, mappings, args.config,
                           cfg["debounce_seconds"], time.monotonic(), log,
                           auth_check=lambda: keyring_ready(args.config),
-                          lock_check=lambda: lock_free(args.config))
+                          lock_check=lambda: lock_free(args.config),
+                          on_lock_acquired=_announce_resume)
 
         # Trois motifs d'attente possibles, chacun signalé par UNE SEULE ligne
         # tant qu'il dure (au lieu d'un échec par source et par cycle) :
         # trousseau verrouillé ("locked"), verrou tenu par un autre passage
         # ("busy"), ou compte Proton changé ("account", moteur en refus —
         # résolution par Amorcer/Réinitialiser). "idle" ne change rien (on n'a
-        # pas sondé). "done" après une attente = reprise. On ne re-signale que
-        # si le motif change.
+        # pas sondé). "done" après une attente = passage terminé. On ne re-signale
+        # que si le motif change.
         if status in ("locked", "busy", "account"):
             if waiting_reason != status:
                 if status == "locked":
@@ -769,19 +886,18 @@ def main():
                           "no pass launched."))
                 waiting_reason = status
         elif status == "done":
-            if waiting_reason == "locked":
-                log(_("🔓 Session opened — resuming processing."))
-            elif waiting_reason == "busy":
-                log(_("🔓 Lock released — resuming processing."))
-            elif waiting_reason == "account":
-                log(_("🔓 Account matter resolved — resuming processing."))
+            # La reprise a déjà été annoncée AVANT le passage (via _announce_resume).
+            # Ici, si on sortait d'une attente, on confirme la FIN du passage.
+            if waiting_reason in ("locked", "busy", "account"):
+                log(_("✓ Pass finished."))
             waiting_reason = None
 
         # Battement de cœur : publier l'état courant au thread dédié (qui écrit
         # à intervalle régulier, y compris pendant un long run_once) et forcer un
         # battement immédiat maintenant que le cycle est terminé.
         hb.update(auth_ok=(waiting_reason not in ("locked", "account")),
-                  cycle_seconds=cfg["cycle_seconds"])
+                  cycle_seconds=cfg["cycle_seconds"],
+                  nas_scripts_stale=_scripts_stale)
         hb.beat_now()
 
         if args.once:

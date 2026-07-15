@@ -2,16 +2,20 @@
 """
 Watcher inotify LOCAL de la machine locale (couche 3) pour la synchro Proton Drive.
 
-Surveille les dossiers LOCAUX (sur ext4 de la machine locale) déclarés dans les mappings
-de l'utilisateur courant, et dépose un marqueur dans la file locale
-(~/.proton_sync/queue/) à chaque changement détecté. Le démon consommateur
-(couche 2) prend ensuite le relais.
+Surveille les dossiers déclarés dans les mappings de l'utilisateur courant et
+dépose un marqueur dans la file locale (~/.proton_sync/queue/) à chaque
+changement détecté. Le démon consommateur (couche 2) prend ensuite le relais.
 
 Décisions de conception (validées) :
-- Ne surveille QUE les sources locales (ext4). Le classement local/NAS se fait
-  via mount_check.detect_source_kind() — robuste, récupère même les mappings
-  sans source_kind déclaré. Les sources NAS sont surveillées par la couche 4
-  (démon inotify côté NAS).
+- Surveille les sources LOCALES (ext4) toujours, et les sources NAS montées
+  (/media/nas1... via NFS) SEULEMENT si un NAS est activé (nas_enabled=True).
+  La machine locale voit ses PROPRES écritures dans les dossiers NAS via NFS
+  (testé) — mais PAS celles venues d'ailleurs (autre machine, écriture directe
+  sur le NAS) : celles-là sont captées par la couche 4 (démon inotify côté NAS).
+  Les deux couches sont donc COMPLÉMENTAIRES quand le NAS est activé, et coupées
+  ENSEMBLE en mode local (nas_enabled=False) — jamais de surveillance NAS
+  partielle. Le classement local/NAS se fait via mount_check.detect_source_kind()
+  (robuste, récupère même les mappings sans source_kind déclaré).
 - Marqueur = petit JSON {"path": dossier, "delete": bool}.
     * Ajout/modif    -> marqueur sur le DOSSIER du fichier touché, delete=False.
     * Suppression    -> marqueur sur le DOSSIER PARENT du chemin supprimé,
@@ -26,7 +30,7 @@ La PARTIE LOGIQUE (marker_for_event, classify, ...) est pure et testable sans
 pyinotify. La PARTIE BRANCHEMENT (WatchManager, boucle d'événements) nécessite
 pyinotify et de vrais dossiers — testée sur la machine locale.
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.1.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -98,17 +102,27 @@ def is_local_source(source_path):
 
 def select_targets(mappings):
     """À partir des mappings, retourne les cibles à surveiller par le watcher
-    machine locale : TOUS les dossiers 'folder', qu'ils soient LOCAUX (ext4) ou NAS
-    (/media/nas1...). Raison : la machine locale voit ses propres écritures, y compris
-    celles qu'il fait dans les dossiers NAS via NFS (testé). Chaque cible note
-    son 'kind' (local/nfs) pour appliquer la protection anti-faux-delete
-    seulement sur les dossiers NAS.
+    machine locale : les dossiers 'folder' LOCAUX (ext4) toujours, et les dossiers
+    NAS (/media/nas1...) SEULEMENT si un NAS est activé (nas_enabled=True).
+
+    La machine locale voit ses propres écritures, y compris celles qu'elle fait
+    dans les dossiers NAS via NFS (testé). Chaque cible note son 'kind'
+    (local/nfs) pour appliquer la protection anti-faux-delete seulement sur les
+    dossiers NAS.
+
+    MODE LOCAL (nas_enabled=False) : les sources NFS sont ENTIÈREMENT IGNORÉES.
+    Sans ça, « mode local » resterait incohérent — les dossiers NAS montés
+    continueraient d'être surveillés via inotify et de se synchroniser, ce qui
+    contredit l'intention de l'utilisateur et prête à confusion (comportement
+    inotify sur NFS). Filtrage dynamique : appliqué à chaque ré-scan, donc
+    décocher/recocher « Use a NAS » retire/rétablit les watches NFS au vol.
 
     Chaque cible :
       {"watch_dir": ..., "type": "folder", "file_name": None, "kind": "local"|"nfs"}
 
     Les mappings de type 'file' restent EXCLUS du temps réel (balayage).
     """
+    nas_on = (appconfig.nas_enabled() if _HAS_CONFIG else True)
     targets = []
     for m in mappings:
         source = m.get("source", "")
@@ -119,6 +133,10 @@ def select_targets(mappings):
         if kind == "missing":
             # Source introuvable au démarrage : on ignore (sera reprise au
             # rechargement si elle réapparaît). Évite de surveiller un fantôme.
+            continue
+        if kind == "nfs" and not nas_on:
+            # Mode local : on ignore complètement les sources NAS (pas de watch
+            # inotify NFS, pas de synchro NAS déguisée en « local »).
             continue
         targets.append({"watch_dir": os.path.normpath(source),
                         "type": "folder", "file_name": None, "kind": kind})
@@ -324,13 +342,21 @@ def run_watcher(config_path, log=None, rescan_interval=30, fast_interval=3,
             target_dir, want_delete = marker_for_event(path, is_delete, is_dir)
 
             # PROTECTION anti-faux-delete : pour un dossier NAS, avant d'émettre
-            # un marqueur de SUPPRESSION, vérifier que le montage est sain. Si le
-            # NAS est tombé (montage non sain), on IGNORE l'événement delete
-            # plutôt que de produire un faux marqueur. Les dossiers locaux (ext4)
-            # ne sont pas concernés (pas de montage réseau à valider).
+            # un marqueur de SUPPRESSION, vérifier que le MONTAGE est sain — mais
+            # sur un point STABLE. On teste la RACINE du mapping surveillé
+            # (best_dir), pas le chemin de l'événement (target_dir) : ce dernier
+            # peut être un sous-dossier qui VIENT d'être supprimé (ex. Calibre
+            # déplace un livre en supprimant l'ancien dossier), ce qui le ferait
+            # paraître « non sain » alors que le montage NFS global est vivant et
+            # la suppression parfaitement légitime. On distingue donc :
+            #   - racine saine (NFS vivant) -> le montage va bien -> le chemin a
+            #     réellement été supprimé -> DEL légitime, on émet le marqueur ;
+            #   - racine morte (NFS effondré, NAS déconnecté) -> vrai danger ->
+            #     on IGNORE le delete (fail-safe : ne pas propager une fausse
+            #     suppression de masse).
             if want_delete and _kind_for_dir(best_dir) == "nfs":
                 if _HAS_MOUNT_CHECK:
-                    info = mount_check.detect_source_kind(target_dir)
+                    info = mount_check.detect_source_kind(best_dir)
                     healthy = (info.get("kind") == "nfs" and info.get("readable"))
                     if not healthy:
                         log(_("  ⊘ DELETE ignored (NAS mount unhealthy): {p}").format(p=path))
