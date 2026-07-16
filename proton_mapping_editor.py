@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.10.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.10.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1023,70 +1023,83 @@ class MappingEditor(tk.Tk):
         self.auth_label.pack(side="right")
 
         # --- Zone de lancement de la synchro (au-dessus de la barre d'état) ---
-        run_frame = ttk.LabelFrame(self, text=_("Run sync"), padding=8)
+        run_frame = ttk.LabelFrame(self, text=_("Manual sync"), padding=8)
         run_frame.pack(side="bottom", fill="x", padx=8, pady=(4, 4))
 
-        # --- Options du passage (ligne principale) ---
-        # « Ignorer cache » (Bloc 4) a été retiré : « ♻ Réinitialiser le mapping »
-        # couvre le même besoin (reconstruction) AVEC la gestion des services.
-        # opt_ignore_cache subsiste (toujours False) pour ne pas toucher à la
-        # construction de commande, mais n'est plus exposée.
-        # Zone options en GRILLE pour aligner verticalement les « ? » de la ligne
-        # principale et de la ligne avancée, et RÉSERVER la place de la ligne
-        # cachée (le GUI ne change pas de hauteur quand on déplie les avancées :
-        # on masque le CONTENU, pas la rangée).
-        optbar = ttk.Frame(run_frame)
-        optbar.pack(side="top", fill="x")
+        # Deux colonnes : ACTIONS à gauche (empilées), OPTIONS à droite (en
+        # colonne, « ? » alignés en grille). Les contrôles de VUE de la sortie
+        # (Erreurs seules, Effacer) NE SONT PLUS ici : ils pilotent la sortie
+        # PARTAGÉE (synchro manuelle ET cache) et vivent désormais dans la zone
+        # « Sortie de la synchro ». « Ignorer cache » reste retiré (couvert par
+        # « Réinitialiser le mapping ») ; opt_ignore_cache subsiste (toujours False).
+        run_frame.columnconfigure(1, weight=1)   # pousse la colonne d'options à droite
 
-        # Colonne gauche : options du passage, sur 2 rangées (principale + avancée).
-        opts = ttk.Frame(optbar)
-        opts.grid(row=0, column=0, sticky="nw")
-        # Rangée 0 : options courantes, chacune dans sa cellule (case + « ? »).
+        # Colonne gauche : actions empilées, largeur uniforme.
+        actions = ttk.Frame(run_frame)
+        actions.grid(row=0, column=0, sticky="nw")
+        self.run_button = ttk.Button(actions, text=_("▶ Run sync"),
+                                     command=self.on_run_sync, width=22)
+        self.run_button.pack(side="top", anchor="w", pady=1)
+        self.stop_button = ttk.Button(actions, text=_("⏹ Stop"),
+                                      command=self.on_stop_sync, state="disabled", width=22)
+        self.stop_button.pack(side="top", anchor="w", pady=1)
+        ttk.Button(actions, text=_("📋 Copy command"),
+                   command=self.on_copy_command, width=22).pack(side="top", anchor="w", pady=1)
+
+        # Colonne droite : options en COLONNE, « ? » alignés (grille). Chaque
+        # option occupe une rangée : case en colonne 0, « ? » en colonne 1 → tous
+        # les « ? » s'alignent. La rangée avancée (SHA1) est réservée en permanence
+        # (masquée tant que non dépliée) pour que la hauteur ne bouge pas.
+        opts = ttk.Frame(run_frame)
+        opts.grid(row=0, column=1, sticky="ne")
         self._add_option_grid(opts, 0, 0, _("Test (dry-run)"), self.opt_dry_run, "dry-run")
-        self._add_option_grid(opts, 0, 2, _("Propagate deletions"), self.opt_delete, "delete")
+        self._add_option_grid(opts, 1, 0, _("Propagate deletions"), self.opt_delete, "delete")
+        self._add_option_grid(opts, 2, 0, _("Verbose"), self.opt_verbose, "verbose")
         self._adv_visible = False
         self._adv_toggle = ttk.Button(opts, text=_("Advanced options ▾"),
                                       command=self._toggle_advanced, width=20)
-        self._adv_toggle.grid(row=0, column=4, padx=(8, 0), sticky="w")
-        # Rangée 1 RÉSERVÉE : les widgets avancés (SHA1) existent toujours et
-        # occupent la rangée, mais restent invisibles tant que non dépliés — la
-        # hauteur de la zone est donc constante. Alignés sous la colonne 0.
+        # columnspan=2 : le bouton (large) ne force PAS la largeur de la colonne 0,
+        # pour que les « ? » restent alignés juste après les cases.
+        self._adv_toggle.grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 0))
         self._adv_widgets = self._add_option_grid(
-            opts, 1, 0, _("SHA1 check"), self.opt_verify_hash, "verify-hash",
+            opts, 4, 0, _("SHA1 check"), self.opt_verify_hash, "verify-hash",
             return_widgets=True)
         for w in self._adv_widgets:
             w.grid_remove()   # réserve la géométrie sans afficher
 
-        # Colonne droite : encadré « Affichage » (réglages de VUE de la fenêtre
-        # d'exécution), à côté du bouton Options avancées.
-        optbar.columnconfigure(0, weight=1)   # pousse l'encadré à droite
-        display = ttk.LabelFrame(optbar, text=_("Display"), padding=6)
-        display.grid(row=0, column=1, rowspan=2, sticky="ne", padx=(12, 0))
-        self._add_option(display, _("Verbose"), self.opt_verbose, "verbose")
-        ttk.Checkbutton(display, text=_("❗ Errors only"),
-                        variable=self.opt_errors_only,
-                        command=self._reapply_output_filter).pack(side="left", padx=(0, 16))
-        ttk.Button(display, text=_("🧹 Clear output"),
-                   command=self.on_clear_output).pack(side="left", padx=2)
-
-        actions = ttk.Frame(run_frame)
-        actions.pack(side="top", fill="x", pady=(8, 0))
-        self.prime_button = ttk.Button(actions, text=_("🌱 Prime cache"),
+        # Encadré Cache — SÉPARÉ de la synchronisation manuelle. Ces passages sont
+        # TOUJOURS réels et pilotés par la config de chaque mapping ; les options
+        # de la synchro manuelle (dry-run, suppressions) ne s'y appliquent PAS —
+        # d'où l'encadré distinct et la légende explicite. Packé après run_frame
+        # (side=bottom) : apparaît JUSTE AU-DESSUS de « Synchronisation manuelle ».
+        cache_frame = ttk.LabelFrame(self, text=_("Cache"), padding=8)
+        cache_frame.pack(side="bottom", fill="x", padx=8, pady=(0, 4))
+        ttk.Label(cache_frame, wraplength=900, justify="left",
+                  text=_("Real pass, driven by each mapping's own settings — "
+                         "the Test (dry-run) option does not apply here.")
+                  ).pack(side="top", anchor="w", pady=(0, 4))
+        cache_actions = ttk.Frame(cache_frame)
+        cache_actions.pack(side="top", fill="x")
+        self.prime_button = ttk.Button(cache_actions, text=_("🌱 Prime cache"),
                                        command=self.on_prime_cache)
         self.prime_button.pack(side="left", padx=2)
-        self.reset_button = ttk.Button(actions, text=_("♻ Reset mapping"),
+        self.reset_button = ttk.Button(cache_actions, text=_("♻ Reset mapping"),
                                        command=self.on_reset_mapping)
         self.reset_button.pack(side="left", padx=2)
-        self.run_button = ttk.Button(actions, text=_("▶ Run sync"), command=self.on_run_sync)
-        self.run_button.pack(side="left", padx=2)
-        self.stop_button = ttk.Button(actions, text=_("⏹ Stop"), command=self.on_stop_sync, state="disabled")
-        self.stop_button.pack(side="left", padx=2)
-        ttk.Button(actions, text=_("📋 Copy command"), command=self.on_copy_command).pack(side="left", padx=2)
+        # Arrêter PROPRE à la boîte Cache : actif seulement pendant un amorçage /
+        # une réinitialisation. Appelle le même on_stop_sync (le process est
+        # partagé : self.sync_process). Placé ICI pour que l'utilisateur trouve
+        # l'arrêt là où il a lancé l'action, malgré la séparation en deux boîtes.
+        self.cache_stop_button = ttk.Button(cache_actions, text=_("⏹ Stop"),
+                                            command=self.on_stop_sync, state="disabled")
+        self.cache_stop_button.pack(side="left", padx=2)
 
         # --- Zone centrale partagée : tableau (haut) + sortie (bas) ---
         # Un PanedWindow vertical laisse l'utilisateur ajuster la répartition
         # en glissant la poignée, et garantit que les deux zones restent visibles.
-        paned = ttk.PanedWindow(self, orient="vertical")
+        paned = tk.PanedWindow(self, orient="vertical", sashwidth=6,
+                               sashrelief="raised", opaqueresize=True,
+                               borderwidth=0)
         paned.pack(side="top", fill="both", expand=True, padx=8, pady=(0, 4))
 
         # Tableau des mappings (panneau du haut)
@@ -1117,10 +1130,20 @@ class MappingEditor(tk.Tk):
         self.tree.bind("<Double-1>", lambda e: self.on_edit_mapping())
         self.tree.bind("<Control-a>", self._select_all_rows)
         self.tree.bind("<Control-A>", self._select_all_rows)
-        paned.add(tree_frame, weight=2)
+        paned.add(tree_frame, minsize=96, stretch="always")
 
         # Zone de sortie en direct (panneau du bas)
         out_frame = ttk.LabelFrame(paned, text=_("Sync output"), padding=4)
+        # Barre de contrôles de VUE de la sortie PARTAGÉE (s'applique aux DEUX
+        # groupes : synchro manuelle ET cache). D'où sa place ICI, avec la sortie,
+        # plutôt que sous « Synchronisation manuelle ».
+        out_toolbar = ttk.Frame(out_frame)
+        out_toolbar.pack(side="top", fill="x", pady=(0, 3))
+        ttk.Checkbutton(out_toolbar, text=_("❗ Errors only"),
+                        variable=self.opt_errors_only,
+                        command=self._reapply_output_filter).pack(side="left", padx=(2, 16))
+        ttk.Button(out_toolbar, text=_("🧹 Clear output"),
+                   command=self.on_clear_output).pack(side="left", padx=2)
         self.output = scrolledtext.ScrolledText(out_frame, height=10, wrap="none",
                                                 font=("monospace", 9), state="disabled")
         self.output.pack(side="top", fill="both", expand=True)
@@ -1139,7 +1162,7 @@ class MappingEditor(tk.Tk):
         self.progress_label.pack(side="left", fill="x", expand=True, padx=(2, 0))
         self._progress_active = False
 
-        paned.add(out_frame, weight=3)
+        paned.add(out_frame, minsize=76, stretch="always")
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -3647,6 +3670,8 @@ class MappingEditor(tk.Tk):
         names = "\n  • ".join(os.path.basename(s) for s in sources)
         if not dlg_confirm(
             self,
+            _("This is a REAL pass, not a test — the Test (dry-run) option "
+              "does not apply to priming.") + "\n\n" +
             _("Prime {scope}:\n  • {names}\n\n"
               "Each mapping is primed with the options set in its own "
               "configuration (the trash field): additive mappings upload without "
@@ -3665,7 +3690,7 @@ class MappingEditor(tk.Tk):
         self.prime_button.configure(state="disabled")
         self.reset_button.configure(state="disabled")
         self.run_button.configure(state="disabled")
-        self.stop_button.configure(state="normal")
+        self.cache_stop_button.configure(state="normal")
         self._prime_current = ""
         self._progress_kind = "prime"
         self._prime_running = True
@@ -3743,7 +3768,7 @@ class MappingEditor(tk.Tk):
         self.prime_button.configure(state="disabled")
         self.reset_button.configure(state="disabled")
         self.run_button.configure(state="disabled")
-        self.stop_button.configure(state="normal")
+        self.cache_stop_button.configure(state="normal")
         self._prime_current = ""
         self._progress_kind = "reset"
         self._prime_running = True
@@ -3952,7 +3977,7 @@ class MappingEditor(tk.Tk):
             self.after(0, lambda: self.prime_button.configure(state="normal"))
             self.after(0, lambda: self.reset_button.configure(state="normal"))
             self.after(0, lambda: self.run_button.configure(state="normal"))
-            self.after(0, lambda: self.stop_button.configure(state="disabled"))
+            self.after(0, lambda: self.cache_stop_button.configure(state="disabled"))
             # Rafraîchir la colonne « Prêt » IMMÉDIATEMENT à la fin du passage.
             # Sans ça, _prime_tick (1,5 s) vient de s'arrêter et seul le tick lent
             # (30 s) finirait par mettre à jour l'affichage -> le crochet ✅
