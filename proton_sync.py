@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.3.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -711,6 +711,15 @@ def ensure_remote_path(path):
     for part in parts:
         parent = current if current else "/"
         current = f"{current}/{part}" if current else f"/{part}"
+        # Emplacements de PREMIER NIVEAU de Proton Drive (« My files »,
+        # « Shared with me », « Photos », « Devices ») : racines VIRTUELLES fixes,
+        # NON créables (le CLI renvoie « Path "/" is not supported ») et toujours
+        # présentes. On ne tente donc pas de les créer — on descend simplement
+        # dedans. Corrige l'avertissement parasite sur une destination
+        # « /shared-with-me/… » (ex. un dossier de travail collaboratif, un par
+        # personne, sur un partage commun).
+        if parent == "/":
+            continue
         if not remote_exists(current):
             res = run_cli(["filesystem", "create-folder", parent, part])
             # « existe déjà » (dans n'importe quelle langue) = dossier présent =
