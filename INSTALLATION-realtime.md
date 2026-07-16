@@ -1,4 +1,4 @@
-🇬🇧 English | 🇫🇷 [Français](INSTALLATION-realtime.fr.md)
+🇬🇧 English | 🇫🇷 [Français](INSTALLATION-realtime_fr.md)
 
 # Installation — Real-time layer
 

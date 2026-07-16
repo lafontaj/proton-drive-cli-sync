@@ -1,4 +1,4 @@
-🇬🇧 English | 🇫🇷 [Français](INSTALLATION-systemd.fr.md)
+🇬🇧 English | 🇫🇷 [Français](INSTALLATION-systemd_fr.md)
 
 # Automating the Proton Drive sync with systemd (--user timer)
 

@@ -1,4 +1,4 @@
-🇬🇧 English | 🇫🇷 [Français](Temporary-files-exclusions.fr.md)
+🇬🇧 English | 🇫🇷 [Français](Temporary-files-exclusions_fr.md)
 
 # Exclusions — known temporary files
 
