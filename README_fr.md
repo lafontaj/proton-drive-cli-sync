@@ -2,7 +2,7 @@
 
 # Synchro Proton Drive via CLI officiel (Linux)
 
-Document de référence pour reprendre ce projet dans une nouvelle conversation avec Claude.
+Document de référence pour ce projet.
 
 ---
 
@@ -653,7 +653,7 @@ Les changements s'appliquent au **prochain lancement** du GUI et au **prochain r
 
 ## Fichiers de référence du projet
 
-À garder ensemble si on ouvre une nouvelle conversation :
+Les principaux fichiers du projet :
 
 - `Guide-ProtonDrive-iSCSI-WinBoat.pdf` — l'ancienne solution (WinBoat/iSCSI), toujours fonctionnelle, à conserver en backup le temps que ce nouveau setup soit éprouvé
 - `proton_mapping_editor.py` — GUI Tkinter (édition mappings, lancement, exclusions, réglages de suppression, fenêtres Planification et Temps réel)

@@ -653,7 +653,7 @@ Changes apply at the **next launch** of the GUI and the **next restart** of the 
 
 ## Project reference files
 
-To keep together when opening a new conversation:
+The project's main files:
 
 - `Guide-ProtonDrive-iSCSI-WinBoat.pdf` — the previous solution (WinBoat/iSCSI), still functional, kept as backup until this new setup is proven
 - `proton_mapping_editor.py` — Tkinter GUI (mapping editing, launching, exclusions, deletion settings, Schedule and Real-time windows)
