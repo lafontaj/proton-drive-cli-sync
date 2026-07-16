@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.9.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.10.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -591,6 +591,18 @@ CONFIG_HELP = {
         "contacts Proton itself.\n\n"
         "Requires the system packages “python3-gi” and “gir1.2-xapp-1.0” "
         "(already installed on Linux Mint)."
+    ),
+    "launcher-desktop": _(
+        "Desktop shortcut\n\n"
+        "Creates a launcher icon on your desktop, in addition to (or instead "
+        "of) the applications-menu entry.\n\n"
+        "First launch from the desktop: some desktop environments "
+        "(e.g. Cinnamon/Mint) mark a new desktop launcher as “untrusted” and "
+        "ask you to allow it the first time — right-click the icon and choose "
+        "“Allow Launching”. The app tries to mark it trusted for you, but if "
+        "the prompt still appears, this one-time step clears it.\n\n"
+        "The launcher opens the mappings editor (empty, or directly on the "
+        "current mappings file if you chose that option)."
     ),
 }
 
@@ -2515,61 +2527,119 @@ class MappingEditor(tk.Tk):
             except OSError:
                 pass
 
-    def _apply_launcher_setting(self, enabled):
-        """Crée ou retire le LANCEUR d'application (menu d'applications) :
-        ~/.local/share/applications/proton-drive-sync.desktop, pointant sur
-        l'éditeur avec icone.png. L'existence du fichier EST l'état (aucun
-        réglage persistant — rien ne le relit à l'exécution). Écriture atomique,
-        tolérante (confort). Grâce à l'instance unique, cliquer le lanceur
+    _LAUNCHER_NAME = "proton-drive-sync.desktop"
+
+    def _launcher_menu_path(self):
+        return os.path.expanduser(
+            "~/.local/share/applications/" + self._LAUNCHER_NAME)
+
+    def _desktop_dir(self):
+        """Dossier Bureau de l'utilisateur (xdg-user-dir, repli ~/Desktop)."""
+        try:
+            r = subprocess.run(["xdg-user-dir", "DESKTOP"],
+                               capture_output=True, text=True, timeout=5)
+            d = (r.stdout or "").strip()
+            if d and os.path.isdir(d):
+                return d
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return os.path.expanduser("~/Desktop")
+
+    def _launcher_desktop_path(self):
+        return os.path.join(self._desktop_dir(), self._LAUNCHER_NAME)
+
+    def _launcher_content(self, target_path=None):
+        """Contenu du .desktop. `target_path` : fichier de mappings à ouvrir
+        (Exec avec argument), ou None (éditeur vide). Catégorie Network
+        (menu « Internet »). Grâce à l'instance unique, cliquer le lanceur
         remonte la fenêtre existante plutôt que d'en ouvrir une seconde."""
-        desktop_path = os.path.expanduser(
-            "~/.local/share/applications/proton-drive-sync.desktop")
-        if enabled:
-            editor = os.path.join(APP_DIR, "proton_mapping_editor.py")
-            icon = os.path.join(APP_DIR, "icone.png")
-            content = (
-                "[Desktop Entry]\n"
-                "Type=Application\n"
-                "Version=1.0\n"
-                "Name=Proton Drive Sync\n"
-                "Name[fr]=Synchro Proton Drive\n"
-                "Name[de]=Proton Drive Synchronisierung\n"
-                "Name[es]=Sincronización de Proton Drive\n"
-                "Name[it]=Sincronizzazione Proton Drive\n"
-                "Name[pt]=Sincronização do Proton Drive\n"
-                "Comment=Folder sync to Proton Drive\n"
-                "Comment[fr]=Synchronisation de dossiers vers Proton Drive\n"
-                "Comment[de]=Ordner-Synchronisierung mit Proton Drive\n"
-                "Comment[es]=Sincronización de carpetas con Proton Drive\n"
-                "Comment[it]=Sincronizzazione di cartelle con Proton Drive\n"
-                "Comment[pt]=Sincronização de pastas com o Proton Drive\n"
-                f"Exec={sys.executable} {editor}\n"
-                f"Icon={icon}\n"
-                "Terminal=false\n"
-                "Categories=Utility;\n")
+        editor = os.path.join(APP_DIR, "proton_mapping_editor.py")
+        icon = os.path.join(APP_DIR, "icone.png")
+        exec_line = f"{sys.executable} {editor}"
+        if target_path:
+            exec_line += f" {target_path}"
+        return (
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Version=1.0\n"
+            "Name=Proton Drive Sync\n"
+            "Name[fr]=Synchro Proton Drive\n"
+            "Name[de]=Proton Drive Synchronisierung\n"
+            "Name[es]=Sincronización de Proton Drive\n"
+            "Name[it]=Sincronizzazione Proton Drive\n"
+            "Name[pt]=Sincronização do Proton Drive\n"
+            "Comment=Folder sync to Proton Drive\n"
+            "Comment[fr]=Synchronisation de dossiers vers Proton Drive\n"
+            "Comment[de]=Ordner-Synchronisierung mit Proton Drive\n"
+            "Comment[es]=Sincronización de carpetas con Proton Drive\n"
+            "Comment[it]=Sincronizzazione di cartelle con Proton Drive\n"
+            "Comment[pt]=Sincronização de pastas com o Proton Drive\n"
+            f"Exec={exec_line}\n"
+            f"Icon={icon}\n"
+            "Terminal=false\n"
+            "Categories=Network;\n")
+
+    def _write_desktop_file(self, path, content, trusted=False):
+        """Écrit un .desktop (atomique, +x). Si trusted, tente de le marquer
+        « fiable » (gio) pour éviter l'avertissement du bureau sur le Bureau."""
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp, path)
+        os.chmod(path, 0o755)                     # certains bureaux exigent +x
+        if trusted:
             try:
-                os.makedirs(os.path.dirname(desktop_path), exist_ok=True)
-                tmp = desktop_path + ".tmp"
-                with open(tmp, "w", encoding="utf-8") as f:
-                    f.write(content)
-                os.replace(tmp, desktop_path)
-                os.chmod(desktop_path, 0o755)        # certains bureaux exigent +x
-            except OSError:
-                pass                                  # confort : silencieux si échec
-        else:
-            try:
-                if os.path.exists(desktop_path):
-                    os.remove(desktop_path)
-            except OSError:
+                subprocess.run(["gio", "set", path, "metadata::trusted", "true"],
+                               capture_output=True, timeout=5)
+            except (OSError, subprocess.SubprocessError):
                 pass
+
+    def _launcher_existing_target(self):
+        """True si un lanceur existant (menu ou bureau) a un ARGUMENT après le
+        script (donc une cible « mapping courant ») — sert à pré-régler la case
+        cible pour que ré-enregistrer soit idempotent."""
+        for p in (self._launcher_menu_path(), self._launcher_desktop_path()):
+            try:
+                with open(p, encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("Exec="):
+                            return len(line[5:].split()) >= 3
+            except OSError:
+                continue
+        return False
+
+    def _apply_launcher_setting(self, menu_enabled, desktop_enabled, target_path):
+        """Crée/retire le lanceur dans le MENU (~/.local/share/applications) et/ou
+        sur le BUREAU. `target_path` : mappings à ouvrir, ou None (éditeur vide).
+        L'existence des fichiers EST l'état (aucun réglage persistant). Tolérant
+        (confort : silencieux en cas d'échec)."""
+        content = self._launcher_content(target_path)
+        menu_path = self._launcher_menu_path()
+        desktop_path = self._launcher_desktop_path()
+        try:
+            if menu_enabled:
+                self._write_desktop_file(menu_path, content)
+            elif os.path.exists(menu_path):
+                os.remove(menu_path)
+        except OSError:
+            pass
+        try:
+            if desktop_enabled:
+                self._write_desktop_file(desktop_path, content, trusted=True)
+            elif os.path.exists(desktop_path):
+                os.remove(desktop_path)
+        except OSError:
+            pass
         # Rafraîchir le cache du menu si l'outil est présent (sinon le bureau
         # rattrape à son prochain scan). Silencieux.
         try:
             subprocess.run(["update-desktop-database",
-                            os.path.dirname(desktop_path)],
+                            os.path.dirname(menu_path)],
                            capture_output=True, timeout=5)
         except (OSError, subprocess.SubprocessError):
             pass
+
 
     def on_configuration(self):
         """Dialogue UNIFIÉ des préférences : compte Proton (connexion), langue et
@@ -2582,10 +2652,48 @@ class MappingEditor(tk.Tk):
         dlg.title(_("Configuration"))
         dlg.transient(self)
         dlg.grab_set()
-        dlg.resizable(False, False)
+        dlg.resizable(True, True)
 
-        frm = ttk.Frame(dlg, padding=14)
-        frm.pack(fill="both", expand=True)
+        # Barre de boutons FIXE en bas (hors zone défilante), packée en PREMIER
+        # (side=bottom) : toujours réservée et visible, quelle que soit la hauteur
+        # du contenu ou la résolution de l'écran (cas basse résolution où le bas
+        # débordait auparavant).
+        btns = ttk.Frame(dlg, padding=(14, 8))
+        btns.pack(side="bottom", fill="x")
+
+        # Contenu DÉFILANT : Canvas + Scrollbar verticale ; `frm` (inchangé pour
+        # toutes les sections ci-dessous) est ancré dans le canvas.
+        _outer = ttk.Frame(dlg)
+        _outer.pack(side="top", fill="both", expand=True)
+        _canvas = tk.Canvas(_outer, highlightthickness=0)
+        _vsb = ttk.Scrollbar(_outer, orient="vertical", command=_canvas.yview)
+        _canvas.configure(yscrollcommand=_vsb.set)
+        _vsb.pack(side="right", fill="y")
+        _canvas.pack(side="left", fill="both", expand=True)
+        frm = ttk.Frame(_canvas, padding=14)
+        _win = _canvas.create_window((0, 0), window=frm, anchor="nw")
+        frm.bind("<Configure>",
+                 lambda e: _canvas.configure(scrollregion=_canvas.bbox("all")))
+        _canvas.bind("<Configure>",
+                     lambda e: _canvas.itemconfigure(_win, width=e.width))
+        # Molette (X11 : Button-4/5 ; sinon MouseWheel). bind_all le temps du
+        # dialogue, retiré à sa fermeture pour ne pas affecter les autres fenêtres.
+        def _wheel(e):
+            n = getattr(e, "num", None)
+            d = -1 if n == 4 else (1 if n == 5 else
+                                   (int(-e.delta / 120) if getattr(e, "delta", 0) else 0))
+            _canvas.yview_scroll(d, "units")
+        for _seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            _canvas.bind_all(_seq, _wheel)
+
+        def _unbind_wheel(e):
+            if e.widget is dlg:
+                for s in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                    try:
+                        _canvas.unbind_all(s)
+                    except tk.TclError:
+                        pass
+        dlg.bind("<Destroy>", _unbind_wheel)
 
         def help_btn(parent, key):
             # Aide parentée AU DIALOGUE (et pas à la fenêtre principale), sinon
@@ -2904,15 +3012,33 @@ class MappingEditor(tk.Tk):
             # ---- Section Lanceur d'application ----
             launcher_frame = ttk.LabelFrame(frm, text=_("Application launcher"), padding=10)
             launcher_frame.pack(fill="x", pady=(0, 10))
-            launcher_path = os.path.expanduser(
-                "~/.local/share/applications/proton-drive-sync.desktop")
-            launcher_var = tk.BooleanVar(value=os.path.exists(launcher_path))
+            launcher_menu_var = tk.BooleanVar(
+                value=os.path.exists(self._launcher_menu_path()))
+            launcher_desk_var = tk.BooleanVar(
+                value=os.path.exists(self._launcher_desktop_path()))
             row6 = ttk.Frame(launcher_frame); row6.pack(anchor="w", fill="x")
             ttk.Checkbutton(row6, text=_("Show in the applications menu"),
-                            variable=launcher_var).pack(side="left")
-
-        btns = ttk.Frame(frm)
-        btns.pack(fill="x", pady=(4, 0))
+                            variable=launcher_menu_var).pack(side="left")
+            row6b = ttk.Frame(launcher_frame); row6b.pack(anchor="w", fill="x")
+            ttk.Checkbutton(row6b, text=_("Create a desktop shortcut"),
+                            variable=launcher_desk_var).pack(side="left")
+            help_btn(row6b, "launcher-desktop")
+            # Cible : aucun fichier / mapping courant (courant seulement si un
+            # fichier est ouvert). Pré-réglé selon un lanceur existant, pour que
+            # ré-enregistrer soit idempotent.
+            row6c = ttk.Frame(launcher_frame); row6c.pack(anchor="w", fill="x", pady=(4, 0))
+            ttk.Label(row6c, text=_("The launcher opens:")).pack(side="left")
+            launcher_target_var = tk.StringVar(
+                value=("current" if (self._launcher_existing_target()
+                                     and self.config_path) else "none"))
+            ttk.Radiobutton(row6c, text=_("no file"), value="none",
+                            variable=launcher_target_var).pack(side="left", padx=(6, 0))
+            _cur_rb = ttk.Radiobutton(row6c, text=_("the current mapping"),
+                                      value="current", variable=launcher_target_var)
+            _cur_rb.pack(side="left", padx=(6, 0))
+            if not self.config_path:
+                _cur_rb.configure(state="disabled")
+                launcher_target_var.set("none")
 
         def apply():
             if _HAS_CONFIG:
@@ -2974,7 +3100,10 @@ class MappingEditor(tk.Tk):
                 # l'activation ; extinction d'elle-même à la désactivation).
                 appconfig.set_tray_enabled(tray_var.get())
                 self._apply_tray_setting(tray_var.get())
-                self._apply_launcher_setting(launcher_var.get())
+                self._apply_launcher_setting(
+                    launcher_menu_var.get(), launcher_desk_var.get(),
+                    self.config_path if launcher_target_var.get() == "current"
+                    else None)
 
             # Redémarrage AUTOMATIQUE des démons SEULEMENT si un réglage FIGÉ a
             # changé. Analyse du code : le seul réglage lu au DÉMARRAGE du consumer
@@ -3006,6 +3135,15 @@ class MappingEditor(tk.Tk):
         ttk.Button(btns, text=_("Cancel"),
                    command=dlg.destroy).pack(side="right", padx=4)
         ttk.Button(btns, text=_("OK"), command=apply).pack(side="right")
+
+        # Dimensionnement résolution-conscient : largeur = contenu + scrollbar ;
+        # hauteur plafonnée à ~90 % de l'écran (au-delà, le contenu défile), pour
+        # que les boutons restent visibles même en basse résolution.
+        dlg.update_idletasks()
+        _w = frm.winfo_reqwidth() + _vsb.winfo_reqwidth() + 6
+        _h = min(frm.winfo_reqheight() + btns.winfo_reqheight() + 6,
+                 int(dlg.winfo_screenheight() * 0.9))
+        dlg.geometry(f"{_w}x{_h}")
 
 
 
