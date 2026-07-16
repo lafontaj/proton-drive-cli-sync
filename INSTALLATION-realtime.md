@@ -32,6 +32,9 @@ Manual equivalent (for reference), once the `.service` files are written to
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now proton-watch.service proton-consume.service
+# Code update: "enable --now" does NOT restart an already-running service.
+# The GUI does this automatically; by hand, force the reload:
+systemctl --user restart proton-watch.service proton-consume.service
 systemctl --user status proton-consume.service
 journalctl --user -u proton-consume.service -n 50 --no-pager
 ```
@@ -49,6 +52,11 @@ sudo loginctl enable-linger <user>
 ---
 
 ## 2. NAS — NAS watcher (manual, on the NAS)
+
+> **Only if you use a NAS.** By default, a fresh install runs in **local-only**
+> mode: folders sync straight to Proton Drive, with no NAS. In that case, **skip
+> sections 2 and 3** — none of the following is needed. A NAS is enabled explicitly
+> in Configuration ("Use a NAS").
 
 The NAS watcher runs **on the NAS**, under the `nas` account, as a **system**
 service (it must start at boot without an open session). The GUI does not drive
@@ -84,6 +92,13 @@ The watcher reads the mapping copies in `/home/nasuser/proton-sync/config/`
 via *Real-time → ⬆ Push mappings to the NAS*. It hot-reloads these copies, so a
 new push is picked up without restarting the service.
 
+> **Scripts vs mappings.** This hot-reload applies to **mappings**. Updating the NAS
+> **scripts** themselves (`nas_watcher.py`, `config.py`, the `locale/` catalogs…)
+> requires, once pushed, a manual restart of the service:
+> `sudo systemctl restart proton-nas-watch.service`. The app flags this for you — an
+> "!" badge on the tray icon and a warning in the real-time window — after an
+> "Install / Update", with the exact command to copy.
+
 ---
 
 ## 3. Verifying the full chain
@@ -105,6 +120,8 @@ new push is picked up without restarting the service.
 - **Queues**: markers in `~/.proton_sync/queue/` (local) and
   `/media/home_nas/proton-sync/queue/<user>/` (NAS over NFS). The GUI counts them
   and can clear them.
+- **NAS mode**: the "Use a NAS" setting (Configuration) applies **live** — switching
+  local ↔ NAS is picked up within ~30-60 s without restarting the daemons.
 
 ---
 

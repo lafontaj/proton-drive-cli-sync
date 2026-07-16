@@ -32,6 +32,9 @@ Ils redémarrent automatiquement à l'ouverture de session (`WantedBy=default.ta
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now proton-watch.service proton-consume.service
+# Mise à jour de code : « enable --now » ne redémarre PAS un service déjà lancé.
+# Le GUI le fait automatiquement ; en manuel, forcez le rechargement :
+systemctl --user restart proton-watch.service proton-consume.service
 systemctl --user status proton-consume.service
 journalctl --user -u proton-consume.service -n 50 --no-pager
 ```
@@ -49,6 +52,11 @@ sudo loginctl enable-linger <utilisateur>
 ---
 
 ## 2. NAS — watcher NAS (manuel, sur le NAS)
+
+> **Uniquement si vous utilisez un NAS.** Par défaut, une installation neuve est en
+> mode **local seul** : les dossiers se synchronisent directement vers Proton Drive,
+> sans NAS. Dans ce cas, **sautez les sections 2 et 3** — rien de ce qui suit n'est
+> requis. Le NAS s'active explicitement dans la Configuration (« Utiliser un NAS »).
 
 Le watcher NAS tourne **sur le NAS**, sous le compte `nas`, en service **système**
 (il doit démarrer au boot sans session ouverte). Le GUI ne le pilote pas.
@@ -83,6 +91,13 @@ Le watcher lit les copies de mappings dans `/home/nasuser/proton-sync/config/`
 via *Temps réel → ⬆ Pousser les mappings vers le NAS*. Il recharge ces copies à
 chaud, donc un nouveau push est pris en compte sans redémarrer le service.
 
+> **Scripts vs mappings.** Ce rechargement à chaud concerne les **mappings**. Mettre
+> à jour les **scripts** du NAS eux-mêmes (`nas_watcher.py`, `config.py`, catalogues
+> `locale/`…) exige, une fois poussés, un redémarrage manuel du service :
+> `sudo systemctl restart proton-nas-watch.service`. L'application vous le signale —
+> badge « ! » sur l'icône de la barre des tâches et avertissement dans la fenêtre
+> temps réel — après un « Installer / Mettre à jour », avec la commande exacte à copier.
+
 ---
 
 ## 3. Vérifier la chaîne complète
@@ -104,6 +119,8 @@ chaud, donc un nouveau push est pris en compte sans redémarrer le service.
 - **Files** : marqueurs dans `~/.proton_sync/queue/` (locale) et
   `/media/home_nas/proton-sync/queue/<user>/` (NAS via NFS). Le GUI les compte et
   peut les vider.
+- **Mode NAS** : le réglage « Utiliser un NAS » (Configuration) s'applique **à chaud** —
+  la bascule local ↔ NAS est prise en compte en ~30-60 s sans redémarrer les démons.
 
 ---
 
