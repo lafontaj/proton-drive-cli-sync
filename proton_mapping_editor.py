@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.10.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.10.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1173,7 +1173,7 @@ class MappingEditor(tk.Tk):
         fit("state", ["✅", "⏳", "—"])
         fit("type",  [_("Folder"), _("File")])
         fit("del",   ["⛔", "🗑", ""])
-        fit("exclusions", ["—", "99 nom(s), 99 motif(s)"])
+        fit("exclusions", ["—", _("{n} name(s), {m} pattern(s)").format(n=99, m=99)])
         # Colonnes de chemins : élastiques (absorbent l'agrandissement).
         self.tree.column("source", stretch=True)
         self.tree.column("dest_parent", stretch=True)
@@ -1237,7 +1237,7 @@ class MappingEditor(tk.Tk):
             n_names = len(excl.get("names", []) or [])
             n_pat = len(excl.get("patterns", []) or [])
             if n_names or n_pat:
-                excl_txt = f"{n_names} nom(s), {n_pat} motif(s)"
+                excl_txt = _("{n} name(s), {m} pattern(s)").format(n=n_names, m=n_pat)
             else:
                 excl_txt = "—"
             # Symbole de suppression discret :

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 12:16+0000\n"
+"POT-Creation-Date: 2026-07-16 19:46+0000\n"
 "PO-Revision-Date: 2026-07-16 11:20+0000\n"
 "Last-Translator: \n"
 "Language-Team: Italian\n"
@@ -1719,6 +1719,11 @@ msgstr "Cartella"
 #: proton_mapping_editor.py:1174 proton_mapping_editor.py:1235
 msgid "File"
 msgstr "File"
+
+#: proton_mapping_editor.py:1176 proton_mapping_editor.py:1240
+#, python-brace-format
+msgid "{n} name(s), {m} pattern(s)"
+msgstr "{n} nome/i, {m} modello/i"
 
 #: proton_mapping_editor.py:1205
 msgid "Advanced options ▴"

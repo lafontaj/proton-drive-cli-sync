@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 12:16+0000\n"
+"POT-Creation-Date: 2026-07-16 19:46+0000\n"
 "PO-Revision-Date: 2026-07-02 12:00-0400\n"
 "Last-Translator: \n"
 "Language-Team: French\n"
@@ -1711,6 +1711,11 @@ msgstr "Dossier"
 #: proton_mapping_editor.py:1174 proton_mapping_editor.py:1235
 msgid "File"
 msgstr "Fichier"
+
+#: proton_mapping_editor.py:1176 proton_mapping_editor.py:1240
+#, python-brace-format
+msgid "{n} name(s), {m} pattern(s)"
+msgstr "{n} nom(s), {m} motif(s)"
 
 #: proton_mapping_editor.py:1205
 msgid "Advanced options ▴"
