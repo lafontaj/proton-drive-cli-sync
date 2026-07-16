@@ -12,12 +12,13 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.9.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
 import queue
 import sys
+import socket
 import threading
 import time
 import subprocess
@@ -2360,14 +2361,15 @@ class MappingEditor(tk.Tk):
                 "schedule from this interface."),
                 title=_("Missing module"))
             return
-        if not self.config_path:
+        path = self.config_path or schedule_manager.read_service_mappings_path()
+        if not path:
             dlg_info(
                 self,
-                _("Open or save a mappings file first: the schedule will "
-                "apply to that file."),
+                _("No mappings file is open and no schedule is installed. "
+                "Open or save a mappings file to configure one."),
                 title=_("No file"))
             return
-        ScheduleDialog(self, self.config_path)
+        ScheduleDialog(self, path)
 
 
     # ---------- Temps réel (démons systemd --user) ----------
@@ -2380,14 +2382,15 @@ class MappingEditor(tk.Tk):
                 "real-time from this interface."),
                 title=_("Missing module"))
             return
-        if not self.config_path:
+        path = self.config_path or realtime_manager.read_units_mappings_path()
+        if not path:
             dlg_info(
                 self,
-                _("Open or save a mappings file first: real-time will "
-                "apply to that file."),
+                _("No mappings file is open and no real-time service is "
+                "installed. Open or save a mappings file to configure one."),
                 title=_("No file"))
             return
-        RealtimeDialog(self, self.config_path)
+        RealtimeDialog(self, path)
 
     def _set_auth_state(self, ok):
         """Peint le TÉMOIN de connexion (bas droite) : vert « connecté — <compte> »
@@ -2511,6 +2514,62 @@ class MappingEditor(tk.Tk):
                     os.remove(desktop_path)
             except OSError:
                 pass
+
+    def _apply_launcher_setting(self, enabled):
+        """Crée ou retire le LANCEUR d'application (menu d'applications) :
+        ~/.local/share/applications/proton-drive-sync.desktop, pointant sur
+        l'éditeur avec icone.png. L'existence du fichier EST l'état (aucun
+        réglage persistant — rien ne le relit à l'exécution). Écriture atomique,
+        tolérante (confort). Grâce à l'instance unique, cliquer le lanceur
+        remonte la fenêtre existante plutôt que d'en ouvrir une seconde."""
+        desktop_path = os.path.expanduser(
+            "~/.local/share/applications/proton-drive-sync.desktop")
+        if enabled:
+            editor = os.path.join(APP_DIR, "proton_mapping_editor.py")
+            icon = os.path.join(APP_DIR, "icone.png")
+            content = (
+                "[Desktop Entry]\n"
+                "Type=Application\n"
+                "Version=1.0\n"
+                "Name=Proton Drive Sync\n"
+                "Name[fr]=Synchro Proton Drive\n"
+                "Name[de]=Proton Drive Synchronisierung\n"
+                "Name[es]=Sincronización de Proton Drive\n"
+                "Name[it]=Sincronizzazione Proton Drive\n"
+                "Name[pt]=Sincronização do Proton Drive\n"
+                "Comment=Folder sync to Proton Drive\n"
+                "Comment[fr]=Synchronisation de dossiers vers Proton Drive\n"
+                "Comment[de]=Ordner-Synchronisierung mit Proton Drive\n"
+                "Comment[es]=Sincronización de carpetas con Proton Drive\n"
+                "Comment[it]=Sincronizzazione di cartelle con Proton Drive\n"
+                "Comment[pt]=Sincronização de pastas com o Proton Drive\n"
+                f"Exec={sys.executable} {editor}\n"
+                f"Icon={icon}\n"
+                "Terminal=false\n"
+                "Categories=Utility;\n")
+            try:
+                os.makedirs(os.path.dirname(desktop_path), exist_ok=True)
+                tmp = desktop_path + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    f.write(content)
+                os.replace(tmp, desktop_path)
+                os.chmod(desktop_path, 0o755)        # certains bureaux exigent +x
+            except OSError:
+                pass                                  # confort : silencieux si échec
+        else:
+            try:
+                if os.path.exists(desktop_path):
+                    os.remove(desktop_path)
+            except OSError:
+                pass
+        # Rafraîchir le cache du menu si l'outil est présent (sinon le bureau
+        # rattrape à son prochain scan). Silencieux.
+        try:
+            subprocess.run(["update-desktop-database",
+                            os.path.dirname(desktop_path)],
+                           capture_output=True, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            pass
 
     def on_configuration(self):
         """Dialogue UNIFIÉ des préférences : compte Proton (connexion), langue et
@@ -2842,6 +2901,16 @@ class MappingEditor(tk.Tk):
                             variable=tray_var).pack(side="left")
             help_btn(row5, "tray-icon")
 
+            # ---- Section Lanceur d'application ----
+            launcher_frame = ttk.LabelFrame(frm, text=_("Application launcher"), padding=10)
+            launcher_frame.pack(fill="x", pady=(0, 10))
+            launcher_path = os.path.expanduser(
+                "~/.local/share/applications/proton-drive-sync.desktop")
+            launcher_var = tk.BooleanVar(value=os.path.exists(launcher_path))
+            row6 = ttk.Frame(launcher_frame); row6.pack(anchor="w", fill="x")
+            ttk.Checkbutton(row6, text=_("Show in the applications menu"),
+                            variable=launcher_var).pack(side="left")
+
         btns = ttk.Frame(frm)
         btns.pack(fill="x", pady=(4, 0))
 
@@ -2905,6 +2974,7 @@ class MappingEditor(tk.Tk):
                 # l'activation ; extinction d'elle-même à la désactivation).
                 appconfig.set_tray_enabled(tray_var.get())
                 self._apply_tray_setting(tray_var.get())
+                self._apply_launcher_setting(launcher_var.get())
 
             # Redémarrage AUTOMATIQUE des démons SEULEMENT si un réglage FIGÉ a
             # changé. Analyse du code : le seul réglage lu au DÉMARRAGE du consumer
@@ -4051,6 +4121,23 @@ class ScheduleDialog(tk.Toplevel):
                 title=_("Enable automatic deletions?"), kind="warning",
                 ok_text=_("Enable Option B"), cancel_text=_("Cancel")):
                 return
+        # Rappel de divergence : si le service planifié installé vise un AUTRE
+        # fichier que celui qu'on s'apprête à appliquer (le fichier en cours
+        # d'édition), prévenir — cela va re-pointer la planification.
+        installed = schedule_manager.read_service_mappings_path()
+        if (installed and os.path.realpath(installed)
+                != os.path.realpath(self.mappings_path)):
+            if not dlg_confirm(
+                self,
+                _("The scheduled service currently uses:\n  {old}\n"
+                "You are installing:\n  {new}\n\n"
+                "This will switch the schedule to the file you are editing. "
+                "Continue?").format(old=os.path.basename(installed),
+                                    new=os.path.basename(self.mappings_path)),
+                title=_("Active mappings file change"), kind="warning",
+                ok_text=_("Confirm the change"),
+                cancel_text=_("Cancel (keep the current file)")):
+                return
         ok, msg = schedule_manager.install_or_update(
             self.mappings_path, on_calendar=cal, delete=delete, enable=True)
         if ok:
@@ -5068,9 +5155,115 @@ class RealtimeDialog(tk.Toplevel):
         self._refresh()
 
 
+# Nom de socket Unix ABSTRAIT (Linux) — préfixe \0, propre à l'utilisateur.
+# Un socket abstrait n'a pas d'entrée sur le système de fichiers : le noyau
+# libère le nom à la mort du process, donc jamais de nom périmé à nettoyer
+# (contrairement à un socket-fichier ou un PID-file).
+_SINGLETON_ADDR = "\0proton_mapping_editor_%d" % os.getuid()
+
+
+def _try_become_primary():
+    """Tente de devenir l'instance PRIMAIRE. Renvoie le socket serveur si on est
+    la première instance (à garder ouvert pendant toute la vie du process),
+    sinon None (une autre instance tient déjà le nom)."""
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        srv.bind(_SINGLETON_ADDR)                # échoue si déjà lié
+    except OSError:
+        srv.close()
+        return None
+    srv.listen(5)
+    return srv
+
+
+def _signal_existing():
+    """Demande à l'instance primaire de remonter sa fenêtre. Tolérant : renvoie
+    False si la connexion échoue (instance en train de mourir)."""
+    try:
+        c = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        c.settimeout(2.0)
+        c.connect(_SINGLETON_ADDR)
+        c.sendall(b"raise")
+        c.close()
+        return True
+    except OSError:
+        return False
+
+
+def _start_singleton_listener(app, srv):
+    """Écoute les connexions d'éventuelles 2e instances (voir main()) et remonte
+    la fenêtre `app` au premier plan. Le thread écouteur ne touche JAMAIS Tk : il
+    dépose un jeton dans une queue ; un scrutateur périodique (planifié sur le
+    thread PRINCIPAL via app.after) la draine et remonte la fenêtre. C'est le
+    seul marshaling sûr — Tk n'est pas thread-safe et after() n'est appelable que
+    depuis le thread principal."""
+    app._raise_q = queue.Queue()
+
+    def loop():
+        while True:
+            try:
+                conn, _ = srv.accept()
+            except OSError:
+                return                           # socket fermé : arrêt de l'app
+            try:
+                conn.recv(64)                    # contenu ignoré (Option X :
+                                                 # on remonte, pas d'autre fichier)
+            except OSError:
+                pass
+            finally:
+                try:
+                    conn.close()
+                except OSError:
+                    pass
+            app._raise_q.put(1)
+
+    threading.Thread(target=loop, daemon=True).start()
+    _poll_raise_requests(app)                    # démarre le scrutateur (thread principal)
+
+
+def _poll_raise_requests(app):
+    """Scrutateur sur le thread Tk : draine la queue et remonte la fenêtre si une
+    2e instance l'a demandé. Se replanifie toutes les 200 ms."""
+    drained = False
+    try:
+        while True:
+            app._raise_q.get_nowait()
+            drained = True
+    except queue.Empty:
+        pass
+    if drained:
+        _raise_to_front(app)
+    try:
+        app.after(200, lambda: _poll_raise_requests(app))
+    except Exception:
+        pass                                     # interpréteur Tk détruit
+
+
+def _raise_to_front(app):
+    """Remonte la fenêtre `app` au premier plan (appelé sur le thread Tk)."""
+    try:
+        app.deiconify()                          # au cas où minimisée
+        app.lift()
+        app.attributes("-topmost", True)         # force au-dessus, puis relâche
+        app.after(250, lambda: app.attributes("-topmost", False))
+        app.focus_force()
+    except Exception:
+        pass
+
+
 def main():
     config_path = sys.argv[1] if len(sys.argv) > 1 else None
+    # Instance unique : si une fenêtre est déjà ouverte, on lui demande de
+    # remonter au premier plan et on sort (Option X : pas de 2e fenêtre ; le
+    # fichier demandé est ignoré). Couvre TOUTES les voies de lancement
+    # (systray icône + menu « Ouvrir », CLI, lanceur .desktop).
+    srv = _try_become_primary()
+    if srv is None:
+        _signal_existing()
+        return
     app = MappingEditor(config_path)
+    app._singleton_srv = srv                     # garder la référence vivante
+    _start_singleton_listener(app, srv)
     app.mainloop()
 
 

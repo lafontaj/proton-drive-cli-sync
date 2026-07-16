@@ -257,7 +257,7 @@ With `--verify-hash`, it adds a SHA1 comparison when sizes match — detecting c
 - A folder with a failed upload is NOT cached -> automatically retried at the next pass.
 - `--dry-run` never touches the cache.
 - Atomic writes (tmp + rename) -> never a corrupted cache, even on a crash.
-- `--ignore-cache` forces a full pass (and refreshes the cache at the end).
+- `--ignore-cache` forces a full pass (and rebuilds the cache on the fly, entry by entry).
 
 ### Checkpoints (crash resilience)
 
@@ -335,7 +335,7 @@ python3 ~/Logiciels/Proton-drive/proton_sync.py \
 Options:
 - `--dry-run`: shows what would be done without transferring anything (and without touching the cache)
 - `--verify-hash`: adds SHA1 verification (slower, reads every file; bypasses the cache; monthly use)
-- `--ignore-cache`: forces a full re-check on the Proton side (refreshes the cache at the end)
+- `--ignore-cache`: forces a full re-check on the Proton side (rebuilds the cache on the fly)
 - `--delete`: **master switch** for deletion propagation. Without it, no deletion. With it, every mapping with `allow_delete: true` propagates its local deletions to Proton, according to its `delete_mode` (trash/permanent) and subject to the mount guard. Always test with `--dry-run` first.
 - `--subpath <folder>` + `--mapping-source <source>`: processes only **one subfolder** of a given mapping, instead of sweeping everything. Used by the real-time layer (the consumer launches the engine targeted at the folder that just changed).
 - `--check-auth`: probes **only** authentication (is the keyring unlocked?) then exits — code 0 = OK, code 2 = locked. Doesn't take the lock, syncs nothing, doesn't touch the cache. Used by the real-time consumer to avoid launching passes doomed to exit code 2 while the session isn't open (reuses the engine's exact test, no duplicated logic).

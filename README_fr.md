@@ -257,7 +257,7 @@ Avec `--verify-hash`, ajoute une comparaison SHA1 quand les tailles corresponden
 - Un dossier dont un upload a échoué n'est PAS mis en cache -> automatiquement réessayé au prochain passage.
 - Le `--dry-run` ne touche jamais au cache.
 - Écriture atomique (tmp + rename) -> jamais de cache corrompu, même en cas de crash.
-- `--ignore-cache` force un passage complet (et met le cache à jour à la fin).
+- `--ignore-cache` force un passage complet (et reconstruit le cache au fil de l'eau, entrée par entrée).
 
 ### Checkpoints (robustesse anti-crash)
 
@@ -335,7 +335,7 @@ python3 ~/Logiciels/Proton-drive/proton_sync.py \
 Options :
 - `--dry-run` : affiche ce qui serait fait sans rien transférer (et sans toucher au cache)
 - `--verify-hash` : ajoute la vérification SHA1 (plus lent, lit chaque fichier ; ignore le cache ; usage mensuel)
-- `--ignore-cache` : force la revérification complète côté Proton (met le cache à jour à la fin)
+- `--ignore-cache` : force la revérification complète côté Proton (reconstruit le cache au fil de l'eau)
 - `--delete` : **interrupteur maître** de la propagation des suppressions. Sans lui, aucune suppression. Avec lui, chaque mapping ayant `allow_delete: true` propage ses suppressions locales vers Proton, selon son `delete_mode` (corbeille/définitif) et sous réserve du garde-fou de montage. Toujours tester avec `--dry-run` d'abord.
 - `--subpath <dossier>` + `--mapping-source <source>` : ne traite qu'**un seul sous-dossier** d'un mapping donné, au lieu de tout balayer. Utilisé par la couche temps réel (le consommateur lance le moteur ciblé sur le dossier qui vient de changer).
 - `--check-auth` : sonde **uniquement** l'authentification (le trousseau est-il déverrouillé ?) puis sort — code 0 = OK, code 2 = verrouillé. Ne prend pas le verrou, ne synchronise rien, ne touche pas au cache. Utilisé par le consommateur temps réel pour éviter de lancer des passages voués au code 2 quand la session n'est pas ouverte (réutilise exactement le test du moteur, pas de logique dupliquée).
