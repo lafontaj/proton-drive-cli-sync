@@ -6,6 +6,24 @@ Document de référence pour ce projet.
 
 ---
 
+## Captures d'écran
+
+L'éditeur de mappings — la fenêtre principale : dossiers à synchroniser, exclusions par mapping, et les commandes de lancement.
+
+![Éditeur de mappings](docs/images/mappings-editor.png)
+
+La fenêtre Temps réel : état des démons, délais, état du NAS, et le journal d'événements en direct.
+
+![Fenêtre Temps réel](docs/images/real-time.png)
+
+La fenêtre Planification (le timer systemd nocturne) et le dialogue de configuration.
+
+![Fenêtre Planification](docs/images/schedule.png)
+
+![Dialogue de configuration](docs/images/configuration.png)
+
+---
+
 ## Contexte
 
 Proton a publié en juin 2026 un **CLI officiel** pour Proton Drive (`proton-drive`), disponible sur Linux, macOS et Windows. C'est le successeur logique du pont temporaire WinBoat + iSCSI + robocopy mis en place précédemment (toujours documenté dans le PDF `Guide-ProtonDrive-iSCSI-WinBoat.pdf`).
