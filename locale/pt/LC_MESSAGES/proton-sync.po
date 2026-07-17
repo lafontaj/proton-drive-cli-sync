@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-17 01:31+0000\n"
+"POT-Creation-Date: 2026-07-17 02:05+0000\n"
 "PO-Revision-Date: 2026-07-16 11:20+0000\n"
 "Last-Translator: \n"
 "Language-Team: Portuguese\n"
@@ -60,42 +60,50 @@ msgstr "    ⚠  Não foi possível renomear {a}: {e}"
 msgid "⚠  Cache corrupted or unreadable ({e}) — starting fresh."
 msgstr "⚠  Cache danificada ou ilegível ({e}) — a recomeçar do zero."
 
-#: proton_sync.py:729
+#: proton_sync.py:751
+#, python-brace-format
+msgid ""
+"    ⛔ No write permission on {p} — ask the owner for access; skipping. ({e})"
+msgstr ""
+"    ⛔ Sem permissão de escrita em {p} — peça acesso ao proprietário; "
+"ignorado. ({e})"
+
+#: proton_sync.py:757
 #, python-brace-format
 msgid "    ⚠  Could not create {p}: {e}"
 msgstr "    ⚠  Não foi possível criar {p}: {e}"
 
-#: proton_sync.py:740
+#: proton_sync.py:768
 #, python-brace-format
 msgid "    (nothing found at {p}: {e})"
 msgstr "    (nada encontrado em {p}: {e})"
 
-#: proton_sync.py:747
+#: proton_sync.py:775
 msgid "    [debug] first raw element received from 'filesystem list -j':"
 msgstr ""
 "    [debug] primeiro elemento em bruto recebido de 'filesystem list -j':"
 
-#: proton_sync.py:782
+#: proton_sync.py:810
 #, python-brace-format
 msgid "    (remote size unknown for {f}, re-sending to be safe)"
 msgstr "    (tamanho remoto desconhecido para {f}, a reenviar por segurança)"
 
-#: proton_sync.py:790
+#: proton_sync.py:818
 #, python-brace-format
 msgid "    (same size but different content: {f})"
 msgstr "    (mesmo tamanho mas conteúdo diferente: {f})"
 
-#: proton_sync.py:885
+#: proton_sync.py:913
 #, python-brace-format
 msgid "    [DRY-RUN] would upload: {p}"
 msgstr "    [DRY-RUN] carregaria: {p}"
 
-#: proton_sync.py:907
+#: proton_sync.py:935
 #, python-brace-format
 msgid "    ✅ {n} file(s) sent to {p}"
 msgstr "    ✅ {n} ficheiro(s) enviado(s) para {p}"
 
-#: proton_sync.py:913
+#: proton_sync.py:941
 #, python-brace-format
 msgid ""
 "    ⚠  Batch upload to {p} reported a failure — isolating the culprit "
@@ -104,56 +112,56 @@ msgstr ""
 "    ⚠  O carregamento em lote para {p} reportou uma falha — a isolar o(s) "
 "ficheiro(s) culpado(s)…"
 
-#: proton_sync.py:932
+#: proton_sync.py:960
 #, python-brace-format
 msgid "      – vanished before upload (deleted meanwhile), skipped: {p}"
 msgstr ""
 "      – desaparecido antes do carregamento (eliminado entretanto), saltado: "
 "{p}"
 
-#: proton_sync.py:943
+#: proton_sync.py:971
 #, python-brace-format
 msgid "      – vanished during upload (deleted meanwhile), skipped: {p}"
 msgstr ""
 "      – desaparecido durante o carregamento (eliminado entretanto), saltado: "
 "{p}"
 
-#: proton_sync.py:950
+#: proton_sync.py:978
 #, python-brace-format
 msgid "      ⚠ thumbnail/codec issue — retrying without thumbnail: {p}"
 msgstr ""
 "      ⚠ problema de miniatura/codec — a tentar novamente sem miniatura: {p}"
 
-#: proton_sync.py:954
+#: proton_sync.py:982
 #, python-brace-format
 msgid "      ✓ uploaded WITHOUT thumbnail (no Proton preview): {p}"
 msgstr "      ✓ carregado SEM miniatura (sem pré-visualização do Proton): {p}"
 
-#: proton_sync.py:963
+#: proton_sync.py:991
 #, python-brace-format
 msgid "      ✓ recovered on individual retry: {p}"
 msgstr "      ✓ recuperado em nova tentativa individual: {p}"
 
-#: proton_sync.py:966
+#: proton_sync.py:994
 #, python-brace-format
 msgid "    ❌ upload failed: {p}"
 msgstr "    ❌ carregamento falhou: {p}"
 
-#: proton_sync.py:967
+#: proton_sync.py:995
 #, python-brace-format
 msgid "    ❌   reason: {e}"
 msgstr "    ❌   motivo: {e}"
 
-#: proton_sync.py:967
+#: proton_sync.py:995
 msgid "(no message from the CLI)"
 msgstr "(sem mensagem da CLI)"
 
-#: proton_sync.py:971
+#: proton_sync.py:999
 #, python-brace-format
 msgid "    ✅ {n} file(s) recovered on individual retry."
 msgstr "    ✅ {n} ficheiro(s) recuperado(s) em nova tentativa individual."
 
-#: proton_sync.py:973
+#: proton_sync.py:1001
 #, python-brace-format
 msgid ""
 "    ⚠  {n} file(s) uploaded WITHOUT thumbnail (image format needs an OS "
@@ -162,7 +170,7 @@ msgstr ""
 "    ⚠  {n} ficheiro(s) carregado(s) SEM miniatura (o formato de imagem "
 "precisa de um codec do SO — guardado mesmo assim, registado em {log})."
 
-#: proton_sync.py:976
+#: proton_sync.py:1004
 #, python-brace-format
 msgid ""
 "    – {n} file(s) vanished (deleted meanwhile) — skipped, not a failure."
@@ -170,121 +178,121 @@ msgstr ""
 "    – {n} ficheiro(s) desaparecido(s) (eliminado(s) entretanto) — "
 "saltado(s), não é uma falha."
 
-#: proton_sync.py:978
+#: proton_sync.py:1006
 #, python-brace-format
 msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
 msgstr ""
 "    ❌ {n} ficheiro(s) continuam a falhar (consulte o registo de falhas: "
 "{log})."
 
-#: proton_sync.py:991
+#: proton_sync.py:1019
 msgid "would delete PERMANENTLY"
 msgstr "eliminaria PERMANENTEMENTE"
 
-#: proton_sync.py:991
+#: proton_sync.py:1019
 msgid "would move to trash"
 msgstr "moveria para a reciclagem"
 
-#: proton_sync.py:996
+#: proton_sync.py:1024
 #, python-brace-format
 msgid "    ❌ {a} of {p} failed: {e}"
 msgstr "    ❌ {a} de {p} falhou: {e}"
 
-#: proton_sync.py:998
+#: proton_sync.py:1026
 msgid "permanently deleted"
 msgstr "eliminado permanentemente"
 
-#: proton_sync.py:998
+#: proton_sync.py:1026
 msgid "sent to trash"
 msgstr "enviado para a reciclagem"
 
-#: proton_sync.py:1036
+#: proton_sync.py:1064
 #, python-brace-format
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (pasta órfã: {n} — ~{c} elemento(s) remoto(s))"
 
-#: proton_sync.py:1068
+#: proton_sync.py:1096
 #, python-brace-format
 msgid "  ⛔ Remote wipe REFUSED (mount guard): {r}"
 msgstr "  ⛔ Apagamento remoto RECUSADO (proteção de montagem): {r}"
 
-#: proton_sync.py:1069
+#: proton_sync.py:1097
 msgid "     Nothing deleted remotely — this mapping was NOT reset."
 msgstr "     Nada eliminado remotamente — este mapeamento NÃO foi reposto."
 
-#: proton_sync.py:1074
+#: proton_sync.py:1102
 #, python-brace-format
 msgid "  ♻ No remote folder to wipe (already absent): {p}"
 msgstr "  ♻ Nenhuma pasta remota para apagar (já ausente): {p}"
 
-#: proton_sync.py:1076
+#: proton_sync.py:1104
 #, python-brace-format
 msgid "  🗑  Wiping remote folder to TRASH: {p}"
 msgstr "  🗑  A apagar a pasta remota para a RECICLAGEM: {p}"
 
-#: proton_sync.py:1106 proton_sync.py:1123
+#: proton_sync.py:1134 proton_sync.py:1151
 #, python-brace-format
 msgid "  ❌ Could not read {p}: {e}"
 msgstr "  ❌ Não foi possível ler {p}: {e}"
 
-#: proton_sync.py:1184
+#: proton_sync.py:1212
 #, python-brace-format
 msgid "  ⚡ {t}, skipping the CLI call for {p}"
 msgstr "  ⚡ {t}, a saltar a chamada à CLI para {p}"
 
-#: proton_sync.py:1190
+#: proton_sync.py:1218
 #, python-brace-format
 msgid "  🚫 excluded (folder): {p}"
 msgstr "  🚫 excluído (pasta): {p}"
 
-#: proton_sync.py:1223
+#: proton_sync.py:1256
 #, python-brace-format
 msgid "    🚫 excluded ({k}): {p}"
 msgstr "    🚫 excluído ({k}): {p}"
 
-#: proton_sync.py:1239 proton_sync.py:1327
+#: proton_sync.py:1272 proton_sync.py:1361
 #, python-brace-format
 msgid "    ⏭  unchanged: {p}"
 msgstr "    ⏭  inalterado: {p}"
 
-#: proton_sync.py:1298
+#: proton_sync.py:1331
 #, python-brace-format
 msgid "  ⚠  Deletions disabled for this mapping: {r}"
 msgstr "  ⚠  Eliminações desativadas para este mapeamento: {r}"
 
-#: proton_sync.py:1299 proton_sync.py:1486
+#: proton_sync.py:1332 proton_sync.py:1520
 msgid "      (uploads continue normally)"
 msgstr "      (os carregamentos continuam normalmente)"
 
-#: proton_sync.py:1302 proton_sync.py:1489
+#: proton_sync.py:1335 proton_sync.py:1523
 msgid "permanent"
 msgstr "permanente"
 
-#: proton_sync.py:1302 proton_sync.py:1489
+#: proton_sync.py:1335 proton_sync.py:1523
 msgid "to trash"
 msgstr "para a reciclagem"
 
-#: proton_sync.py:1303
+#: proton_sync.py:1336
 #, python-brace-format
 msgid "  🗑  Deletion propagation ACTIVE ({l}) for this mapping"
 msgstr "  🗑  Propagação de eliminações ATIVA ({l}) para este mapeamento"
 
-#: proton_sync.py:1318
+#: proton_sync.py:1351
 #, python-brace-format
 msgid "    🚫 excluded (file): {p}"
 msgstr "    🚫 excluído (ficheiro): {p}"
 
-#: proton_sync.py:1429
+#: proton_sync.py:1463
 #, python-brace-format
 msgid "  ❌ Subpath not found or not a folder: {p}"
 msgstr "  ❌ Subcaminho não encontrado ou não é uma pasta: {p}"
 
-#: proton_sync.py:1442
+#: proton_sync.py:1476
 #, python-brace-format
 msgid "subpath excluded (“{s}” filtered), skipped: {p}"
 msgstr "subcaminho excluído («{s}» filtrado), saltado: {p}"
 
-#: proton_sync.py:1464
+#: proton_sync.py:1498
 #, python-brace-format
 msgid ""
 "folder not fully indexed yet (cache not built by a full pass), deferred to "
@@ -293,84 +301,84 @@ msgstr ""
 "pasta ainda não totalmente indexada (cache não construída por uma passagem "
 "completa), adiada para o agendamento: {p}"
 
-#: proton_sync.py:1485
+#: proton_sync.py:1519
 #, python-brace-format
 msgid "  ⚠  Deletions disabled for this subpath: {r}"
 msgstr "  ⚠  Eliminações desativadas para este subcaminho: {r}"
 
-#: proton_sync.py:1490
+#: proton_sync.py:1524
 #, python-brace-format
 msgid "  🗑  Deletion propagation ACTIVE ({l}) for this subpath"
 msgstr "  🗑  Propagação de eliminações ATIVA ({l}) para este subcaminho"
 
-#: proton_sync.py:1492
+#: proton_sync.py:1526
 #, python-brace-format
 msgid "  ↪ subpath: {s}  =>  {d}"
 msgstr "  ↪ subcaminho: {s}  =>  {d}"
 
-#: proton_sync.py:1626
+#: proton_sync.py:1660
 msgid "❌ --wipe-remote requires --reset-source."
 msgstr "❌ --wipe-remote requer --reset-source."
 
-#: proton_sync.py:1647 proton_sync.py:1687
+#: proton_sync.py:1681 proton_sync.py:1721
 #, python-brace-format
 msgid "❌ proton-drive binary not found at {p}"
 msgstr "❌ binário proton-drive não encontrado em {p}"
 
-#: proton_sync.py:1669
+#: proton_sync.py:1703
 msgid "❌ A mappings file is required (config)."
 msgstr "❌ É necessário um ficheiro de mapeamentos (configuração)."
 
-#: proton_sync.py:1681
+#: proton_sync.py:1715
 msgid "❌ Another instance of proton_sync.py is already running."
 msgstr "❌ Já está a ser executada outra instância de proton_sync.py."
 
-#: proton_sync.py:1682
+#: proton_sync.py:1716
 #, python-brace-format
 msgid "   Lock: {p}"
 msgstr "   Bloqueio: {p}"
 
-#: proton_sync.py:1683
+#: proton_sync.py:1717
 msgid "   (If you are sure no other instance is running, delete this file.)"
 msgstr ""
 "   (Se tem a certeza de que nenhuma outra instância está em execução, "
 "elimine este ficheiro.)"
 
-#: proton_sync.py:1688
+#: proton_sync.py:1722
 msgid "   Adjust the PROTON_DRIVE_CLI environment variable if needed."
 msgstr "   Ajuste a variável de ambiente PROTON_DRIVE_CLI se necessário."
 
-#: proton_sync.py:1702
+#: proton_sync.py:1736
 msgid "Proton Drive authentication impossible — pass skipped."
 msgstr "Autenticação do Proton Drive impossível — passagem saltada."
 
-#: proton_sync.py:1703
+#: proton_sync.py:1737
 msgid "   Likely cause: the graphical session is not open, so the"
 msgstr "   Causa provável: a sessão gráfica não está aberta, por isso o"
 
-#: proton_sync.py:1704
+#: proton_sync.py:1738
 msgid "   secrets keyring is locked and the CLI cannot read its"
 msgstr ""
 "   chaveiro de segredos está bloqueado e a CLI não consegue ler as suas"
 
-#: proton_sync.py:1705
+#: proton_sync.py:1739
 msgid "   credentials."
 msgstr "   credenciais."
 
-#: proton_sync.py:1707
+#: proton_sync.py:1741
 #, python-brace-format
 msgid "   CLI detail: {e}"
 msgstr "   Detalhe da CLI: {e}"
 
-#: proton_sync.py:1708
+#: proton_sync.py:1742
 msgid "   (This is not a serious error: the next run will retry."
 msgstr "   (Não é um erro grave: a próxima execução tentará novamente."
 
-#: proton_sync.py:1709
+#: proton_sync.py:1743
 msgid "    Open this user's session to unlock the keyring.)"
 msgstr "    Abra a sessão deste utilizador para desbloquear o chaveiro.)"
 
-#: proton_sync.py:1739
+#: proton_sync.py:1773
 #, python-brace-format
 msgid ""
 "Account change accepted ({a} → {b}) — the previous cache is discarded and "
@@ -379,7 +387,7 @@ msgstr ""
 "Alteração de conta aceite ({a} → {b}) — a cache anterior é descartada e será "
 "reconstruída para a nova conta."
 
-#: proton_sync.py:1746
+#: proton_sync.py:1780
 #, python-brace-format
 msgid ""
 "The connected Proton account has changed: this cache was built for {a}, but "
@@ -388,7 +396,7 @@ msgstr ""
 "A conta Proton ligada mudou: esta cache foi criada para {a}, mas a sessão é "
 "agora {b}."
 
-#: proton_sync.py:1749
+#: proton_sync.py:1783
 msgid ""
 "   Nothing was synced or modified — the cache describes the OLD account's "
 "Drive."
@@ -396,7 +404,7 @@ msgstr ""
 "   Nada foi sincronizado ou modificado — a cache descreve o Drive da conta "
 "ANTIGA."
 
-#: proton_sync.py:1751
+#: proton_sync.py:1785
 msgid ""
 "   To proceed on the NEW account: run “Prime the cache” (or reset the "
 "mappings). The destinations will be (re)created on the new Drive."
@@ -404,7 +412,7 @@ msgstr ""
 "   Para prosseguir na NOVA conta: execute «Inicializar cache» (ou reponha os "
 "mapeamentos). Os destinos serão (re)criados no novo Drive."
 
-#: proton_sync.py:1777
+#: proton_sync.py:1811
 msgid ""
 "⏹ Interrupted — cache progress saved: resuming will skip what is already "
 "done (no restart from zero)."
@@ -412,25 +420,25 @@ msgstr ""
 "⏹ Interrompido — progresso da cache guardado: ao retomar, o que já está "
 "feito será saltado (sem reinício do zero)."
 
-#: proton_sync.py:1786
+#: proton_sync.py:1820
 msgid "DRY-RUN (nothing will be transferred)"
 msgstr "DRY-RUN (nada será transferido)"
 
-#: proton_sync.py:1786
+#: proton_sync.py:1820
 msgid "real"
 msgstr "real"
 
-#: proton_sync.py:1795
+#: proton_sync.py:1829
 #, python-brace-format
 msgid "== Proton Drive sync — {n} entry(ies) — {m}{x} =="
 msgstr "== Sincronização do Proton Drive — {n} entrada(s) — {m}{x} =="
 
-#: proton_sync.py:1797
+#: proton_sync.py:1831
 #, python-brace-format
 msgid "   Cache: {p} ({n} known folder(s))"
 msgstr "   Cache: {p} ({n} pasta(s) conhecida(s))"
 
-#: proton_sync.py:1804
+#: proton_sync.py:1838
 msgid ""
 "   ↺ Resuming on an existing cache — work already recorded won't be redone "
 "(unchanged folders are skipped)."
@@ -438,77 +446,77 @@ msgstr ""
 "   ↺ A retomar numa cache existente — o trabalho já registado não será "
 "refeito (as pastas inalteradas são saltadas)."
 
-#: proton_sync.py:1809
+#: proton_sync.py:1843
 #, python-brace-format
 msgid "   Global exclusions: {n} name(s), {p} pattern(s)"
 msgstr "   Exclusões globais: {n} nome(s), {p} padrão(ões)"
 
-#: proton_sync.py:1823
+#: proton_sync.py:1857
 #, python-brace-format
 msgid "   ⟳ Restricted to {n} selected mapping(s) (of {t})."
 msgstr "   ⟳ Restrito a {n} mapeamento(s) selecionado(s) (de {t})."
 
-#: proton_sync.py:1836
+#: proton_sync.py:1870
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
 msgstr "   ⚠  Modo ELIMINAÇÃO ativo — {n} mapeamento(s) com allow_delete"
 
-#: proton_sync.py:1837
+#: proton_sync.py:1871
 #, python-brace-format
 msgid ", including {n} PERMANENT"
 msgstr ", incluindo {n} PERMANENTES"
 
-#: proton_sync.py:1839
+#: proton_sync.py:1873
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
 msgstr ""
 "   ⚠  mount_check.py em falta: TODAS as eliminações serão recusadas "
 "(proteção de segurança)."
 
-#: proton_sync.py:1849
+#: proton_sync.py:1883
 msgid "❌ --subpath requires --mapping-source to identify the mapping."
 msgstr "❌ --subpath requer --mapping-source para identificar o mapeamento."
 
-#: proton_sync.py:1858
+#: proton_sync.py:1892
 #, python-brace-format
 msgid "❌ No mapping with source = {s}"
 msgstr "❌ Nenhum mapeamento com origem = {s}"
 
-#: proton_sync.py:1861
+#: proton_sync.py:1895
 #, python-brace-format
 msgid "❌ --subpath only applies to 'folder' mappings (this one is '{t}')."
 msgstr ""
 "❌ --subpath só se aplica a mapeamentos do tipo 'folder' (este é '{t}')."
 
-#: proton_sync.py:1865
+#: proton_sync.py:1899
 #, python-brace-format
 msgid "== REAL-TIME sync — subpath of a mapping — {m} =="
 msgstr "== Sincronização em TEMPO REAL — subcaminho de um mapeamento — {m} =="
 
-#: proton_sync.py:1866
+#: proton_sync.py:1900
 #, python-brace-format
 msgid "   Mapping: {s}  =>  {d}"
 msgstr "   Mapeamento: {s}  =>  {d}"
 
-#: proton_sync.py:1868
+#: proton_sync.py:1902
 msgid "   ⚠  Deletion propagation requested (--delete)"
 msgstr "   ⚠  Propagação de eliminações solicitada (--delete)"
 
-#: proton_sync.py:1881 proton_sync.py:1948
+#: proton_sync.py:1915 proton_sync.py:1982
 msgid "Done."
 msgstr "Concluído."
 
-#: proton_sync.py:1895
+#: proton_sync.py:1929
 #, python-brace-format
 msgid "   ♻ RESET restricted to {n} selected mapping(s) (of {t})."
 msgstr "   ♻ REPOSIÇÃO restrita a {n} mapeamento(s) selecionado(s) (de {t})."
 
-#: proton_sync.py:1909
+#: proton_sync.py:1943
 #, python-brace-format
 msgid "   ♻ {n} cache entry(ies) purged: {s}"
 msgstr "   ♻ {n} entrada(s) de cache eliminada(s): {s}"
 
-#: proton_sync.py:1922
+#: proton_sync.py:1956
 #, python-brace-format
 msgid ""
 "\n"
@@ -517,7 +525,7 @@ msgstr ""
 "\n"
 "▶ Mapeamento {i}/{n} : {s}  =>  {d}"
 
-#: proton_sync.py:1924
+#: proton_sync.py:1958
 #, python-brace-format
 msgid "  ❌ Source not found, skipped: {s}"
 msgstr "  ❌ Origem não encontrada, saltada: {s}"

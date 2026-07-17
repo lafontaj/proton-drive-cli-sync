@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.3.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.3.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -704,8 +704,29 @@ def _already_exists_error(stderr):
     ))
 
 
+def _is_permission_error(stderr):
+    """True si l'erreur du CLI signale un DÉFAUT DE PERMISSION (destination non
+    inscriptible — ex. un dossier « Partagé avec moi » sans droit d'écriture
+    accordé par le propriétaire). Le CLI renvoie ce message en FRANÇAIS et ne se
+    localise pas via LANG (« Vous n'avez pas l'autorisation d'effectuer cette
+    action. Demandez au propriétaire les droits d'accès nécessaires. ») ; on
+    matche aussi des mots-clés anglais par prudence."""
+    s = (stderr or "").lower()
+    return any(h in s for h in (
+        "autorisation",     # FR : « Vous n'avez pas l'autorisation… »
+        "permission",       # EN générique
+        "not authorized",   # EN
+        "unauthorized",     # EN
+    ))
+
+
 def ensure_remote_path(path):
-    """Crée récursivement chaque segment manquant du chemin distant `path`."""
+    """Crée récursivement chaque segment manquant du chemin distant `path`.
+    Renvoie True si le chemin est prêt (créé ou déjà présent), False si une
+    création a été REFUSÉE POUR PERMISSION (destination non inscriptible). Dans
+    le modèle de partage Proton, un enfant ne peut pas être plus permissif que
+    son parent : un refus à ce niveau signifie que TOUT le sous-arbre est non
+    inscriptible — inutile d'insister, l'appelant saute proprement."""
     parts = [p for p in path.strip("/").split("/") if p]
     current = ""
     for part in parts:
@@ -722,12 +743,19 @@ def ensure_remote_path(path):
             continue
         if not remote_exists(current):
             res = run_cli(["filesystem", "create-folder", parent, part])
-            # « existe déjà » (dans n'importe quelle langue) = dossier présent =
-            # succès silencieux. On n'avertit que sur une VRAIE erreur (permission,
-            # quota, nom invalide…), dont le message ne matche pas ce filtre.
             if res.returncode != 0 and not _already_exists_error(res.stderr):
+                # Permission refusée : destination non inscriptible. On s'arrête
+                # ICI (un seul message) — inutile de tenter les uploads ni de
+                # descendre : le sous-arbre entier est non inscriptible.
+                if _is_permission_error(res.stderr):
+                    print(_("    ⛔ No write permission on {p} — ask the owner "
+                            "for access; skipping. ({e})").format(
+                                p=current, e=res.stderr.strip()))
+                    return False
+                # « existe déjà » = succès silencieux (filtré) ; sinon vraie
+                # erreur (quota, nom invalide…) -> avertissement non bloquant.
                 print(_("    ⚠  Could not create {p}: {e}").format(p=current, e=res.stderr.strip()))
-    return current
+    return True
 
 
 def get_remote_listing(remote_path, verbose=False):
@@ -1209,7 +1237,12 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
 
     # Chemin normal : on s'assure que le dossier distant existe, puis on liste.
     if not dry_run:
-        ensure_remote_path(remote_folder)
+        if not ensure_remote_path(remote_folder):
+            # Permission refusée sur ce dossier : destination non inscriptible.
+            # On saute CE dossier ET tout son sous-arbre (un enfant ne peut pas
+            # être plus permissif que son parent) — AUCUN upload tenté, aucune
+            # descente. Évite la cascade de « Node not found ». Non complet.
+            return False
 
     remote_items = get_remote_listing(remote_folder, verbose=verbose)
 
@@ -1318,7 +1351,8 @@ def sync_file(local_file, remote_parent, dry_run=False, verbose=False, verify_ha
             print(_("    🚫 excluded (file): {p}").format(p=local_file))
         return
     if not dry_run:
-        ensure_remote_path(remote_parent)
+        if not ensure_remote_path(remote_parent):
+            return   # destination non inscriptible : rien envoyé (message déjà émis)
     remote_items = get_remote_listing(remote_parent, verbose=verbose)
     info = remote_items.get(os.path.basename(local_file))
     if needs_upload(local_file, info, verbose=verbose, verify_hash=verify_hash):
