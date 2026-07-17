@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.10.3"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.10.4"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1173,29 +1173,68 @@ class MappingEditor(tk.Tk):
         Le redimensionnement manuel reste possible. Recalculé dans la langue active
         au démarrage (un changement de langue impose de toute façon un redémarrage),
         donc jamais tronqué ni gonflé quelle que soit la langue. Source/Destination
-        restent élastiques et absorbent l'agrandissement."""
-        import tkinter.font as tkfont
-        style = ttk.Style()
+        restent élastiques et absorbent l'agrandissement.
 
-        def _font(spec, fallback):
+        Robustesse Tk 8.6 (segfault Tk_FreeFont) : cette méthode ne crée JAMAIS
+        de police jetable et ne mesure JAMAIS d'emoji.
+          * Polices : uniquement via nametofont() -> objets à delete_font=False,
+            dont le __del__ n'appelle pas « font delete ». On évite ainsi le
+            chemin tkfont.Font(font=spec) (delete_font=True), dont la libération
+            au ramasse-miettes peut planter dans Tk_FreeFont sur certaines libs
+            Tk 8.6 (Ubuntu 22.04 notamment).
+          * Emoji : mesurer un glyphe couleur (✅ ⏳ ⛔ 🗑) force le chargement
+            d'une police emoji couleur via fontconfig ; sa libération est le
+            déclencheur observé du segfault. Les colonnes à glyphe (Prêt,
+            Corbeille) ne mesurent donc aucun emoji — ni en valeur, ni en
+            en-tête — et dérivent leur largeur d'un proxy neutre « MM »,
+            relatif au DPI/scaling, assez large pour un glyphe unique.
+        Compromis assumé : on n'interroge plus la police exacte surchargée par
+        le thème pour le Treeview ; on prend les polices nommées standard. En
+        pratique, avec le PAD de respiration, aucune troncature en 6 langues."""
+        import tkinter.font as tkfont
+
+        # Uniquement des références nommées (delete_font=False -> pas de
+        # « font delete » au GC, donc aucun Tk_FreeFont déclenché par cette
+        # méthode). Repli tolérant sur TkDefaultFont si un nom manque.
+        def _named(name):
             try:
-                return tkfont.Font(font=spec) if spec else tkfont.nametofont(fallback)
+                return tkfont.nametofont(name)
             except Exception:
                 return tkfont.nametofont("TkDefaultFont")
 
-        hfont = _font(style.lookup("Treeview.Heading", "font"), "TkHeadingFont")
-        cfont = _font(style.lookup("Treeview", "font"), "TkDefaultFont")
+        hfont = _named("TkHeadingFont")   # police des en-têtes (souvent grasse)
+        cfont = _named("TkDefaultFont")   # police des cellules
         PAD = 30   # bordures + indicateur de tri + respiration (espace libre)
 
-        def fit(col, samples):
-            w = hfont.measure(self.tree.heading(col)["text"])
+        # Largeur d'un glyphe unique SANS mesurer d'emoji : proxy neutre « MM »
+        # (deux capitales), toujours >= la largeur rendue d'un seul glyphe.
+        GLYPH = cfont.measure("MM")
+
+        def fit(col, samples, header_is_glyph=False, values_are_glyph=False):
+            """Largeur = max(en-tête, échantillons TEXTE, réserve glyphe).
+            `samples` ne doit contenir que du texte garanti sans emoji.
+            header_is_glyph / values_are_glyph : réservent GLYPH au lieu de
+            mesurer l'emoji correspondant (en-tête et/ou valeurs)."""
+            w = 0
+            if header_is_glyph:
+                w = max(w, GLYPH)   # en-tête emoji : jamais mesuré
+            else:
+                w = max(w, hfont.measure(self.tree.heading(col)["text"]))
+            if values_are_glyph:
+                w = max(w, GLYPH)   # valeurs emoji : jamais mesurées
             for s in samples:
-                w = max(w, cfont.measure(s))
+                if s:
+                    w = max(w, cfont.measure(s))
             self.tree.column(col, width=w + PAD, stretch=False)
 
-        fit("state", ["✅", "⏳", "—"])
+        # Prêt : en-tête texte traduit (mesuré), valeurs = glyphes (proxy).
+        fit("state", [], values_are_glyph=True)
+        # Type : en-tête + valeurs = texte traduit, mesuré normalement.
         fit("type",  [_("Folder"), _("File")])
-        fit("del",   ["⛔", "🗑", ""])
+        # Corbeille : en-tête ET valeurs = glyphes (aucune mesure d'emoji).
+        fit("del",   [], header_is_glyph=True, values_are_glyph=True)
+        # Exclusions : en-tête + valeurs = texte (le « — » est un tiret, pas un
+        # emoji : mesuré sans risque).
         fit("exclusions", ["—", _("{n} name(s), {m} pattern(s)").format(n=99, m=99)])
         # Colonnes de chemins : élastiques (absorbent l'agrandissement).
         self.tree.column("source", stretch=True)
