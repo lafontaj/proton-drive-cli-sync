@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.10.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.10.3"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1581,6 +1581,12 @@ class MappingEditor(tk.Tk):
             variable=allow_var, command=lambda: toggle_delete())
         allow_chk.pack(anchor="w")
 
+        # Note affichée quand la destination est sous « Partagé avec moi » : la
+        # suppression y est impossible (limitation CLI) -> mapping en ajout seul.
+        shared_note = ttk.Label(del_frame, text="", wraplength=600,
+                                foreground="#7a5c00", justify="left")
+        shared_note.pack(anchor="w", pady=(2, 0))
+
         # Sous-zone activée seulement si allow coché
         sub = ttk.Frame(del_frame)
         sub.pack(fill="x", pady=(6, 0))
@@ -1662,7 +1668,25 @@ class MappingEditor(tk.Tk):
         src_var.trace_add("write", lambda *a: None)  # évite le spam ; détection via Parcourir / focus-out
         src_entry.bind("<FocusOut>", lambda e: detect_and_show() if allow_var.get() else None)
 
-        toggle_delete()  # état initial des sous-contrôles
+        def apply_shared_lock(*_a):
+            """Destination sous « Partagé avec moi » : le CLI Proton ne peut PAS y
+            supprimer / mettre à la corbeille. On force l'AJOUT SEUL — « Autoriser
+            la suppression » décochée ET désactivée, modes verrouillés — avec une
+            note. Ré-évalué en direct quand la destination change."""
+            if dest_var.get().strip().rstrip("/").startswith("/shared-with-me"):
+                allow_var.set(False)
+                allow_chk.config(state="disabled")
+                shared_note.config(text=_(
+                    "Deletions can't be propagated to a “Shared with me” "
+                    "destination (Proton CLI limitation): this mapping is "
+                    "upload-only."))
+            else:
+                allow_chk.config(state="normal")
+                shared_note.config(text="")
+            toggle_delete()   # (re)synchronise l'état des sous-contrôles
+
+        dest_var.trace_add("write", apply_shared_lock)
+        apply_shared_lock()  # état initial (verrou + sous-contrôles)
 
         # --- Validation et OK ---
         def on_ok():
