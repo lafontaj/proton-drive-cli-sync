@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.11.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.11.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -3077,10 +3077,30 @@ class MappingEditor(tk.Tk):
                              "● red = paths don't match · click a dot for details")
                       ).pack(anchor="w", pady=(2, 0))
 
+            def _set_children_state(container, state):
+                """Active/désactive récursivement les contrôles d'un conteneur.
+                Récursif (et non une liste tenue à la main) pour que les lignes
+                AJOUTÉES APRÈS COUP suivent automatiquement l'état. Les Canvas
+                (pastilles de statut) sont laissés intacts : purement informatifs,
+                leur rendu ne doit pas changer."""
+                for child in container.winfo_children():
+                    if not isinstance(child, tk.Canvas):
+                        try:
+                            child.configure(state=state)
+                        except tk.TclError:
+                            pass          # conteneur sans option « state »
+                    _set_children_state(child, state)
+
             def sync_mount_state(*_a):
                 state = "normal" if nas_var.get() else "disabled"
                 mount_entry.configure(state=state)
                 ident_entry.configure(state=state)
+                # Le tableau de correspondance suit le même sort que le reste des
+                # réglages NAS : sans NAS il n'a aucun sens, or il restait actif
+                # (incohérence). Le bouton d'aide « ? » de l'en-tête reste, lui,
+                # accessible pour pouvoir lire l'explication.
+                for container in (pm_cols, pm_rows_frame, pm_btns):
+                    _set_children_state(container, state)
             nas_var.trace_add("write", sync_mount_state)
             sync_mount_state()
 
