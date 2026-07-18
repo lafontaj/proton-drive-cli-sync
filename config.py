@@ -30,7 +30,7 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
-__version__ = "1.1.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.2.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -61,6 +61,11 @@ DEFAULTS = {
     "nas_mount_path": "/media/home_nas",
     "proton_cli_path": None,          # None = résolution intégrée (voir resolve_proton_cli)
     "rename_ext_enabled": True,
+    # Trace que la désactivation D'OFFICE de la normalisation d'extensions a eu
+    # lieu (CLI ≥ 0.5.0 : le type de média est correct même en majuscules).
+    # False par défaut = « pas encore faite ». Une fois passée à True, l'interface
+    # ne retouche PLUS JAMAIS rename_ext_enabled : le choix de l'utilisateur prime.
+    "rename_ext_auto_disabled": False,
     "rename_ext_collision_suffix": "_ProtonEditExt",
     "tray_enabled": False,            # icône d'état dans la barre des tâches (tray_indicator.py)
     "account_name": None,             # identité NAS stable (None = auto : amorçage intelligent)
@@ -276,6 +281,20 @@ def rename_ext_enabled():
 
 def set_rename_ext_enabled(value):
     return _put("rename_ext_enabled", bool(value))
+
+
+def rename_ext_auto_disabled():
+    """True si la désactivation D'OFFICE de la normalisation d'extensions a DÉJÀ
+    eu lieu. Le CLI ≥ 0.5.0 détecte correctement le type de média des extensions
+    en majuscules : la normalisation n'est donc plus nécessaire, et l'interface la
+    décoche UNE SEULE FOIS en avisant l'utilisateur. Ce drapeau garantit qu'on ne
+    la redécoche jamais : s'il la réactive (pour normaliser par discipline, ou
+    pour réparer d'anciens téléversements mal typés), son choix est définitif."""
+    return bool(get("rename_ext_auto_disabled"))
+
+
+def set_rename_ext_auto_disabled(value=True):
+    return _put("rename_ext_auto_disabled", bool(value))
 
 
 def account_name():

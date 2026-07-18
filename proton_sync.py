@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.3.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.4.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -36,6 +36,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -596,6 +597,127 @@ def run_cli(args, json_output=False):
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+
+
+# Version du CLI Proton Drive sur laquelle CE projet a réellement été testé.
+# Les comportements du CLI changent d'une version à l'autre (à partir de 0.5.0 :
+# type de média correct pour les extensions en majuscules, et mise à la corbeille
+# possible dans « Partagé avec moi »). On avertit donc dès que la version
+# installée diffère — antérieure comme postérieure — car aucune autre n'a été
+# validée. Mettre à jour cette constante APRÈS avoir testé une nouvelle version.
+CLI_TESTED_VERSION = "0.5.0"
+
+_cli_version_cache = []          # [] = pas encore sondé ; [valeur] = sondé
+
+# Cache PERSISTANT de la version du CLI. Sonder coûte cher : `proton-drive
+# --version` démarre un binaire Bun qui initialise tout le SDK avant de répondre
+# (plusieurs secondes). Le moteur étant un processus NEUF à chaque passage (et à
+# chaque cycle du temps réel), un cache en mémoire seule ferait payer ce prix
+# indéfiniment. On mémorise donc le résultat sur disque, avec l'empreinte du
+# binaire (chemin + date + taille) : remplacer le CLI change l'empreinte et
+# relance la sonde automatiquement, sans invalidation manuelle.
+CLI_VERSION_CACHE = os.path.expanduser("~/.proton_sync/cli-version.json")
+
+
+def _cli_fingerprint():
+    """(chemin, date de modification, taille) du binaire, ou None si absent."""
+    try:
+        st = os.stat(CLI)
+        return [CLI, int(st.st_mtime), int(st.st_size)]
+    except OSError:
+        return None
+
+
+def _cli_version_from_disk(fingerprint):
+    """Version mémorisée si elle correspond au binaire ACTUEL, sinon None."""
+    try:
+        with open(CLI_VERSION_CACHE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("fingerprint") == fingerprint:
+            return data.get("version")
+    except (OSError, ValueError, AttributeError):
+        pass
+    return None
+
+
+def _cli_version_to_disk(fingerprint, version):
+    """Mémorise une détection RÉUSSIE. On n'enregistre jamais un échec : sinon un
+    binaire momentanément absent figerait « inconnue » jusqu'au prochain
+    remplacement."""
+    if not version or not fingerprint:
+        return
+    try:
+        os.makedirs(os.path.dirname(CLI_VERSION_CACHE), exist_ok=True)
+        with open(CLI_VERSION_CACHE, "w", encoding="utf-8") as f:
+            json.dump({"fingerprint": fingerprint, "version": version}, f)
+    except OSError:
+        pass
+
+
+def cli_version():
+    """Version du CLI installé (« 0.5.0 »), ou None si indéterminable.
+
+    Sortie analysée (le suffixe de compilation est ignoré) :
+        Proton Drive CLI cli-drive@0.5.0+73e40d90
+        Proton Drive SDK js@0.19.1+73e40d90
+
+    Deux niveaux de cache : mémoire (par processus) puis disque (par binaire).
+    Ne lève JAMAIS — binaire absent, muet ou format changé donnent None."""
+    if _cli_version_cache:
+        return _cli_version_cache[0]
+    fingerprint = _cli_fingerprint()
+    version = _cli_version_from_disk(fingerprint)
+    if version is None:
+        try:
+            res = run_cli(["--version"])
+            text = (res.stdout or "") + "\n" + (res.stderr or "")
+            m = re.search(r"cli-drive@(\d+\.\d+\.\d+)", text)
+            if m:
+                version = m.group(1)
+                _cli_version_to_disk(fingerprint, version)
+        except Exception:
+            version = None
+    _cli_version_cache.append(version)
+    return version
+
+
+def cli_version_status():
+    """Compare la version installée à celle testée. Retourne (statut, version) :
+      • « ok »       : identique à CLI_TESTED_VERSION ;
+      • « older »    : antérieure  -> comportements attendus absents ;
+      • « newer »    : postérieure -> non validée par nos tests ;
+      • « unknown »  : indéterminable (on n'empêche rien, on le signale).
+    Comparaison numérique par composant (0.10.0 > 0.9.0)."""
+    version = cli_version()
+    if not version:
+        return "unknown", None
+    if version == CLI_TESTED_VERSION:
+        return "ok", version
+    def parts(v):
+        try:
+            return tuple(int(x) for x in v.split("."))
+        except ValueError:
+            return ()
+    a, b = parts(version), parts(CLI_TESTED_VERSION)
+    if not a or not b:
+        return "unknown", version
+    return ("older" if a < b else "newer"), version
+
+
+def cli_supports_shared_delete():
+    """True si le CLI installé sait mettre à la corbeille dans « Partagé avec
+    moi » (capacité apparue en 0.5.0). En dessous, l'éditeur maintient le verrou
+    « ajout seul » : non par prudence morale, mais parce que les tentatives
+    échouent une à une en descendant dans l'arbre, ce qui allonge inutilement la
+    synchro. Version indéterminable -> on suppose l'ANCIEN comportement (verrou
+    maintenu), le choix conservateur."""
+    version = cli_version()
+    if not version:
+        return False
+    try:
+        return tuple(int(x) for x in version.split(".")) >= (0, 5, 0)
+    except ValueError:
+        return False
 
 
 def check_auth():
@@ -1827,6 +1949,21 @@ def main():
         extras.append("delete")
     extras_str = f" [{', '.join(extras)}]" if extras else ""
     print(_("== Proton Drive sync — {n} entry(ies) — {m}{x} ==").format(n=len(mappings), m=mode, x=extras_str))
+    # Contrôle de version du CLI : le moteur tourne SANS ÉCRAN (timers systemd,
+    # consommateur temps réel). Il ne doit JAMAIS s'interrompre pour un écart de
+    # version — un logiciel de sauvegarde qui s'arrête en silence serait pire que
+    # le problème évité. On signale, une ligne, et le passage continue. C'est
+    # l'INTERFACE qui, elle, propose de quitter pour corriger la situation.
+    _ver_status, _ver = cli_version_status()
+    if _ver_status == "older":
+        print(_("   ⚠  Proton CLI {v} is older than the tested {t} — some behaviours "
+                "differ; consider updating.").format(v=_ver, t=CLI_TESTED_VERSION))
+    elif _ver_status == "newer":
+        print(_("   ⚠  Proton CLI {v} is newer than the tested {t} — not validated "
+                "by this project's tests.").format(v=_ver, t=CLI_TESTED_VERSION))
+    elif _ver_status == "unknown":
+        print(_("   ⚠  Could not determine the Proton CLI version (tested: {t})."
+                ).format(t=CLI_TESTED_VERSION))
     n_known = sum(1 for k in cache.data if k != Cache.META_KEY)
     print(_("   Cache: {p} ({n} known folder(s))").format(p=cache_path, n=n_known))
     if n_known > 0 and not args.ignore_cache and not args.dry_run and not args.reset_source:
