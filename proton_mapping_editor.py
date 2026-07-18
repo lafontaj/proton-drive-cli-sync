@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.10.4"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.11.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1162,7 +1162,11 @@ class MappingEditor(tk.Tk):
         self.progress_label.pack(side="left", fill="x", expand=True, padx=(2, 0))
         self._progress_active = False
 
-        paned.add(out_frame, minsize=76, stretch="always")
+        # minsize 140 : la sortie porte AUSSI le titre de l'encadré et la barre
+        # « Erreurs seules / Effacer » ; 76 px ne laissaient qu'~1-2 lignes de texte
+        # (zone écrasée quand on agrandit le tableau). 140 px ≈ 5 lignes utiles.
+        # Avec le tableau (96), le minimum total reste compatible basse résolution.
+        paned.add(out_frame, minsize=140, stretch="always")
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -2858,15 +2862,30 @@ class MappingEditor(tk.Tk):
             lang_frame = ttk.LabelFrame(frm, text=_("Interface language"), padding=10)
             lang_frame.pack(fill="x", pady=(0, 10))
             lang_var = tk.StringVar(value=i18n.read_language_setting())
-            for value, label in (("auto", _("Auto (system language)")),
-                                 ("en", "English"),
-                                 ("fr", "Français"),
-                                 ("de", "Deutsch"),
-                                 ("es", "Español"),
-                                 ("it", "Italiano"),
-                                 ("pt", "Português")):
-                ttk.Radiobutton(lang_frame, text=label, value=value,
-                                variable=lang_var).pack(anchor="w", pady=1)
+            # Liste DÉROULANTE (au lieu de 7 boutons radio) : une seule rangée au
+            # lieu de sept -> fenêtre Configuration nettement plus courte (utile en
+            # basse résolution). `lang_var` continue de porter le CODE (auto/en/fr/…,
+            # lu tel quel à l'enregistrement) ; le Combobox affiche des LIBELLÉS,
+            # d'où la table de correspondance code <-> libellé.
+            lang_choices = (("auto", _("Auto (system language)")),
+                            ("en", "English"),
+                            ("fr", "Français"),
+                            ("de", "Deutsch"),
+                            ("es", "Español"),
+                            ("it", "Italiano"),
+                            ("pt", "Português"))
+            code_to_label = {c: lbl for c, lbl in lang_choices}
+            label_to_code = {lbl: c for c, lbl in lang_choices}
+            if lang_var.get() not in code_to_label:      # réglage inconnu -> auto
+                lang_var.set("auto")
+            lang_display = tk.StringVar(value=code_to_label[lang_var.get()])
+            lang_combo = ttk.Combobox(
+                lang_frame, textvariable=lang_display, state="readonly",
+                values=[lbl for _c, lbl in lang_choices], width=26)
+            lang_combo.pack(anchor="w")
+            lang_combo.bind(
+                "<<ComboboxSelected>>",
+                lambda e: lang_var.set(label_to_code[lang_display.get()]))
 
         # ---- Section NAS ----
         if _HAS_CONFIG:
