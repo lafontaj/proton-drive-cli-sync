@@ -23,7 +23,7 @@ L'applet se termine de lui-même si le réglage « tray_enabled » passe à Fals
 
 Clic gauche : ouvre l'éditeur de mappings. Clic droit : menu (Ouvrir / Quitter).
 """
-__version__ = "1.1.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.2.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -99,16 +99,34 @@ def read_status():
         return None
 
 
-def build_editor_cmd(status):
+def scheduled_mappings_path():
+    """Chemin du fichier de mappings du service PLANIFIÉ, ou None. Sert de repli
+    quand aucun battement de cœur n'est disponible : le heartbeat n'est écrit que
+    par le consommateur TEMPS RÉEL ; si l'utilisateur n'a installé QUE la
+    planification, l'éditeur s'ouvrait vide. Tolérant : le systray ne doit jamais
+    tomber à cause de cette recherche."""
+    try:
+        import schedule_manager
+        return schedule_manager.read_service_mappings_path()
+    except Exception:
+        return None
+
+
+def build_editor_cmd(status, fallback_path=None):
     """Commande d'ouverture de l'éditeur. Si le battement de cœur indique le
     fichier de mappings ACTIF (celui des démons) et qu'il existe toujours,
-    l'éditeur s'ouvre directement DESSUS — sinon, ouverture simple. Fonction
-    pure (testable sans GTK)."""
+    l'éditeur s'ouvre directement DESSUS. Sinon, on retombe sur `fallback_path`
+    (typiquement le fichier du service planifié) s'il existe — sinon, ouverture
+    simple. Fonction pure (testable sans GTK) : la résolution du repli est faite
+    par l'appelant, pas ici."""
     cmd = [sys.executable, EDITOR]
     if isinstance(status, dict):
         mp = status.get("mappings_path")
         if isinstance(mp, str) and mp and os.path.isfile(mp):
             cmd.append(mp)
+            return cmd
+    if isinstance(fallback_path, str) and fallback_path and os.path.isfile(fallback_path):
+        cmd.append(fallback_path)
     return cmd
 
 
@@ -145,7 +163,7 @@ def main():
         icon.set_tooltip_text(TOOLTIPS[state]())
 
     def open_editor(*_a):
-        subprocess.Popen(build_editor_cmd(read_status()),
+        subprocess.Popen(build_editor_cmd(read_status(), scheduled_mappings_path()),
                          cwd=APP_DIR, start_new_session=True)
 
     def quit_app(*_a):
