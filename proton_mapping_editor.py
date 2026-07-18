@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.11.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.12.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -2741,7 +2741,13 @@ class MappingEditor(tk.Tk):
         dlg = tk.Toplevel(self)
         dlg.title(_("Configuration"))
         dlg.transient(self)
-        dlg.grab_set()
+        # Construite CACHÉE : la taille définitive dépend du contenu et n'est
+        # calculable qu'une fois tout créé (dimensionnement résolution-conscient,
+        # plus bas). Sans ce withdraw, la fenêtre s'affichait à sa taille
+        # « naturelle » puis était redimensionnée -> saut visible à l'ouverture.
+        # Le grab est posé APRÈS le deiconify : une fenêtre non affichée ne peut
+        # pas recevoir de grab (« grab failed: window not viewable »).
+        dlg.withdraw()
         dlg.resizable(True, True)
 
         # Barre de boutons FIXE en bas (hors zone défilante), packée en PREMIER
@@ -3144,6 +3150,14 @@ class MappingEditor(tk.Tk):
             row6 = ttk.Frame(launcher_frame); row6.pack(anchor="w", fill="x")
             ttk.Checkbutton(row6, text=_("Show in the applications menu"),
                             variable=launcher_menu_var).pack(side="left")
+            # Où le retrouver : le .desktop déclare « Categories=Network », que la
+            # plupart des bureaux (Cinnamon, MATE, XFCE, KDE) rangent dans la
+            # section « Internet ». Formulé avec « généralement » à dessein : le
+            # nom exact dépend du bureau et de sa langue, et certains (GNOME
+            # moderne) n'ont pas de sous-menus par catégorie du tout.
+            ttk.Label(launcher_frame, font=("", 8), foreground="#666666",
+                      text=_("Usually appears in the “Internet” section of the menu.")
+                      ).pack(anchor="w", padx=(20, 0))
             row6b = ttk.Frame(launcher_frame); row6b.pack(anchor="w", fill="x")
             ttk.Checkbutton(row6b, text=_("Create a desktop shortcut"),
                             variable=launcher_desk_var).pack(side="left")
@@ -3268,7 +3282,18 @@ class MappingEditor(tk.Tk):
         _w = frm.winfo_reqwidth() + _vsb.winfo_reqwidth() + 6
         _h = min(frm.winfo_reqheight() + btns.winfo_reqheight() + 6,
                  int(dlg.winfo_screenheight() * 0.9))
-        dlg.geometry(f"{_w}x{_h}")
+        # Position posée EN MÊME TEMPS que la taille (centrée horizontalement sur
+        # la fenêtre parente, un peu au-dessus du centre vertical) : sinon le
+        # gestionnaire de fenêtres place la fenêtre lui-même, et le
+        # redimensionnement la fait bouger. Bornée à l'écran pour ne pas déborder.
+        _x = self.winfo_rootx() + max(0, (self.winfo_width() - _w) // 2)
+        _y = self.winfo_rooty() + max(0, (self.winfo_height() - _h) // 3)
+        _x = max(0, min(_x, dlg.winfo_screenwidth() - _w))
+        _y = max(0, min(_y, dlg.winfo_screenheight() - _h))
+        dlg.geometry(f"{_w}x{_h}+{_x}+{_y}")
+        # Affichage UNIQUE, déjà à la bonne taille et au bon endroit.
+        dlg.deiconify()
+        dlg.grab_set()
 
 
 

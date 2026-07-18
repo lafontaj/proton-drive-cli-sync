@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 11:59+0000\n"
+"POT-Creation-Date: 2026-07-18 12:33+0000\n"
 "PO-Revision-Date: 2026-07-16 11:20+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
@@ -2110,6 +2110,9 @@ msgstr "Anwendungsstarter"
 
 msgid "Show in the applications menu"
 msgstr "Im Anwendungsmenü anzeigen"
+
+msgid "Usually appears in the “Internet” section of the menu."
+msgstr "Erscheint normalerweise im Menübereich „Internet“."
 
 msgid "Create a desktop shortcut"
 msgstr "Verknüpfung auf dem Desktop erstellen"
