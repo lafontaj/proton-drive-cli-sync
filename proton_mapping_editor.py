@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.12.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.13.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -844,6 +844,15 @@ class MappingEditor(tk.Tk):
             self._update_title()
             self._update_excl_summary()
 
+        # Capacité du CLI (sait-il supprimer dans « Partagé avec moi » ?) et
+        # contrôle de version : sondés en ARRIÈRE-PLAN. Sonder coûte plusieurs
+        # secondes au tout premier appel (le binaire initialise le SDK avant de
+        # répondre) ; le faire ici, synchroniquement, retardait d'autant
+        # l'affichage de la fenêtre. None = pas encore connu.
+        self._cli_shared_delete = None
+        self._cli_probe_q = queue.Queue()
+        self._start_cli_version_probe()
+
         # Détection automatique de l'état d'authentification Proton, en arrière-plan
         # (ne bloque pas le démarrage). Met à jour l'étiquette du bouton, et si la
         # session est indisponible (token expiré ou trousseau verrouillé), le
@@ -854,6 +863,10 @@ class MappingEditor(tk.Tk):
             # reconnecté ailleurs) : l'affichage ne reste jamais périmé.
             self._auth_focus_after = None
             self.bind("<FocusIn>", self._on_focus_auth)
+
+        # (Le contrôle de version du CLI et l'avis sur la normalisation des
+        # extensions sont déclenchés par la sonde d'arrière-plan ci-dessus, une
+        # fois le résultat disponible — la fenêtre est alors déjà affichée.)
 
         # Rafraîchissement périodique (lent) de la colonne d'état : filet pour les
         # changements survenus HORS du GUI (planification/temps réel qui consolide
@@ -936,6 +949,123 @@ class MappingEditor(tk.Tk):
             except Exception:
                 pass
             return ok
+
+    def _start_cli_version_probe(self):
+        """Lance la sonde de version du CLI dans un FIL SÉPARÉ, puis scrute le
+        résultat depuis le fil principal. Tk n'étant pas thread-safe (et `after()`
+        n'étant appelable que depuis le fil principal), le fil dépose son résultat
+        dans une file que le scrutateur relève — même motif que l'écouteur
+        d'instance unique. La fenêtre s'affiche donc immédiatement ; l'avis de
+        version arrive ensuite, sur une fenêtre déjà visible."""
+        def work():
+            try:
+                status, version = _ENGINE.cli_version_status()
+                shared = bool(_ENGINE.cli_supports_shared_delete())
+            except Exception:
+                status, version, shared = "unknown", None, False
+            self._cli_probe_q.put((status, version, shared))
+        if not _HAS_ENGINE:
+            self._cli_shared_delete = False
+            return
+        threading.Thread(target=work, daemon=True).start()
+        self.after(150, self._poll_cli_version_probe)
+
+    def _poll_cli_version_probe(self):
+        """Relève le résultat de la sonde (fil principal) et enchaîne les avis."""
+        try:
+            status, version, shared = self._cli_probe_q.get_nowait()
+        except queue.Empty:
+            self.after(150, self._poll_cli_version_probe)
+            return
+        self._cli_shared_delete = shared
+        self._announce_cli_version(status, version)
+
+    def _shared_delete_capability(self):
+        """Le CLI sait-il supprimer dans « Partagé avec moi » ? Valeur connue si
+        la sonde d'arrière-plan a abouti ; sinon sondée MAINTENANT (cas rare :
+        ouvrir un dialogue de mapping dans la seconde qui suit le démarrage). Le
+        coût est alors faible, le moteur mettant le résultat en cache sur disque.
+        Repli conservateur (False = verrou maintenu) si indéterminable."""
+        if self._cli_shared_delete is None:
+            try:
+                self._cli_shared_delete = bool(
+                    _HAS_ENGINE and _ENGINE.cli_supports_shared_delete())
+            except Exception:
+                self._cli_shared_delete = False
+        return self._cli_shared_delete
+
+    def _announce_cli_version(self, status, version):
+        """Compare la version du CLI installé à celle sur laquelle le projet a été
+        testé, et propose de QUITTER pour corriger la situation. Les comportements
+        du CLI diffèrent d'une version à l'autre : seule la version documentée a
+        été validée. On propose, on n'impose pas — « Continuer » reste possible.
+        (Le MOTEUR, lui, tourne sans écran : il se contente d'une ligne
+        d'avertissement et ne bloque jamais — voir proton_sync.)"""
+        if not _HAS_ENGINE:
+            self._maybe_disable_rename_ext()
+            return
+        try:
+            tested = _ENGINE.CLI_TESTED_VERSION
+        except Exception:
+            self._maybe_disable_rename_ext()
+            return
+        if status == "ok":
+            self._maybe_disable_rename_ext()
+            return
+        if status == "older":
+            msg = _("The installed Proton CLI is {v}, but this application was "
+                    "tested with {t}.\n\nAn older CLI lacks behaviours the "
+                    "application relies on, so some features stay restricted.\n\n"
+                    "You can quit to install {t}, or continue at your own risk."
+                    ).format(v=version, t=tested)
+        elif status == "newer":
+            msg = _("The installed Proton CLI is {v}, which is newer than {t} — "
+                    "the version this application was tested with.\n\nNewer "
+                    "releases can change behaviour in ways that have not been "
+                    "validated here.\n\nYou can quit to reinstall {t}, or "
+                    "continue at your own risk.").format(v=version, t=tested)
+        else:
+            msg = _("The Proton CLI version could not be determined. This "
+                    "application was tested with {t}.\n\nYou can quit to check "
+                    "your installation, or continue at your own risk."
+                    ).format(t=tested)
+        if dlg_confirm(self, msg, title=_("Proton CLI version"), kind="warning",
+                       ok_text=_("Quit"), cancel_text=_("Continue anyway")):
+            self.destroy()
+            return
+        self._maybe_disable_rename_ext()
+
+    def _maybe_disable_rename_ext(self):
+        """Désactive UNE SEULE FOIS la normalisation des extensions, avec avis.
+
+        À partir du CLI 0.5.0 le type de média est correct même avec une extension
+        en majuscules : le contournement (qui RENOMME des fichiers locaux) n'est
+        plus nécessaire. On le décoche donc d'office, on explique, et on mémorise
+        que c'est fait. Si l'utilisateur le réactive — pour normaliser par
+        discipline, ou pour réparer d'anciens téléversements mal typés — on n'y
+        touche PLUS JAMAIS."""
+        if not (_HAS_CONFIG and _HAS_ENGINE):
+            return
+        try:
+            if appconfig.rename_ext_auto_disabled():
+                return                      # déjà fait : le choix de l'utilisateur prime
+            if not appconfig.rename_ext_enabled():
+                appconfig.set_rename_ext_auto_disabled(True)   # déjà décoché
+                return
+            if not _ENGINE.cli_supports_shared_delete():
+                return                      # CLI ancien : le contournement sert encore
+            appconfig.set_rename_ext_enabled(False)
+            appconfig.set_rename_ext_auto_disabled(True)
+        except Exception:
+            return
+        dlg_info(self, _(
+            "Automatic lowercasing of file extensions has been turned off.\n\n"
+            "The Proton CLI now detects the media type correctly even when the "
+            "extension is uppercase, so renaming your local files is no longer "
+            "needed.\n\nYou can turn it back on in Configuration if you prefer "
+            "your extensions normalised anyway, or to repair older uploads that "
+            "were sent with an uppercase extension. Your choice will be kept."),
+            title=_("File extensions"))
 
     def _detect_auth_at_startup(self):
         def work():
@@ -1712,17 +1842,31 @@ class MappingEditor(tk.Tk):
         src_entry.bind("<FocusOut>", lambda e: detect_and_show() if allow_var.get() else None)
 
         def apply_shared_lock(*_a):
-            """Destination sous « Partagé avec moi » : le CLI Proton ne peut PAS y
-            supprimer / mettre à la corbeille. On force l'AJOUT SEUL — « Autoriser
-            la suppression » décochée ET désactivée, modes verrouillés — avec une
-            note. Ré-évalué en direct quand la destination change."""
-            if dest_var.get().strip().rstrip("/").startswith("/shared-with-me"):
+            """Destination sous « Partagé avec moi » : comportement CONDITIONNÉ à
+            la version du CLI.
+              • CLI < 0.5.0 : la mise à la corbeille y est impossible. On force
+                l'AJOUT SEUL (case décochée ET désactivée). Ce n'est pas de la
+                prudence : sans ce verrou, les tentatives échouent une à une en
+                descendant dans l'arbre et allongent inutilement la synchro.
+              • CLI ≥ 0.5.0 : la suppression fonctionne (elle atterrit dans la
+                corbeille DU PROPRIÉTAIRE). On rend donc la case disponible, mais
+                on avertit en permanence de ce que cela implique — voir aussi la
+                confirmation renforcée au passage en mode miroir.
+            Ré-évalué en direct quand la destination change."""
+            is_shared = dest_var.get().strip().rstrip("/").startswith("/shared-with-me")
+            if is_shared and not self._shared_delete_capability():
                 allow_var.set(False)
                 allow_chk.config(state="disabled")
                 shared_note.config(text=_(
                     "Deletions can't be propagated to a “Shared with me” "
-                    "destination (Proton CLI limitation): this mapping is "
+                    "destination with this Proton CLI version: this mapping is "
                     "upload-only."))
+            elif is_shared:
+                allow_chk.config(state="normal")
+                shared_note.config(text=_(
+                    "This folder belongs to someone else. If you enable deletion, "
+                    "anything inside THIS destination folder that is missing "
+                    "locally is deleted and sent to the OWNER'S trash."))
             else:
                 allow_chk.config(state="normal")
                 shared_note.config(text="")
@@ -1764,6 +1908,30 @@ class MappingEditor(tk.Tk):
                         "no possibility of recovery.\n\nConfirm this choice?"),
                         title=_("Permanent deletion"), kind="warning",
                         ok_text=_("Confirm"), cancel_text=_("Cancel")):
+                        return
+                # AVERTISSEMENT FORT : miroir vers un dossier appartenant à AUTRUI.
+                # Depuis le CLI 0.5.0 la suppression y fonctionne — et atterrit dans
+                # la corbeille DU PROPRIÉTAIRE. Sur un espace collaboratif, un
+                # miroir efface donc le travail des autres (tout ce qui n'est pas
+                # dans la source locale). La limitation levée était accidentellement
+                # protectrice : cet avertissement la remplace.
+                if dest.rstrip("/").startswith("/shared-with-me"):
+                    if not dlg_confirm(
+                        dlg,
+                        _("This destination is a folder shared with you — it "
+                          "belongs to someone else.\n\n"
+                          "With deletion enabled, every file inside THIS folder "
+                          "and its subfolders that is missing from your local "
+                          "source will be deleted and sent to the OWNER'S trash — "
+                          "including files other people put there. Only this "
+                          "destination folder is affected, not the rest of the "
+                          "Drive.\n\n"
+                          "Only enable deletion on a folder you are the sole "
+                          "contributor to, as one-way delivery to its owner. Any "
+                          "other use is potentially destructive.\n\n"
+                          "Enable deletion on this shared folder?"),
+                        title=_("Deletion on a shared folder"), kind="warning",
+                        ok_text=_("Enable"), cancel_text=_("Cancel")):
                         return
                 new_m["allow_delete"] = True
                 new_m["delete_mode"] = mode_var.get()
@@ -3891,6 +4059,30 @@ class MappingEditor(tk.Tk):
         if not ok:
             self.status.set(_("Reset cancelled."))
             return
+
+        # Vidage distant demandé ET destination appartenant à AUTRUI : second
+        # verrou. Depuis le CLI 0.5.0, « vider le dossier distant » vide RÉELLEMENT
+        # un dossier partagé — donc le travail de son propriétaire, vers SA
+        # corbeille. Le vidage étant optionnel, on n'avertit que s'il est coché.
+        if wipe:
+            shared = [m for m in chosen
+                      if str(m.get("dest_parent", "")).rstrip("/").startswith("/shared-with-me")]
+            if shared:
+                names_shared = "\n  • ".join(m["dest_parent"] for m in shared)
+                if not dlg_confirm(
+                    self,
+                    _("You asked to empty the remote folder, and {n} of the "
+                      "selected mapping(s) target a folder shared with you:\n  • "
+                      "{names}\n\n"
+                      "These folders belong to someone else. Emptying them sends "
+                      "their whole content — including files other people put "
+                      "there — to the OWNER'S trash.\n\n"
+                      "Empty these shared folders anyway?"
+                      ).format(n=len(shared), names=names_shared),
+                    title=_("Emptying a shared folder"), kind="warning",
+                    ok_text=_("Empty anyway"), cancel_text=_("Cancel")):
+                    self.status.set(_("Reset cancelled."))
+                    return
 
         self.prime_button.configure(state="disabled")
         self.reset_button.configure(state="disabled")
