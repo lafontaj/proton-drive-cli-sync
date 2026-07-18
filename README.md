@@ -56,7 +56,20 @@ In June 2026, Proton released an **official CLI** for Proton Drive (`proton-driv
 - **Proton account**: `you@proton.me`
 - **Proton Drive CLI**: `/home/myuser/Logiciels/Proton-drive/proton-drive`
 - **Official download**: <https://proton.me/download/drive/cli/index.html>
+- **Tested CLI version: 0.5.0.** The CLI's behaviour changes between releases, and only this one has been validated here — from 0.5.0 the media type is detected correctly even with an uppercase extension, and items can be trashed inside a "Shared with me" folder. The application checks the installed version at startup and warns if it differs (older *or* newer), offering to quit so you can install the tested one. The engine, which also runs unattended from timers, only logs a warning and never stops a pass.
 - The CLI depends on **libsecret** and the `org.freedesktop.secrets` service (GNOME keyring, already active on Mint with a graphical session). Credentials are stored under the service `ch.proton.drive/drive-sdk-cli`.
+
+**Replacing the CLI binary.** Linux refuses to overwrite an executable that is currently running (`Text file busy`), and the sync engine may well be mid-pass. Rename the old binary instead of overwriting it — renaming succeeds even while it is in use, running processes keep the old inode, and the next launch picks up the new one:
+
+```bash
+cd ~/Logiciels/Proton-drive
+mv proton-drive proton-drive-0.4.6      # frees the name, disturbs nothing
+cp /path/to/new/proton-drive proton-drive
+chmod +x proton-drive && ./proton-drive --version
+```
+
+Keeping the previous binary around also gives you an instant rollback. The application caches the detected version keyed on the binary's fingerprint, so a replacement is picked up automatically on the next run — nothing to clear.
+
 
 ### For User2's account
 
@@ -89,12 +102,14 @@ The lock (see below) uses `~/.proton_sync.lock` (in each user's home) and the ca
 
 ### Syncing into a "Shared with me" folder
 
-A mapping can also target a folder someone shared with you (`/shared-with-me/...`) — for instance a collaborative space with one subfolder per person. Two limitations of the CLI apply there, and the app handles both:
+A mapping can also target a folder someone shared with you (`/shared-with-me/...`) — for instance a collaborative space with one subfolder per person. What works there depends on the CLI version:
 
-- **Upload-only.** Files can be uploaded, and an edited file is correctly replaced in place. But nothing can be **removed**: the CLI cannot trash items inside a folder owned by someone else. A local rename therefore leaves **both names** on Proton — the new one is uploaded, the old one cannot be removed. Such leftovers have to be deleted from the Proton web interface, where deletion does work. Because of this, the mapping editor detects these destinations and locks the mapping to upload-only: the deletion option and its trash/permanent modes are disabled, with an explanatory note.
-- **Write permission is required.** If the owner granted read-only access, nothing can be written at all. Rather than attempting every file and failing on each one, the engine stops that mapping at once with a single message inviting you to request access from the owner. The rest of the pass continues normally.
+- **CLI 0.5.0 and later**: uploads, in-place updates and **deletions** all work. A deleted item goes to the **owner's** trash, not yours.
+- **Older CLI**: deletions are not supported there. The mapping editor detects such destinations and locks the mapping to upload-only — not out of caution, but because each attempt would fail one by one while walking down the tree, needlessly lengthening the pass.
 
-Top-level locations (`/my-files`, `/shared-with-me`, `/photos`, `/devices`) are fixed virtual roots: they always exist and cannot be created, so the engine never tries to create them and simply descends into them.
+> **⚠ Deletion on a shared folder is potentially destructive.** With deletion enabled, everything inside **that destination folder** (and its subfolders) that is missing locally is deleted and sent to the **owner's trash** — including files other people put there. Only that folder is affected, not the rest of the Drive. Only enable it on a folder you are the sole contributor to, as a one-way delivery to its owner. Any other use risks erasing someone else's work. The application asks for an explicit confirmation when you enable deletion on such a destination, and again if you ask a reset to empty its remote folder.
+
+Two things are unchanged regardless of version. If the owner granted read-only access, nothing can be written at all: rather than attempting every file and failing on each one, the engine stops that mapping at once with a single message inviting you to request access — the rest of the pass continues normally. And top-level locations (`/my-files`, `/shared-with-me`, `/photos`, `/devices`) are fixed virtual roots: they always exist and cannot be created, so the engine never tries and simply descends into them.
 
 ---
 
@@ -364,7 +379,7 @@ Options:
 
 Three behaviors added after production observations. They target a backup whose **previews** are visible in Proton (web/mobile), not just recoverable files.
 
-**1. Case-sensitive MIME detection on the extension — automatic normalization.** The Proton CLI derives the MIME type from the **extension**, but **case-sensitively**: a file named `DOC.PDF` or `IMG.JPG` (uppercase extension) is mis-typed (`application/octet-stream`), which breaks **thumbnail, preview AND icon** in the Proton apps at once — silently, with no error. Confirmed side by side: `doc.pdf`/`photo.jpg` (lowercase) get their type and preview, byte-identical `DOC.PDF`/`PHOTO.JPG` do not. Applies to images **and** PDFs (and presumably any preview-able format).
+**1. Case-sensitive MIME detection on the extension — automatic normalization.** *Fixed upstream in CLI 0.5.0: the media type is now detected correctly even with an uppercase extension. On first launch with 0.5.0 or later the application therefore turns this normalization **off** and tells you why — renaming your own files is no longer needed. You can turn it back on if you want your extensions normalized anyway, or to repair older uploads sent with an uppercase extension; that choice is then kept for good. The description below applies to older CLI versions.* The Proton CLI derives the MIME type from the **extension**, but **case-sensitively**: a file named `DOC.PDF` or `IMG.JPG` (uppercase extension) is mis-typed (`application/octet-stream`), which breaks **thumbnail, preview AND icon** in the Proton apps at once — silently, with no error. Confirmed side by side: `doc.pdf`/`photo.jpg` (lowercase) get their type and preview, byte-identical `DOC.PDF`/`PHOTO.JPG` do not. Applies to images **and** PDFs (and presumably any preview-able format).
 To fix this at the root **and** keep the cache coherent, the engine **renames the SOURCE**: any final extension containing uppercase letters is lowercased (`IMG_1949.JPG → IMG_1949.jpg`, base name unchanged). A single injection point (`sync_folder`) → covers **manual, priming/reset AND real-time**. Safety: directories and **excluded** files are never touched; on a **collision** with an existing target it **never** overwrites (suffix `_ProtonEditExt`, then a counter); `--dry-run` reports without renaming. Every rename is logged to `~/.proton_sync/renamed-extensions.log`. Disable with `--no-rename-ext`. Note: renaming a file previously uploaded with an uppercase extension leaves a remote orphan (old name), cleaned by any `--delete` pass.
 
 > **Transient marker burst (real-time).** The *first* normalization of a tree renames many files at once; each rename is seen by the watcher as a pair of events (`DEL` of the old name + `ADD` of the new one), which drop real-time markers. This is **transient and self-resorbing**: on the next pass the files are already lowercase (no rename, no marker), and new files almost always arrive lowercase already. The consumer's **per-directory deduplication** also bounds the burst — ten files renamed in one folder = **one** sync of that folder, not ten. To avoid the burst entirely, do the first normalization via a **priming/reset** (`--delete` pass, consumer paused) rather than letting real-time discover everything.
@@ -662,6 +677,7 @@ Since the "configuration" work package, everything that varies from one installa
 | `nas_mount_path` | `"/media/home_nas"` | NFS mount point where the NAS's `proton-sync/config` and `proton-sync/queue` live |
 | `proton_cli_path` | `null` | Path to the Proton CLI binary. `null` = default resolution. Priority order shared everywhere: **`PROTON_DRIVE_CLI` environment variable > this setting > `<scripts folder>/proton-drive`**. When set, the generated systemd units use it too |
 | `rename_ext_enabled` | `true` | Automatic uppercase-extension fixing (see the "Upload robustness…" section) — durably on/off; `--no-rename-ext` remains the one-shot override |
+| `rename_ext_auto_disabled` | `false` | Internal: records that the one-time switch-off of extension normalization (CLI ≥ 0.5.0) has happened, so your own choice is never overridden afterwards |
 | `rename_ext_collision_suffix` | `"_ProtonEditExt"` | Suffix inserted on a rename collision (never overwrites). Validated on input: non-empty, no `/ \ " '` |
 | `tray_enabled` | `false` | Status icon in the system tray (see below) |
 

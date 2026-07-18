@@ -56,7 +56,20 @@ Proton a publié en juin 2026 un **CLI officiel** pour Proton Drive (`proton-dri
 - **Compte Proton** : `you@proton.me`
 - **CLI Proton Drive** : `/home/myuser/Logiciels/Proton-drive/proton-drive`
 - **Téléchargement officiel** : <https://proton.me/download/drive/cli/index.html>
+- **Version de CLI testée : 0.5.0.** Le comportement du CLI change d'une version à l'autre, et seule celle-ci a été validée ici — à partir de 0.5.0, le type de média est détecté correctement même avec une extension en majuscules, et la mise à la corbeille fonctionne dans un dossier « Partagé avec moi ». L'application vérifie la version installée au démarrage et avertit si elle diffère (antérieure *ou* postérieure), en proposant de quitter pour installer la version testée. Le moteur, qui tourne aussi sans surveillance depuis les timers, se contente d'une ligne d'avertissement et n'interrompt jamais un passage.
 - Le CLI dépend de **libsecret** et du service `org.freedesktop.secrets` (trousseau GNOME, déjà actif sur Mint avec session graphique). Les identifiants sont stockés sous le service `ch.proton.drive/drive-sdk-cli`.
+
+**Remplacer le binaire du CLI.** Linux refuse d'écraser un exécutable en cours d'utilisation (`Text file busy`), et le moteur de synchronisation peut très bien être en plein passage. Renommez l'ancien binaire au lieu de l'écraser — le renommage réussit même pendant l'utilisation, les processus en cours poursuivent sur l'ancien inode, et le prochain lancement prend le nouveau :
+
+```bash
+cd ~/Logiciels/Proton-drive
+mv proton-drive proton-drive-0.4.6      # libère le nom sans rien perturber
+cp /chemin/vers/le/nouveau/proton-drive proton-drive
+chmod +x proton-drive && ./proton-drive --version
+```
+
+Conserver l'ancien binaire vous offre au passage un retour arrière immédiat. L'application mémorise la version détectée avec l'empreinte du binaire : un remplacement est donc pris en compte automatiquement au lancement suivant, sans rien à invalider.
+
 
 ### Pour le compte de User2
 
@@ -89,12 +102,14 @@ Le verrou (voir plus bas) utilise `~/.proton_sync.lock` (dans le home de chaque 
 
 ### Synchroniser vers un dossier « Partagé avec moi »
 
-Un mapping peut aussi viser un dossier qu'une autre personne vous a partagé (`/shared-with-me/...`) — par exemple un espace collaboratif avec un sous-dossier par personne. Deux limites du CLI s'y appliquent, et l'application gère les deux :
+Un mapping peut aussi viser un dossier qu'une autre personne vous a partagé (`/shared-with-me/...`) — par exemple un espace collaboratif avec un sous-dossier par personne. Ce qui y fonctionne dépend de la version du CLI :
 
-- **Ajout seul.** Les fichiers peuvent être envoyés, et un fichier modifié est correctement remplacé sur place. Mais rien ne peut être **retiré** : le CLI ne sait pas mettre à la corbeille un élément situé dans un dossier appartenant à quelqu'un d'autre. Un renommage local laisse donc **les deux noms** sur Proton — le nouveau est envoyé, l'ancien ne peut pas être retiré. Ces résidus doivent être supprimés depuis l'interface web de Proton, où la suppression fonctionne. C'est pourquoi l'éditeur de mappings détecte ces destinations et verrouille le mapping en ajout seul : l'option de suppression et ses modes corbeille/définitif sont désactivés, avec une note explicative.
-- **Le droit d'écriture est nécessaire.** Si le propriétaire n'a accordé qu'un accès en lecture, rien ne peut être écrit. Plutôt que de tenter chaque fichier et d'échouer sur chacun, le moteur arrête ce mapping immédiatement avec un seul message invitant à demander les droits au propriétaire. Le reste du passage se poursuit normalement.
+- **CLI 0.5.0 et suivants** : envoi, mise à jour sur place et **suppression** fonctionnent. Un élément supprimé part dans la corbeille **du propriétaire**, pas dans la vôtre.
+- **CLI antérieur** : la suppression n'y est pas prise en charge. L'éditeur détecte ces destinations et verrouille le mapping en ajout seul — non par prudence, mais parce que chaque tentative échouerait une à une en descendant dans l'arbre, allongeant inutilement le passage.
 
-Les emplacements de premier niveau (`/my-files`, `/shared-with-me`, `/photos`, `/devices`) sont des racines virtuelles fixes : elles existent toujours et ne peuvent pas être créées, donc le moteur ne tente jamais de les créer et descend simplement dedans.
+> **⚠ La suppression sur un dossier partagé est potentiellement destructrice.** Avec la suppression activée, tout ce qui se trouve dans **ce dossier de destination** (et ses sous-dossiers) et qui est absent localement est supprimé et envoyé dans la **corbeille du propriétaire** — y compris les fichiers déposés par d'autres personnes. Seul ce dossier est concerné, pas le reste du Drive. Ne l'activez que sur un dossier dont vous êtes le seul contributeur, comme une transmission à sens unique vers son propriétaire. Tout autre usage risque d'effacer le travail d'autrui. L'application demande une confirmation explicite lorsque vous activez la suppression sur une telle destination, puis à nouveau si vous demandez à une réinitialisation d'en vider le dossier distant.
+
+Deux choses ne changent pas, quelle que soit la version. Si le propriétaire n'a accordé qu'un accès en lecture, rien ne peut être écrit : plutôt que de tenter chaque fichier et d'échouer sur chacun, le moteur arrête ce mapping immédiatement avec un seul message invitant à demander les droits — le reste du passage se poursuit normalement. Et les emplacements de premier niveau (`/my-files`, `/shared-with-me`, `/photos`, `/devices`) sont des racines virtuelles fixes : elles existent toujours et ne peuvent pas être créées, donc le moteur ne tente jamais de le faire et descend simplement dedans.
 
 ---
 
@@ -364,7 +379,7 @@ Options :
 
 Trois comportements ajoutés après des observations en production. Ils visent un backup dont les **aperçus** sont visibles dans Proton (web/mobile), pas seulement des fichiers récupérables.
 
-**1. Détection MIME sensible à la casse de l'extension — normalisation automatique.** Le CLI Proton déduit le type MIME de l'**extension**, mais de façon **sensible à la casse** : un fichier `DOC.PDF` ou `IMG.JPG` (extension majuscule) est mal typé (`application/octet-stream`), ce qui casse d'un coup **vignette, aperçu ET icône** dans les apps Proton — silencieusement, sans erreur. Confirmé côte à côte : `doc.pdf`/`photo.jpg` (minuscule) obtiennent leur type et leur aperçu, `DOC.PDF`/`PHOTO.JPG` (identiques) non. Vaut pour images **et** PDF (et vraisemblablement tout format à aperçu).
+**1. Détection MIME sensible à la casse de l'extension — normalisation automatique.** *Corrigé en amont dans le CLI 0.5.0 : le type de média est désormais détecté correctement même avec une extension en majuscules. Au premier lancement avec 0.5.0 ou plus récent, l'application désactive donc cette normalisation **d'office** en vous expliquant pourquoi — renommer vos propres fichiers n'est plus nécessaire. Vous pouvez la réactiver si vous préférez malgré tout normaliser vos extensions, ou pour réparer d'anciens téléversements envoyés en majuscules ; ce choix est alors conservé définitivement. La description ci-dessous vaut pour les versions antérieures du CLI.* Le CLI Proton déduit le type MIME de l'**extension**, mais de façon **sensible à la casse** : un fichier `DOC.PDF` ou `IMG.JPG` (extension majuscule) est mal typé (`application/octet-stream`), ce qui casse d'un coup **vignette, aperçu ET icône** dans les apps Proton — silencieusement, sans erreur. Confirmé côte à côte : `doc.pdf`/`photo.jpg` (minuscule) obtiennent leur type et leur aperçu, `DOC.PDF`/`PHOTO.JPG` (identiques) non. Vaut pour images **et** PDF (et vraisemblablement tout format à aperçu).
 Pour régler ça à la racine **et** garder le cache cohérent, le moteur **renomme la SOURCE** : toute extension finale contenant des majuscules est mise en minuscule (`IMG_1949.JPG → IMG_1949.jpg`, base du nom inchangée). Un seul point d'injection (`sync_folder`) → couvre **manuel, amorçage/réinitialisation ET temps réel**. Sûretés : dossiers et fichiers **exclus** jamais touchés ; en cas de **collision** avec une cible existante on n'écrase **jamais** (suffixe `_ProtonEditExt`, puis compteur) ; `--dry-run` annonce sans renommer. Chaque renommage est journalisé dans `~/.proton_sync/renamed-extensions.log`. Désactivable via `--no-rename-ext`. NB : renommer un fichier déjà monté jadis en majuscule laisse un orphelin distant (ancien nom), nettoyé par n'importe quel passage `--delete`.
 
 > **Salve de marqueurs transitoire (temps réel).** La *première* normalisation d'un arbre renomme beaucoup de fichiers d'un coup ; chaque renommage est vu par le watcher comme un couple d'événements (`DEL` de l'ancien nom + `ADD` du nouveau), qui déposent des marqueurs temps réel. C'est **transitoire et auto-résorbant** : au passage suivant les fichiers sont déjà minuscules (plus de renommage, plus de marqueur), et les nouveaux fichiers arrivent presque toujours déjà en minuscule. La **déduplication par dossier** du consommateur borne d'ailleurs la salve — dix fichiers renommés dans un même dossier = **une** synchro de ce dossier, pas dix. Pour éviter la salve, faire la première normalisation via un **amorçage/réinitialisation** (passage `--delete`, consommateur en pause) plutôt que de laisser le temps réel tout découvrir.
@@ -662,6 +677,7 @@ Depuis le chantier « configuration », tout ce qui varie d'une installation à 
 | `nas_mount_path` | `"/media/home_nas"` | Point de montage NFS où vivent `proton-sync/config` et `proton-sync/queue` du NAS |
 | `proton_cli_path` | `null` | Chemin du binaire CLI Proton. `null` = résolution par défaut. Ordre de priorité partagé partout : **variable d'environnement `PROTON_DRIVE_CLI` > ce réglage > `<dossier des scripts>/proton-drive`**. S'il est réglé, les unités systemd générées l'utilisent aussi |
 | `rename_ext_enabled` | `true` | Correction automatique des extensions majuscules (voir la section « Robustesse d'upload… ») — activable/désactivable durablement ; `--no-rename-ext` reste la surcharge ponctuelle |
+| `rename_ext_auto_disabled` | `false` | Interne : mémorise que la désactivation unique de la normalisation d'extensions (CLI ≥ 0.5.0) a eu lieu, pour ne jamais revenir ensuite sur votre choix |
 | `rename_ext_collision_suffix` | `"_ProtonEditExt"` | Suffixe inséré en cas de collision de renommage (jamais d'écrasement). Validé à la saisie : non vide, sans `/ \ " '` |
 | `tray_enabled` | `false` | Icône d'état dans la barre des tâches (voir ci-dessous) |
 
