@@ -8,17 +8,26 @@ Reference document for this project.
 
 ## Screenshots
 
-The mappings editor — the main window: folders to sync, per-mapping exclusions, and the run controls.
+The mappings editor — the main window: folders to sync, per-mapping exclusions, the shared output pane, and the run controls.
 
 ![Mappings editor](docs/images/mappings-editor.png)
+
+The bottom of the window separates two kinds of action, because they do not obey the same options:
+
+- **Cache** — *Prime cache* and *Reset mapping*. These are **always real passes**, driven by each mapping's own settings; the *Test (dry-run)* option does **not** apply to them, because the cache can only be armed by a real sync. The box has its own *Stop* button.
+- **Manual sync** — *Run sync*, together with the options that affect only it: *Test (dry-run)*, *Propagate deletions*, *Verbose*, and the advanced options.
+
+The output pane is shared by both, which is why its view controls (*Errors only*, *Clear output*) sit with the output itself.
 
 The real-time window: daemon state, delays, NAS status, and the live event log.
 
 ![Real-time window](docs/images/real-time.png)
 
-The schedule window (the nightly systemd timer) and the configuration dialog.
+The schedule window (the nightly systemd timer):
 
 ![Schedule window](docs/images/schedule.png)
+
+The configuration dialog — Proton account, CLI path, interface language, NAS settings, file extensions, system tray, and the application launcher (applications menu and/or desktop shortcut, opening the editor empty or on the current mappings file):
 
 ![Configuration dialog](docs/images/configuration.png)
 
@@ -77,6 +86,15 @@ The lock (see below) uses `~/.proton_sync.lock` (in each user's home) and the ca
 ```
 
 **Decision**: we sync to `/my-files`, not `/devices`. The `/devices` section is reserved for official sync clients (each subfolder carries its own machine metadata). Writing there via the CLI would risk conflicts once the native Linux client ships. `/my-files` is the canonical, stable space. Sharing with User2 happens through the web interface from `/my-files`.
+
+### Syncing into a "Shared with me" folder
+
+A mapping can also target a folder someone shared with you (`/shared-with-me/...`) — for instance a collaborative space with one subfolder per person. Two limitations of the CLI apply there, and the app handles both:
+
+- **Upload-only.** Files can be uploaded, and an edited file is correctly replaced in place. But nothing can be **removed**: the CLI cannot trash items inside a folder owned by someone else. A local rename therefore leaves **both names** on Proton — the new one is uploaded, the old one cannot be removed. Such leftovers have to be deleted from the Proton web interface, where deletion does work. Because of this, the mapping editor detects these destinations and locks the mapping to upload-only: the deletion option and its trash/permanent modes are disabled, with an explanatory note.
+- **Write permission is required.** If the owner granted read-only access, nothing can be written at all. Rather than attempting every file and failing on each one, the engine stops that mapping at once with a single message inviting you to request access from the owner. The rest of the pass continues normally.
+
+Top-level locations (`/my-files`, `/shared-with-me`, `/photos`, `/devices`) are fixed virtual roots: they always exist and cannot be created, so the engine never tries to create them and simply descends into them.
 
 ---
 

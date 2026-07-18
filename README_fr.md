@@ -8,17 +8,26 @@ Document de référence pour ce projet.
 
 ## Captures d'écran
 
-L'éditeur de mappings — la fenêtre principale : dossiers à synchroniser, exclusions par mapping, et les commandes de lancement.
+L'éditeur de mappings — la fenêtre principale : dossiers à synchroniser, exclusions par mapping, la zone de sortie partagée, et les commandes de lancement.
 
 ![Éditeur de mappings](docs/images/mappings-editor.png)
+
+Le bas de la fenêtre sépare deux types d'action, parce qu'ils n'obéissent pas aux mêmes options :
+
+- **Cache** — *Amorcer le cache* et *Réinitialiser le mapping*. Ce sont **toujours des passages réels**, pilotés par la configuration propre à chaque mapping ; l'option *Test (dry-run)* ne s'y applique **pas**, car le cache ne peut être armé que par une vraie synchronisation. L'encadré a son propre bouton *Arrêter*.
+- **Synchronisation manuelle** — *Lancer la synchro*, avec les options qui n'agissent que sur elle : *Test (dry-run)*, *Propager suppressions*, *Détaillé*, et les options avancées.
+
+La zone de sortie est commune aux deux : c'est pourquoi ses contrôles d'affichage (*Erreurs seules*, *Effacer la sortie*) se trouvent avec la sortie elle-même.
 
 La fenêtre Temps réel : état des démons, délais, état du NAS, et le journal d'événements en direct.
 
 ![Fenêtre Temps réel](docs/images/real-time.png)
 
-La fenêtre Planification (le timer systemd nocturne) et le dialogue de configuration.
+La fenêtre Planification (le timer systemd nocturne) :
 
 ![Fenêtre Planification](docs/images/schedule.png)
+
+Le dialogue de configuration — compte Proton, chemin du CLI, langue de l'interface, réglages NAS, extensions de fichiers, barre des tâches, et le lanceur d'application (menu d'applications et/ou raccourci sur le bureau, ouvrant l'éditeur vide ou sur le fichier de mappings courant) :
 
 ![Dialogue de configuration](docs/images/configuration.png)
 
@@ -77,6 +86,15 @@ Le verrou (voir plus bas) utilise `~/.proton_sync.lock` (dans le home de chaque 
 ```
 
 **Décision** : on synchronise vers `/my-files`, pas `/devices`. La section `/devices` est réservée aux clients de synchro officiels (chaque sous-dossier a ses propres métadonnées machine). Y écrire via le CLI risquerait des conflits quand le client Linux natif sortira. `/my-files` est l'espace canonique et stable. Le partage avec User2 se fait via l'interface web depuis `/my-files`.
+
+### Synchroniser vers un dossier « Partagé avec moi »
+
+Un mapping peut aussi viser un dossier qu'une autre personne vous a partagé (`/shared-with-me/...`) — par exemple un espace collaboratif avec un sous-dossier par personne. Deux limites du CLI s'y appliquent, et l'application gère les deux :
+
+- **Ajout seul.** Les fichiers peuvent être envoyés, et un fichier modifié est correctement remplacé sur place. Mais rien ne peut être **retiré** : le CLI ne sait pas mettre à la corbeille un élément situé dans un dossier appartenant à quelqu'un d'autre. Un renommage local laisse donc **les deux noms** sur Proton — le nouveau est envoyé, l'ancien ne peut pas être retiré. Ces résidus doivent être supprimés depuis l'interface web de Proton, où la suppression fonctionne. C'est pourquoi l'éditeur de mappings détecte ces destinations et verrouille le mapping en ajout seul : l'option de suppression et ses modes corbeille/définitif sont désactivés, avec une note explicative.
+- **Le droit d'écriture est nécessaire.** Si le propriétaire n'a accordé qu'un accès en lecture, rien ne peut être écrit. Plutôt que de tenter chaque fichier et d'échouer sur chacun, le moteur arrête ce mapping immédiatement avec un seul message invitant à demander les droits au propriétaire. Le reste du passage se poursuit normalement.
+
+Les emplacements de premier niveau (`/my-files`, `/shared-with-me`, `/photos`, `/devices`) sont des racines virtuelles fixes : elles existent toujours et ne peuvent pas être créées, donc le moteur ne tente jamais de les créer et descend simplement dedans.
 
 ---
 
