@@ -14,6 +14,9 @@ Two concerns:
        - proton_cli_path               (str or None = built-in resolution)
        - rename_ext_enabled            (bool)
        - rename_ext_collision_suffix   (str)
+       - rename_ext_whitelist          (list[str])
+       - cli_stall_minutes             (int)
+       - cli_stall_max_kills           (int)
 
   2. DATA_DIR and its subpaths (cache, queue, logs): a single computed
      location per installation (~/.proton-drive-sync), with a ONE-TIME, safe
@@ -30,7 +33,7 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
-__version__ = "1.2.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -67,6 +70,36 @@ DEFAULTS = {
     # ne retouche PLUS JAMAIS rename_ext_enabled : le choix de l'utilisateur prime.
     "rename_ext_auto_disabled": False,
     "rename_ext_collision_suffix": "_ProtonEditExt",
+    # Extensions dont la normalisation apporte QUELQUE CHOSE. La normalisation
+    # n'a plus qu'un seul usage depuis le CLI 0.5.0 : réparer des fichiers
+    # téléversés AVANT lui, restés sans vignette faute d'un type de média
+    # reconnu. Or seuls les formats que Proton sait prévisualiser ont une
+    # vignette : renommer un .CFG de routeur ou un .Backup de téléphone modifie
+    # un fichier de l'utilisateur sans rien réparer, et peut entretenir une
+    # boucle si un agent externe (FolderSync, rsync…) recrée le nom d'origine à
+    # chaque passe. Liste vide = AUCUNE restriction (comportement d'avant, tout
+    # est normalisé) — un utilisateur qui vide le champ retrouve l'ancien monde.
+    "rename_ext_whitelist": [
+        # Images
+        "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tif", "tiff", "svg",
+        # Vidéo
+        "mp4", "mov", "m4v", "avi", "mkv", "webm", "3gp",
+        # Audio
+        "mp3", "m4a", "aac", "flac", "wav", "ogg", "opus",
+        # Documents
+        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+        "odt", "ods", "odp", "txt", "md",
+    ],
+    # Disjoncteur d'envoi : minutes d'immobilité TOTALE du CLI au-delà
+    # desquelles le moteur le considère bloqué et le tue. Mesuré en prod : un
+    # envoi sain a une phase finale calme d'environ 1 min 30 (attente de
+    # l'accusé de réception), alors qu'un vrai blocage dure indéfiniment — 5
+    # minutes laissent donc plus de trois fois la marge observée. 0 = désactivé.
+    "cli_stall_minutes": 5,
+    # Nombre de coupures CONSÉCUTIVES tolérées sur un même envoi avant abandon.
+    # 0 = illimité (défaut) : le moteur réessaie indéfiniment, ce qui est le
+    # comportement sûr tant qu'on n'a pas observé de blocage systématique.
+    "cli_stall_max_kills": 0,
     "tray_enabled": False,            # icône d'état dans la barre des tâches (tray_indicator.py)
     "account_name": None,             # identité NAS stable (None = auto : amorçage intelligent)
     # Correspondance des chemins de DONNÉES entre cette machine (desktop) et le
@@ -341,6 +374,109 @@ def set_rename_ext_collision_suffix(suffix):
     if not ok:
         return False
     return _put("rename_ext_collision_suffix", suffix)
+
+
+def rename_ext_whitelist():
+    """Ensemble des extensions (minuscules, SANS le point) dont la
+    normalisation est autorisée. Ensemble VIDE = aucune restriction : c'est le
+    comportement historique, et c'est ce que retrouve un utilisateur qui vide
+    le champ. Tolérant à l'entrée : accepte « .JPG », « jpg », espaces.
+    """
+    raw = get("rename_ext_whitelist")
+    if raw is None:
+        raw = DEFAULTS["rename_ext_whitelist"]
+    if isinstance(raw, str):
+        raw = parse_ext_list(raw)
+    out = set()
+    for item in raw or []:
+        if not isinstance(item, str):
+            continue
+        e = item.strip().lstrip(".").lower()
+        if e:
+            out.add(e)
+    return out
+
+
+def parse_ext_list(text):
+    """Convertit une saisie libre (« jpg, .PNG  pdf ; mp4 ») en liste normalisée
+    d'extensions minuscules sans point, dédoublonnée, ordre d'apparition
+    préservé. Sert au champ de saisie du GUI comme au repli ci-dessus."""
+    out = []
+    seen = set()
+    for chunk in (text or "").replace(";", ",").replace("\n", ",").split(","):
+        for token in chunk.split():
+            e = token.strip().lstrip(".").lower()
+            if e and e not in seen:
+                seen.add(e)
+                out.append(e)
+    return out
+
+
+def format_ext_list(exts=None):
+    """Rend la liste blanche sous la forme éditable affichée par le GUI."""
+    if exts is None:
+        exts = sorted(rename_ext_whitelist())
+    return ", ".join(exts)
+
+
+def set_rename_ext_whitelist(value):
+    """Persiste la liste blanche. Accepte une chaîne saisie par l'utilisateur
+    ou une liste déjà découpée. Une liste vide est LÉGITIME (= tout normaliser)
+    et doit donc être enregistrée telle quelle, pas retombée sur le défaut."""
+    if isinstance(value, str):
+        value = parse_ext_list(value)
+    clean = []
+    seen = set()
+    for item in value or []:
+        if not isinstance(item, str):
+            continue
+        e = item.strip().lstrip(".").lower()
+        if e and e not in seen:
+            seen.add(e)
+            clean.append(e)
+    return _put("rename_ext_whitelist", clean)
+
+
+def cli_stall_minutes():
+    """Minutes d'immobilité avant coupure d'un envoi. 0 = disjoncteur désactivé.
+    Une valeur illisible ou négative retombe sur le défaut : le disjoncteur est
+    un filet de sécurité, on ne le désactive jamais par accident de saisie."""
+    v = get("cli_stall_minutes")
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return DEFAULTS["cli_stall_minutes"]
+    return n if n >= 0 else DEFAULTS["cli_stall_minutes"]
+
+
+def set_cli_stall_minutes(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return False
+    if n < 0:
+        return False
+    return _put("cli_stall_minutes", n)
+
+
+def cli_stall_max_kills():
+    """Coupures consécutives tolérées sur un même envoi. 0 = illimité."""
+    v = get("cli_stall_max_kills")
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return DEFAULTS["cli_stall_max_kills"]
+    return n if n >= 0 else DEFAULTS["cli_stall_max_kills"]
+
+
+def set_cli_stall_max_kills(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return False
+    if n < 0:
+        return False
+    return _put("cli_stall_max_kills", n)
 
 
 def resolve_proton_cli():

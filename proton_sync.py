@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.4.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -156,9 +156,66 @@ def _is_vanished_error(reason):
 # Valeur intégrée par défaut si config.py est absent ou le réglage vide/invalide.
 _EXT_COLLISION_SUFFIX_DEFAULT = "_ProtonEditExt"
 
+# Suffixe de DOUBLON ajouté par certains agents externes (Android/FolderSync,
+# navigateurs, gestionnaires de fichiers) : « PHOTO.JPG (1) ». Sans cette
+# reconnaissance, os.path.splitext() rend une extension « .JPG (1) » qui ne
+# ressemble à aucune extension connue : le fichier échappe alors à la liste
+# blanche et n'est jamais réparé, alors que c'est bel et bien une photo.
+_DUP_SUFFIX_RE = re.compile(r"^(?P<stem>.*?)(?P<dup>\s*\(\d+\))$")
+
+
+def split_ext_with_dup(name):
+    """Découpe un nom de fichier en (base, extension, suffixe_de_doublon).
+
+    « PHOTO.JPG »       -> ("PHOTO", ".JPG", "")
+    « PHOTO.JPG (1) »   -> ("PHOTO", ".JPG", " (1)")
+    « archive (2) »     -> ("archive (2)", "", "")   (pas d'extension : intact)
+
+    Le suffixe de doublon est TOUJOURS restitué tel quel en fin de nom : on
+    normalise l'extension, jamais la façon dont l'agent externe numérote ses
+    doublons.
+    """
+    base, ext = os.path.splitext(name)
+    if ext:
+        m = _DUP_SUFFIX_RE.match(ext)
+        if m and m.group("stem"):
+            # « .JPG (1) » -> extension « .JPG », doublon « (1) »
+            return base, m.group("stem"), m.group("dup")
+        return base, ext, ""
+    # Pas d'extension apparente : le nom se termine peut-être par « (1) »,
+    # auquel cas la vraie extension est avant (« PHOTO.JPG (1) » est traité
+    # ci-dessus, mais « PHOTO (1) » n'a réellement pas d'extension).
+    return base, ext, ""
+
+
+def ext_is_normalizable(ext, whitelist):
+    """True si `ext` (avec son point, casse quelconque) fait partie des
+    extensions dont la normalisation apporte quelque chose.
+
+    `whitelist` vide = AUCUNE restriction (comportement historique). C'est un
+    choix légitime de l'utilisateur qui vide le champ, pas un cas d'erreur.
+    """
+    if not whitelist:
+        return True
+    return ext.lstrip(".").lower() in whitelist
+
+
+def _load_ext_whitelist():
+    """Liste blanche effective, lue au plus près de l'usage. Repli sur « aucune
+    restriction » si config.py est absent : le moteur ne doit jamais s'arrêter
+    pour un réglage manquant, et l'ancien comportement reste le plus sûr des
+    replis (il ne fait que trop de travail, jamais du travail faux)."""
+    if not _HAS_CONFIG:
+        return set()
+    try:
+        return appconfig.rename_ext_whitelist()
+    except Exception:
+        return set()
+
 
 def _normalize_uppercase_ext(local_dir, entries, exclusions, dry_run=False, verbose=False,
-                             collision_suffix=_EXT_COLLISION_SUFFIX_DEFAULT):
+                             collision_suffix=_EXT_COLLISION_SUFFIX_DEFAULT,
+                             whitelist=None):
     """Renomme les fichiers (enfants DIRECTS de local_dir) dont l'extension finale
     contient des majuscules -> extension en minuscule, base du nom inchangée
     (IMG_1949.JPG -> IMG_1949.jpg, DOC.PDF -> DOC.pdf).
@@ -170,6 +227,15 @@ def _normalize_uppercase_ext(local_dir, entries, exclusions, dry_run=False, verb
     portera le même nom minuscule que le local — pas de divergence, pas de ré-upload
     en boucle, pas d'orphelin).
 
+    PORTÉE (liste blanche) : depuis le CLI 0.5.0 le type de média est correct
+    même en majuscules ; la normalisation ne sert donc plus qu'à RÉPARER des
+    fichiers téléversés avant lui, restés sans vignette. Or seuls les formats
+    que Proton sait prévisualiser en ont une. On ne renomme donc que les
+    extensions de `whitelist` : un .CFG de routeur ou un .Backup de téléphone
+    serait modifié sans rien réparer — et, si un agent externe recrée le nom
+    d'origine à chaque passe, chaque nuit ajouterait un fichier suffixé de plus,
+    sur le disque comme sur le Drive (constaté en production).
+
     Sûreté :
       - dossiers et fichiers EXCLUS : jamais touchés (on ne modifie pas ce qu'on ne
         sauvegarde pas) ;
@@ -177,9 +243,13 @@ def _normalize_uppercase_ext(local_dir, entries, exclusions, dry_run=False, verb
         sensible à la casse), on n'écrase JAMAIS — on insère `collision_suffix`
         (configurable, cf. config.py) avant l'extension, puis un compteur si
         nécessaire ;
+      - SUFFIXE DE DOUBLON : « PHOTO.JPG (1) » est reconnu comme une photo et
+        réparé en « PHOTO.jpg (1) » — le suffixe est restitué intact ;
       - dry-run : n'écrit rien, se contente d'annoncer les renommages.
 
     Retourne le nombre de renommages RÉELLEMENT effectués (0 en dry-run)."""
+    if whitelist is None:
+        whitelist = _load_ext_whitelist()
     renamed = 0
     for entry in entries:
         try:
@@ -190,17 +260,19 @@ def _normalize_uppercase_ext(local_dir, entries, exclusions, dry_run=False, verb
         name = entry.name
         if exclusions and exclusions.is_excluded(name):
             continue
-        base, ext = os.path.splitext(name)
+        base, ext, dup = split_ext_with_dup(name)
         if not ext or ext == ext.lower():
             continue   # pas d'extension, ou déjà minuscule
+        if not ext_is_normalizable(ext, whitelist):
+            continue   # hors liste blanche : renommer ne réparerait rien
         low_ext = ext.lower()
-        target = base + low_ext
+        target = base + low_ext + dup
         # Garde-fou anti-collision : ne jamais écraser une cible existante.
         if os.path.exists(os.path.join(local_dir, target)):
             n = 0
             while True:
                 suffix = collision_suffix + ("" if n == 0 else f"_{n}")
-                target = base + suffix + low_ext
+                target = base + suffix + low_ext + dup
                 if not os.path.exists(os.path.join(local_dir, target)):
                     break
                 n += 1
@@ -597,6 +669,199 @@ def run_cli(args, json_output=False):
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+# ─────────────────────────────────────────────────────────────────────────
+#  Disjoncteur d'envoi
+# ─────────────────────────────────────────────────────────────────────────
+# Observé en production : le CLI peut rester bloqué INDÉFINIMENT en fin
+# d'envoi. Il téléverse par blocs de 4 Mio sur un pool de connexions ; si l'une
+# d'elles est purgée par un équipement intermédiaire pendant le silence de fin
+# de transfert, la réponse n'arrive jamais, le CLI dort dans epoll_wait et
+# AUCUN temporisateur TCP n'est armé — rien ne le réveillera. Constaté : plus
+# de 4 h d'attente, verrou du moteur tenu pendant tout ce temps, toute la
+# synchronisation à l'arrêt derrière, et intervention manuelle obligatoire.
+#
+# Ce qu'on surveille : `rchar` dans /proc/<pid>/io, c'est-à-dire les octets lus
+# par APPEL SYSTÈME. Deux compteurs ont été écartés après mesure :
+#   - `read_bytes` (lectures disque réelles) : le noyau sert le fichier depuis
+#     le cache de pages, si bien qu'il reste FIGÉ plusieurs minutes en plein
+#     transfert sain. Un disjoncteur basé dessus tuerait des envois valides.
+#   - la sortie du CLI : il supprime toute progression dès que sa sortie n'est
+#     pas un terminal (obstacle déjà établi, cf. CONTEXTE.md) — rien à lire.
+#
+# Ce qui NE distingue PAS les deux états : le débit instantané. En phase finale
+# saine, `rchar` avance encore de quelques kilo-octets par minute — soit le même
+# ordre de grandeur que pendant le blocage. Seule la DURÉE tranche : 1 min 30
+# mesurée en fin d'envoi sain, contre plusieurs heures en blocage.
+_STALL_POLL_SECONDS = 30          # rythme d'échantillonnage de /proc/<pid>/io
+_STALL_MIN_PROGRESS = 1024 * 1024  # progression minimale (octets) sur la fenêtre
+
+
+def _stall_state_path():
+    return os.path.join(os.path.dirname(FAILURES_LOG), "upload-stalls.json")
+
+
+def _stall_read():
+    try:
+        with open(_stall_state_path(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _stall_write(data):
+    """Best-effort : ce compteur ne doit JAMAIS interrompre une sauvegarde."""
+    try:
+        path = _stall_state_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def _stall_record(remote_parent):
+    """Mémorise une coupure de plus sur cette destination. Le moteur étant un
+    processus NEUF à chaque passage, ce compteur ne peut vivre qu'sur disque."""
+    data = _stall_read()
+    data[remote_parent] = int(data.get(remote_parent, 0)) + 1
+    _stall_write(data)
+
+
+def _stall_reset(remote_parent):
+    data = _stall_read()
+    if data.pop(remote_parent, None) is not None:
+        _stall_write(data)
+
+
+def _stall_giving_up(remote_parent, max_kills):
+    """True s'il faut sauter cette destination pour CE passage.
+
+    Sémantique retenue : `max_kills` borne les tentatives CONSÉCUTIVES, il
+    n'abandonne jamais définitivement. Au-delà de la limite on saute un passage
+    et on remet le compteur à zéro — la destination repart donc au passage
+    suivant. C'est volontaire : un abandon définitif signifierait qu'un dossier
+    cesse silencieusement d'être sauvegardé, ce qui est pire que le gaspillage
+    qu'on cherche à borner. 0 = illimité (défaut) : jamais de saut.
+    """
+    if not max_kills:
+        return False
+    return int(_stall_read().get(remote_parent, 0)) >= max_kills
+
+
+def _proc_rchar(pid):
+    """Octets lus par appel système depuis le démarrage du processus, ou None si
+    l'information n'est pas lisible (processus disparu, /proc indisponible)."""
+    try:
+        with open(f"/proc/{pid}/io", "r") as f:
+            for line in f:
+                if line.startswith("rchar:"):
+                    return int(line.split(":", 1)[1].strip())
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def _stall_settings():
+    """(minutes_avant_coupure, coupures_max) depuis les réglages, avec repli sur
+    les valeurs intégrées si config.py est absent. Le moteur ne s'interrompt
+    JAMAIS pour un réglage manquant."""
+    minutes, max_kills = 5, 0
+    if _HAS_CONFIG:
+        try:
+            minutes = appconfig.cli_stall_minutes()
+            max_kills = appconfig.cli_stall_max_kills()
+        except Exception:
+            pass
+    return minutes, max_kills
+
+
+def run_cli_watched(args, stall_minutes=None):
+    """Comme run_cli, mais coupe le CLI s'il cesse toute activité.
+
+    Retourne un objet compatible avec subprocess.CompletedProcess (returncode,
+    stdout, stderr) augmenté de `.stalled` (True si la coupure a eu lieu).
+
+    Réservé aux ENVOIS : les autres commandes (info, list, create-folder)
+    durent quelques secondes et n'ont rien à gagner à cette machinerie.
+
+    Détail d'implémentation important : les tuyaux de sortie sont VIDÉS EN
+    CONTINU par deux fils. Sans ça, un tampon plein bloquerait le CLI —
+    on créerait exactement le problème qu'on veut résoudre.
+    """
+    if stall_minutes is None:
+        stall_minutes, _max = _stall_settings()
+    cmd = [CLI] + list(args)
+    if not stall_minutes:
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        res.stalled = False
+        return res
+
+    import threading
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True)
+    chunks = {"out": [], "err": []}
+
+    def drain(stream, key):
+        try:
+            for line in stream:
+                chunks[key].append(line)
+        except Exception:
+            pass
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+
+    threads = [threading.Thread(target=drain, args=(proc.stdout, "out"), daemon=True),
+               threading.Thread(target=drain, args=(proc.stderr, "err"), daemon=True)]
+    for t in threads:
+        t.start()
+
+    window = max(1, int(stall_minutes * 60 / _STALL_POLL_SECONDS))
+    samples = []                      # fenêtre glissante des relevés de rchar
+    stalled = False
+    while True:
+        try:
+            proc.wait(timeout=_STALL_POLL_SECONDS)
+            break                     # terminé de lui-même : cas normal
+        except subprocess.TimeoutExpired:
+            pass
+        r = _proc_rchar(proc.pid)
+        if r is None:
+            continue                  # illisible : on ne coupe JAMAIS sur un doute
+        samples.append(r)
+        if len(samples) > window + 1:
+            samples.pop(0)
+        if len(samples) >= window + 1 and (samples[-1] - samples[0]) < _STALL_MIN_PROGRESS:
+            stalled = True
+            print(_("    ⏱  Upload frozen for {m} min (no activity) — "
+                    "stopping the Proton CLI; this folder will be retried.").format(
+                        m=stall_minutes))
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=10)
+            except Exception:
+                pass
+            break
+
+    for t in threads:
+        t.join(timeout=5)
+    res = subprocess.CompletedProcess(
+        cmd, proc.returncode if proc.returncode is not None else -1,
+        "".join(chunks["out"]), "".join(chunks["err"]))
+    res.stalled = stalled
+    return res
+
+
 
 
 # Version du CLI Proton Drive sur laquelle CE projet a réellement été testé.
@@ -880,15 +1145,38 @@ def ensure_remote_path(path):
     return True
 
 
+class RemoteListing(dict):
+    """Listing d'un dossier distant, AVEC l'information « la lecture a-t-elle
+    réussi ? ».
+
+    Un simple dict ne permet pas de distinguer « ce dossier est vide » de « je
+    n'ai pas réussi à le lire » : les deux valent {}. Or les conséquences sont
+    opposées — dans le premier cas il faut tout envoyer, dans le second il faut
+    PASSER SON TOUR. Constaté en production : un listing qui échoue fait croire
+    au moteur qu'un dossier distant est vide, et il renvoie tout son contenu.
+
+    On sous-classe dict plutôt que de renvoyer un tuple : les appelants qui ne
+    se soucient pas de l'échec (parcours, .get(), .items()) continuent de
+    fonctionner sans modification, et ceux qui doivent décider consultent `.ok`.
+    """
+    def __init__(self, items=None, ok=True, error=""):
+        super().__init__(items or {})
+        self.ok = ok
+        self.error = error
+
+
 def get_remote_listing(remote_path, verbose=False):
     """Retourne {nom: {"size", "mtime", "sha1", "type"}} pour un dossier distant.
     Le champ "type" ("file"/"folder") permet de choisir la bonne opération de
-    suppression (trash/delete) et de descendre dans les dossiers orphelins."""
+    suppression (trash/delete) et de descendre dans les dossiers orphelins.
+
+    Le résultat porte `.ok` : False signifie que la lecture a ÉCHOUÉ (et non que
+    le dossier est vide). Voir RemoteListing."""
     data, err = cli_json(["filesystem", "list", remote_path])
     if data is None:
         if verbose:
             print(_("    (nothing found at {p}: {e})").format(p=remote_path, e=err))
-        return {}
+        return RemoteListing(ok=False, error=(err or ""))
     # Dump JSON du premier élément : outil de mise au point (format de réponse du
     # CLI). Inutile en usage normal -> conditionné à PROTON_SYNC_DEBUG pour ne PLUS
     # polluer le mode Détaillé, tout en restant récupérable si Proton change le
@@ -905,7 +1193,7 @@ def get_remote_listing(remote_path, verbose=False):
         # Le type peut être enveloppé {ok, value} comme les autres champs.
         rtype = _unwrap(item.get("type"))
         listing[name] = {"size": size, "mtime": mtime, "sha1": sha1, "type": rtype}
-    return listing
+    return RemoteListing(listing, ok=True)
 
 
 def _local_sha1(path, chunk_size=1024 * 1024):
@@ -982,8 +1270,10 @@ def _upload_one(local_path, remote_parent, skip_thumbnails=False):
     if skip_thumbnails:
         cmd.append("--skip-thumbnails")
     cmd += [cli_path, remote_parent]
-    res = run_cli(cmd)
+    res = run_cli_watched(cmd)
     parts = [p for p in ((res.stdout or "").strip(), (res.stderr or "").strip()) if p]
+    if getattr(res, "stalled", False):
+        parts.append(_("upload frozen, stopped by the engine"))
     return res.returncode == 0, " | ".join(parts)
 
 
@@ -1048,12 +1338,23 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
     # supprime la progression. La capter exigerait un pseudo-terminal (pty) au
     # parsing fragile — disproportionné tant que le CLI n'offre pas d'option de
     # progression machine-lisible. Voir CONTEXTE.md.
+    stall_minutes, max_kills = _stall_settings()
+    if _stall_giving_up(remote_parent, max_kills):
+        print(_("    ⏭  {p} skipped this pass: the last {n} attempt(s) froze. "
+                "It will be tried again next pass.").format(
+                    p=remote_parent, n=max_kills))
+        _stall_reset(remote_parent)
+        return False
     _emit_progress(state="start", files=len(local_paths), bytes=_sum_sizes(local_paths))
     try:
-        res = run_cli(cmd)
+        res = run_cli_watched(cmd, stall_minutes=stall_minutes)
     finally:
         _emit_progress(state="done")
+    if getattr(res, "stalled", False):
+        _stall_record(remote_parent)
+        return False
     if res.returncode == 0:
+        _stall_reset(remote_parent)
         print(_("    ✅ {n} file(s) sent to {p}").format(n=len(local_paths), p=remote_parent))
         if verbose and res.stdout.strip():
             print("      " + res.stdout.strip().replace("\n", "\n      "))
@@ -1068,6 +1369,14 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
     # Relire le distant : ce qui est déjà présent (bonne taille) a réussi dans le
     # lot -> inutile de le renvoyer. On ne ré-essaie QUE ce qui manque encore.
     remote_after = get_remote_listing(remote_parent, verbose=False)
+    if not remote_after.ok:
+        # Sans relecture fiable, tout paraîtrait manquant et on renverrait un par
+        # un des fichiers déjà montés par le lot. On préfère échouer proprement :
+        # en temps réel le marqueur est conservé et le dossier repassera au cycle
+        # suivant ; en planifié, au prochain passage.
+        print(_("    ⚠  Could not re-read {p} after the batch — nothing re-sent, "
+                "this folder will be retried later.").format(p=remote_parent))
+        return False
     failures = []
     recovered = 0
     no_thumb = 0
@@ -1154,12 +1463,23 @@ def _count_remote_recursive(remote_path):
     """Compte récursivement le nombre d'éléments (fichiers + dossiers) sous un
     dossier distant. Sert à journaliser l'ampleur d'une suppression de dossier
     orphelin. Best-effort : en cas d'erreur, retourne ce qui a pu être compté."""
-    total = 0
     listing = get_remote_listing(remote_path)
+    if not listing.ok:
+        # Lecture impossible : on NE PEUT PAS annoncer « 0 élément » — ce serait
+        # minimiser une action destructrice, exactement ce qu'un avertissement ne
+        # doit jamais faire. On renvoie None = « non mesuré », et l'appelant le
+        # dit tel quel. La suppression, elle, reste légitime : la cible a été vue
+        # dans le listing du PARENT, qui a réussi (sinon aucun orphelin n'aurait
+        # été identifié et on ne serait pas ici).
+        return None
+    total = 0
     for name, info in listing.items():
         total += 1
         if info.get("type") == "folder":
-            total += _count_remote_recursive(remote_path.rstrip("/") + "/" + name)
+            sub = _count_remote_recursive(remote_path.rstrip("/") + "/" + name)
+            if sub is None:
+                return None      # une branche non mesurée rend le total faux
+            total += sub
     return total
 
 
@@ -1181,9 +1501,14 @@ def delete_orphans(local_dir, remote_folder, remote_items, local_names,
         rtype = info.get("type")
         if rtype == "folder":
             # Dossier entier disparu localement : on le supprime en entier.
-            n_sub = _count_remote_recursive(remote_path) if verbose else None
-            if verbose and n_sub is not None:
-                print(_("    (orphan folder: {n} — ~{c} remote element(s))").format(n=name, c=n_sub))
+            if verbose:
+                n_sub = _count_remote_recursive(remote_path)
+                if n_sub is None:
+                    print(_("    (orphan folder: {n} — size not measured, "
+                            "listing failed)").format(n=name))
+                else:
+                    print(_("    (orphan folder: {n} — ~{c} remote element(s))").format(
+                        n=name, c=n_sub))
             if remote_trash(remote_path, permanent=permanent, dry_run=dry_run):
                 n_deleted += 1
         else:
@@ -1367,6 +1692,15 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
             return False
 
     remote_items = get_remote_listing(remote_folder, verbose=verbose)
+    if not remote_items.ok:
+        # Listing en échec : le dossier n'est PAS vide, on ne sait simplement pas
+        # ce qu'il contient. Envoyer reviendrait à renvoyer tout le dossier ;
+        # supprimer serait pire. On passe notre tour, on le dit, et on rend
+        # « non complet » pour que le cache ne fige pas cet état. Le moteur ne
+        # s'arrête jamais : il journalise et poursuit avec les autres dossiers.
+        print(_("    ⚠  Could not list {p} — folder skipped this pass "
+                "(nothing sent, nothing deleted).").format(p=remote_folder))
+        return False
 
     to_upload = []
     had_failure = False
@@ -1476,6 +1810,11 @@ def sync_file(local_file, remote_parent, dry_run=False, verbose=False, verify_ha
         if not ensure_remote_path(remote_parent):
             return   # destination non inscriptible : rien envoyé (message déjà émis)
     remote_items = get_remote_listing(remote_parent, verbose=verbose)
+    if not remote_items.ok:
+        # Sans listing fiable, le fichier paraîtrait absent et serait renvoyé à
+        # chaque passage. On passe notre tour ; le prochain passage tranchera.
+        print(_("    ⚠  Could not list {p} — file skipped this pass.").format(p=remote_parent))
+        return
     info = remote_items.get(os.path.basename(local_file))
     if needs_upload(local_file, info, verbose=verbose, verify_hash=verify_hash):
         upload_batch([local_file], remote_parent, dry_run=dry_run, verbose=verbose)
