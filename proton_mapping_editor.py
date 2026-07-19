@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.13.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.14.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -550,6 +550,40 @@ CONFIG_HELP = {
         "You can change this text if you prefer something else, but it "
         "cannot contain / \\ \" ' (characters that would break a file name)."
     ),
+    "rename-ext-whitelist": _(
+        "Which extensions to fix\n\n"
+        "Fixing an extension only helps for files Proton can show a preview "
+        "of — photos, videos, music, documents. Renaming a router backup or a "
+        "phone settings file changes one of your files without repairing "
+        "anything.\n\n"
+        "It can even cause a pile-up: if another program (a phone backup app, "
+        "for example) recreates the original name every night, a new renamed "
+        "copy is added every night, on your disk and on your Drive.\n\n"
+        "Separate the extensions with commas. Leave the field empty to fix "
+        "every uppercase extension, as older versions did."
+    ),
+    "cli-stall-minutes": _(
+        "Stop a frozen upload\n\n"
+        "Proton's CLI can occasionally freeze at the very end of a large "
+        "upload, waiting for an answer that never arrives. It would wait "
+        "forever, and everything else stays queued behind it.\n\n"
+        "After this many minutes without any activity at all, the app stops "
+        "it and tries again later. Nothing is lost: the folder is simply "
+        "picked up again on the next pass.\n\n"
+        "A healthy upload has a quiet final stretch of about a minute and a "
+        "half, so five minutes leaves a comfortable margin. Set 0 to never "
+        "stop an upload."
+    ),
+    "cli-stall-max-kills": _(
+        "Repeated freezes\n\n"
+        "If the same folder freezes over and over, each attempt restarts the "
+        "transfer from the beginning, which can waste a lot of bandwidth.\n\n"
+        "This setting stops trying after that many freezes in a row and skips "
+        "one pass before starting over. The folder is never abandoned — a "
+        "backup that quietly stops backing up would be worse than the waste "
+        "it avoids.\n\n"
+        "Leave 0 to keep retrying every time."
+    ),
     "proton-cli-path": _(
         "Path to the Proton Drive CLI\n\n"
         "This app does not include Proton's CLI — you download it separately "
@@ -719,28 +753,50 @@ class RemoteFolderPicker(tk.Toplevel):
         if path in self._cache:
             self._fill(item, self._cache[path])
             return
+        def attempt():
+            """Un essai de listage. Retourne (entries, err, ok).
+
+            `ok` distingue « ce dossier est vide » de « je n'ai pas réussi à le
+            lire » — les deux donnaient jusqu'ici une liste vide, et l'échec
+            s'affichait donc comme « (aucun sous-dossier) », ce qui peut faire
+            choisir une mauvaise destination.
+            """
+            if _ENGINE is None:
+                raise RuntimeError("proton_sync.py missing next to the editor")
+            with self.app._auth_lock:
+                if path == "/":
+                    entries = self._list_roots()
+                    return entries, None, bool(entries)
+                listing = _ENGINE.get_remote_listing(path)
+                # Compat : un moteur antérieur renvoie un dict nu, sans « ok ».
+                ok = getattr(listing, "ok", True)
+                base = path.rstrip("/")
+                entries = sorted(
+                    ((base + "/" + n, n) for n, i in listing.items()
+                     if (i.get("type") or "") == "folder"),
+                    key=lambda t: str.casefold(t[1]))
+                return entries, None, ok
+
         def work():
-            try:
-                if _ENGINE is None:
-                    raise RuntimeError("proton_sync.py missing next to the editor")
-                with self.app._auth_lock:
-                    if path == "/":
-                        entries = self._list_roots()
-                    else:
-                        listing = _ENGINE.get_remote_listing(path)
-                        base = path.rstrip("/")
-                        entries = sorted(
-                            ((base + "/" + n, n) for n, i in listing.items()
-                             if (i.get("type") or "") == "folder"),
-                            key=lambda t: str.casefold(t[1]))
-                err = None
-            except Exception as e:
-                entries, err = [], str(e)
+            # Un premier refus est souvent passager (session qui se réveille,
+            # réponse réseau perdue). On retente UNE fois avant d'alarmer —
+            # même principe que la sonde d'authentification.
+            entries, err, ok = [], None, False
+            for tentative in (1, 2):
+                try:
+                    entries, err, ok = attempt()
+                except Exception as e:
+                    entries, err, ok = [], str(e), False
+                if ok and err is None:
+                    break
+                if tentative == 1:
+                    time.sleep(1.5)
             def apply():
-                if err is not None or (path == "/" and not entries):
-                    self.status_var.set(_("Could not list Proton Drive — check the "
-                                          "session (⚙ Configuration…) and try again."))
-                    return
+                if err is not None or not ok:
+                    self.status_var.set(_("Could not list this folder — check the "
+                                          "session (⚙ Configuration…) and try again. "
+                                          "Expand it again to retry."))
+                    return          # surtout : ne PAS mémoriser un échec
                 self._cache[path] = entries
                 self._fill(item, entries)
             try:
@@ -3031,6 +3087,24 @@ class MappingEditor(tk.Tk):
             cli_entry.pack(side="left")
             help_btn(crow, "proton-cli-path")
 
+            # Disjoncteur d'envoi : le CLI peut rester bloqué indéfiniment en
+            # fin de transfert (aucun temporisateur réseau armé). Sans ce
+            # garde-fou, le verrou du moteur reste tenu et toute la
+            # synchronisation s'arrête derrière, jusqu'à intervention manuelle.
+            srow = ttk.Frame(cli_frame); srow.pack(anchor="w", fill="x", pady=(8, 0))
+            ttk.Label(srow, text=_("Stop a frozen upload after (minutes): ")).pack(side="left")
+            stall_var = tk.StringVar(value=str(appconfig.cli_stall_minutes()))
+            ttk.Entry(srow, textvariable=stall_var, width=6).pack(side="left")
+            ttk.Label(srow, text=_("  (0 = never)")).pack(side="left")
+            help_btn(srow, "cli-stall-minutes")
+
+            krow = ttk.Frame(cli_frame); krow.pack(anchor="w", fill="x", pady=(8, 0))
+            ttk.Label(krow, text=_("Consecutive freezes before skipping a pass: ")).pack(side="left")
+            kills_var = tk.StringVar(value=str(appconfig.cli_stall_max_kills()))
+            ttk.Entry(krow, textvariable=kills_var, width=6).pack(side="left")
+            ttk.Label(krow, text=_("  (0 = unlimited)")).pack(side="left")
+            help_btn(krow, "cli-stall-max-kills")
+
         # ---- Section Langue ----
         if _HAS_I18N:
             lang_frame = ttk.LabelFrame(frm, text=_("Interface language"), padding=10)
@@ -3294,8 +3368,17 @@ class MappingEditor(tk.Tk):
             suffix_entry.pack(side="left")
             help_btn(row4, "rename-ext-suffix")
 
+            row5 = ttk.Frame(ext_frame); row5.pack(anchor="w", fill="x", pady=(8, 0))
+            ttk.Label(row5, text=_("Only these extensions: ")).pack(side="left")
+            wl_var = tk.StringVar(value=appconfig.format_ext_list())
+            wl_entry = ttk.Entry(row5, textvariable=wl_var, width=40)
+            wl_entry.pack(side="left", fill="x", expand=True)
+            help_btn(row5, "rename-ext-whitelist")
+
             def sync_suffix_state(*_a):
-                suffix_entry.configure(state="normal" if rename_var.get() else "disabled")
+                state = "normal" if rename_var.get() else "disabled"
+                suffix_entry.configure(state=state)
+                wl_entry.configure(state=state)
             rename_var.trace_add("write", sync_suffix_state)
             sync_suffix_state()
 
@@ -3403,6 +3486,13 @@ class MappingEditor(tk.Tk):
                 appconfig.set_account_name(ident_var.get())
                 appconfig.set_rename_ext_enabled(rename_var.get())
                 appconfig.set_rename_ext_collision_suffix(suffix_var.get())
+                # Liste blanche : une saisie vide est LÉGITIME (= ne rien
+                # restreindre), elle doit donc être enregistrée telle quelle.
+                appconfig.set_rename_ext_whitelist(wl_var.get())
+                # Disjoncteur : une saisie illisible est ignorée en silence
+                # plutôt que d'écraser un réglage valide par une valeur fausse.
+                appconfig.set_cli_stall_minutes(stall_var.get())
+                appconfig.set_cli_stall_max_kills(kills_var.get())
                 # Icône de barre des tâches : effet IMMÉDIAT (démarrage à
                 # l'activation ; extinction d'elle-même à la désactivation).
                 appconfig.set_tray_enabled(tray_var.get())
