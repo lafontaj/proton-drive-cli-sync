@@ -19,11 +19,9 @@ msgstr "Il suffisso non può essere vuoto."
 msgid "The suffix cannot contain / \\ \" '."
 msgstr "Il suffisso non può contenere / \\ \" '."
 
-#, python-brace-format
 msgid "[config] Data folder migrated: {old} -> {new}"
 msgstr "[config] Cartella dati migrata: {old} -> {new}"
 
-#, python-brace-format
 msgid ""
 "[config] ⚠ Could not migrate the data folder ({e}) — using the legacy paths "
 "for this run."
@@ -31,585 +29,12 @@ msgstr ""
 "[config] ⚠ Impossibile migrare la cartella dati ({e}) — uso i percorsi "
 "precedenti per questa esecuzione."
 
-#, python-brace-format
 msgid "[config] ⚠ Could not migrate the cache folder ({e})."
 msgstr "[config] ⚠ Impossibile migrare la cartella della cache ({e})."
 
-#, python-brace-format
-msgid "    ✎ [DRY-RUN] would fix uppercase extension: {a} -> {b}"
-msgstr "    ✎ [DRY-RUN] correggerebbe l'estensione in maiuscolo: {a} -> {b}"
-
-#, python-brace-format
-msgid "    ✎ fixed uppercase extension: {a} -> {b}"
-msgstr "    ✎ estensione in maiuscolo corretta: {a} -> {b}"
-
-#, python-brace-format
-msgid "    ⚠  Could not rename {a}: {e}"
-msgstr "    ⚠  Impossibile rinominare {a}: {e}"
-
-#, python-brace-format
-msgid "⚠  Cache corrupted or unreadable ({e}) — starting fresh."
-msgstr "⚠  Cache danneggiata o illeggibile ({e}) — ripartenza da zero."
-
-#, python-brace-format
-msgid ""
-"    ⛔ No write permission on {p} — ask the owner for access; skipping. ({e})"
-msgstr ""
-"    ⛔ Nessun permesso di scrittura su {p} — chiedi l'accesso al "
-"proprietario; ignorato. ({e})"
-
-#, python-brace-format
-msgid "    ⚠  Could not create {p}: {e}"
-msgstr "    ⚠  Impossibile creare {p}: {e}"
-
-#, python-brace-format
-msgid "    (nothing found at {p}: {e})"
-msgstr "    (nulla trovato in {p}: {e})"
-
-msgid "    [debug] first raw element received from 'filesystem list -j':"
-msgstr "    [debug] primo elemento grezzo ricevuto da 'filesystem list -j':"
-
-#, python-brace-format
-msgid "    (remote size unknown for {f}, re-sending to be safe)"
-msgstr "    (dimensione remota sconosciuta per {f}, reinvio per sicurezza)"
-
-#, python-brace-format
-msgid "    (same size but different content: {f})"
-msgstr "    (stessa dimensione ma contenuto diverso: {f})"
-
-#, python-brace-format
-msgid "    [DRY-RUN] would upload: {p}"
-msgstr "    [DRY-RUN] caricherebbe: {p}"
-
-#, python-brace-format
-msgid "    ✅ {n} file(s) sent to {p}"
-msgstr "    ✅ {n} file inviato/i a {p}"
-
-#, python-brace-format
-msgid ""
-"    ⚠  Batch upload to {p} reported a failure — isolating the culprit "
-"file(s)…"
-msgstr ""
-"    ⚠  Il caricamento in blocco su {p} ha segnalato un errore — isolamento "
-"del/dei file colpevole/i…"
-
-#, python-brace-format
-msgid "      – vanished before upload (deleted meanwhile), skipped: {p}"
-msgstr ""
-"      – scomparso prima del caricamento (eliminato nel frattempo), saltato: "
-"{p}"
-
-#, python-brace-format
-msgid "      – vanished during upload (deleted meanwhile), skipped: {p}"
-msgstr ""
-"      – scomparso durante il caricamento (eliminato nel frattempo), saltato: "
-"{p}"
-
-#, python-brace-format
-msgid "      ⚠ thumbnail/codec issue — retrying without thumbnail: {p}"
-msgstr ""
-"      ⚠ problema miniatura/codec — nuovo tentativo senza miniatura: {p}"
-
-#, python-brace-format
-msgid "      ✓ uploaded WITHOUT thumbnail (no Proton preview): {p}"
-msgstr "      ✓ caricato SENZA miniatura (nessuna anteprima Proton): {p}"
-
-#, python-brace-format
-msgid "      ✓ recovered on individual retry: {p}"
-msgstr "      ✓ recuperato al nuovo tentativo individuale: {p}"
-
-#, python-brace-format
-msgid "    ❌ upload failed: {p}"
-msgstr "    ❌ caricamento fallito: {p}"
-
-#, python-brace-format
-msgid "    ❌   reason: {e}"
-msgstr "    ❌   motivo: {e}"
-
-msgid "(no message from the CLI)"
-msgstr "(nessun messaggio dalla CLI)"
-
-#, python-brace-format
-msgid "    ✅ {n} file(s) recovered on individual retry."
-msgstr "    ✅ {n} file recuperato/i al nuovo tentativo individuale."
-
-#, python-brace-format
-msgid ""
-"    ⚠  {n} file(s) uploaded WITHOUT thumbnail (image format needs an OS "
-"codec — saved anyway, logged in {log})."
-msgstr ""
-"    ⚠  {n} file caricato/i SENZA miniatura (il formato immagine richiede un "
-"codec del SO — salvato comunque, registrato in {log})."
-
-#, python-brace-format
-msgid ""
-"    – {n} file(s) vanished (deleted meanwhile) — skipped, not a failure."
-msgstr ""
-"    – {n} file scomparso/i (eliminato/i nel frattempo) — saltato/i, non è un "
-"errore."
-
-#, python-brace-format
-msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
-msgstr ""
-"    ❌ {n} file continuano a fallire (vedi il registro degli errori: {log})."
-
-msgid "would delete PERMANENTLY"
-msgstr "eliminerebbe PERMANENTEMENTE"
-
-msgid "would move to trash"
-msgstr "sposterebbe nel cestino"
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr "    ❌ {a} di {p} fallito: {e}"
-
-msgid "permanently deleted"
-msgstr "eliminato permanentemente"
-
-msgid "sent to trash"
-msgstr "inviato nel cestino"
-
-#, python-brace-format
-msgid "    (orphan folder: {n} — ~{c} remote element(s))"
-msgstr "    (cartella orfana: {n} — ~{c} elemento/i remoto/i)"
-
-#, python-brace-format
-msgid "  ⛔ Remote wipe REFUSED (mount guard): {r}"
-msgstr "  ⛔ Cancellazione remota RIFIUTATA (protezione di montaggio): {r}"
-
-msgid "     Nothing deleted remotely — this mapping was NOT reset."
-msgstr ""
-"     Nulla eliminato in remoto — questa mappatura NON è stata reimpostata."
-
-#, python-brace-format
-msgid "  ♻ No remote folder to wipe (already absent): {p}"
-msgstr "  ♻ Nessuna cartella remota da cancellare (già assente): {p}"
-
-#, python-brace-format
-msgid "  🗑  Wiping remote folder to TRASH: {p}"
-msgstr "  🗑  Cancellazione della cartella remota nel CESTINO: {p}"
-
-#, python-brace-format
-msgid "  ❌ Could not read {p}: {e}"
-msgstr "  ❌ Impossibile leggere {p}: {e}"
-
-#, python-brace-format
-msgid "  ⚡ {t}, skipping the CLI call for {p}"
-msgstr "  ⚡ {t}, salto la chiamata CLI per {p}"
-
-#, python-brace-format
-msgid "  🚫 excluded (folder): {p}"
-msgstr "  🚫 escluso (cartella): {p}"
-
-#, python-brace-format
-msgid "    🚫 excluded ({k}): {p}"
-msgstr "    🚫 escluso ({k}): {p}"
-
-#, python-brace-format
-msgid "    ⏭  unchanged: {p}"
-msgstr "    ⏭  invariato: {p}"
-
-#, python-brace-format
-msgid "  ⚠  Deletions disabled for this mapping: {r}"
-msgstr "  ⚠  Eliminazioni disabilitate per questa mappatura: {r}"
-
-msgid "      (uploads continue normally)"
-msgstr "      (i caricamenti continuano normalmente)"
-
-msgid "permanent"
-msgstr "permanente"
-
-msgid "to trash"
-msgstr "nel cestino"
-
-#, python-brace-format
-msgid "  🗑  Deletion propagation ACTIVE ({l}) for this mapping"
-msgstr "  🗑  Propagazione delle eliminazioni ATTIVA ({l}) per questa mappatura"
-
-#, python-brace-format
-msgid "    🚫 excluded (file): {p}"
-msgstr "    🚫 escluso (file): {p}"
-
-#, python-brace-format
-msgid "  ❌ Subpath not found or not a folder: {p}"
-msgstr "  ❌ Sottopercorso non trovato o non è una cartella: {p}"
-
-#, python-brace-format
-msgid "subpath excluded (“{s}” filtered), skipped: {p}"
-msgstr "sottopercorso escluso («{s}» filtrato), saltato: {p}"
-
-#, python-brace-format
-msgid ""
-"folder not fully indexed yet (cache not built by a full pass), deferred to "
-"scheduling: {p}"
-msgstr ""
-"cartella non ancora completamente indicizzata (cache non costruita da una "
-"passata completa), rinviata alla pianificazione: {p}"
-
-#, python-brace-format
-msgid "  ⚠  Deletions disabled for this subpath: {r}"
-msgstr "  ⚠  Eliminazioni disabilitate per questo sottopercorso: {r}"
-
-#, python-brace-format
-msgid "  🗑  Deletion propagation ACTIVE ({l}) for this subpath"
-msgstr ""
-"  🗑  Propagazione delle eliminazioni ATTIVA ({l}) per questo sottopercorso"
-
-#, python-brace-format
-msgid "  ↪ subpath: {s}  =>  {d}"
-msgstr "  ↪ sottopercorso: {s}  =>  {d}"
-
-msgid "❌ --wipe-remote requires --reset-source."
-msgstr "❌ --wipe-remote richiede --reset-source."
-
-#, python-brace-format
-msgid "❌ proton-drive binary not found at {p}"
-msgstr "❌ binario proton-drive non trovato in {p}"
-
-msgid "❌ A mappings file is required (config)."
-msgstr "❌ È richiesto un file di mappature (configurazione)."
-
-msgid "❌ Another instance of proton_sync.py is already running."
-msgstr "❌ Un'altra istanza di proton_sync.py è già in esecuzione."
-
-#, python-brace-format
-msgid "   Lock: {p}"
-msgstr "   Blocco: {p}"
-
-msgid "   (If you are sure no other instance is running, delete this file.)"
-msgstr ""
-"   (Se sei sicuro che nessun'altra istanza sia in esecuzione, elimina questo "
-"file.)"
-
-msgid "   Adjust the PROTON_DRIVE_CLI environment variable if needed."
-msgstr "   Regola la variabile d'ambiente PROTON_DRIVE_CLI se necessario."
-
-msgid "Proton Drive authentication impossible — pass skipped."
-msgstr "Autenticazione Proton Drive impossibile — passata saltata."
-
-msgid "   Likely cause: the graphical session is not open, so the"
-msgstr "   Causa probabile: la sessione grafica non è aperta, quindi il"
-
-msgid "   secrets keyring is locked and the CLI cannot read its"
-msgstr "   portachiavi dei segreti è bloccato e la CLI non può leggere le sue"
-
-msgid "   credentials."
-msgstr "   credenziali."
-
-#, python-brace-format
-msgid "   CLI detail: {e}"
-msgstr "   Dettaglio CLI: {e}"
-
-msgid "   (This is not a serious error: the next run will retry."
-msgstr "   (Non è un errore grave: la prossima esecuzione riproverà."
-
-msgid "    Open this user's session to unlock the keyring.)"
-msgstr "    Apri la sessione di questo utente per sbloccare il portachiavi.)"
-
-#, python-brace-format
-msgid ""
-"Account change accepted ({a} → {b}) — the previous cache is discarded and "
-"will be rebuilt for the new account."
-msgstr ""
-"Cambio di account accettato ({a} → {b}) — la cache precedente viene scartata "
-"e verrà ricostruita per il nuovo account."
-
-#, python-brace-format
-msgid ""
-"The connected Proton account has changed: this cache was built for {a}, but "
-"the session is now {b}."
-msgstr ""
-"L'account Proton connesso è cambiato: questa cache è stata creata per {a}, "
-"ma la sessione ora è {b}."
-
-msgid ""
-"   Nothing was synced or modified — the cache describes the OLD account's "
-"Drive."
-msgstr ""
-"   Nulla è stato sincronizzato o modificato — la cache descrive il Drive del "
-"VECCHIO account."
-
-msgid ""
-"   To proceed on the NEW account: run “Prime the cache” (or reset the "
-"mappings). The destinations will be (re)created on the new Drive."
-msgstr ""
-"   Per procedere sul NUOVO account: esegui «Inizializza cache» (o reimposta "
-"le mappature). Le destinazioni verranno (ri)create sul nuovo Drive."
-
-msgid ""
-"⏹ Interrupted — cache progress saved: resuming will skip what is already "
-"done (no restart from zero)."
-msgstr ""
-"⏹ Interrotto — avanzamento della cache salvato: alla ripresa verrà saltato "
-"ciò che è già fatto (nessun riavvio da zero)."
-
-msgid "DRY-RUN (nothing will be transferred)"
-msgstr "DRY-RUN (non verrà trasferito nulla)"
-
-msgid "real"
-msgstr "reale"
-
-#, python-brace-format
-msgid "== Proton Drive sync — {n} entry(ies) — {m}{x} =="
-msgstr "== Sincronizzazione Proton Drive — {n} voce/i — {m}{x} =="
-
-#, python-brace-format
-msgid ""
-"   ⚠  Proton CLI {v} is older than the tested {t} — some behaviours differ; "
-"consider updating."
-msgstr ""
-"   ⚠  La CLI Proton {v} è precedente alla versione testata {t} — alcuni "
-"comportamenti differiscono; valuta un aggiornamento."
-
-#, python-brace-format
-msgid ""
-"   ⚠  Proton CLI {v} is newer than the tested {t} — not validated by this "
-"project's tests."
-msgstr ""
-"   ⚠  La CLI Proton {v} è più recente della versione testata {t} — non "
-"convalidata dai test di questo progetto."
-
-#, python-brace-format
-msgid "   ⚠  Could not determine the Proton CLI version (tested: {t})."
-msgstr ""
-"   ⚠  Impossibile determinare la versione della CLI Proton (testata: {t})."
-
-#, python-brace-format
-msgid "   Cache: {p} ({n} known folder(s))"
-msgstr "   Cache: {p} ({n} cartella/e nota/e)"
-
-msgid ""
-"   ↺ Resuming on an existing cache — work already recorded won't be redone "
-"(unchanged folders are skipped)."
-msgstr ""
-"   ↺ Ripresa su una cache esistente — il lavoro già registrato non verrà "
-"rifatto (le cartelle invariate vengono saltate)."
-
-#, python-brace-format
-msgid "   Global exclusions: {n} name(s), {p} pattern(s)"
-msgstr "   Esclusioni globali: {n} nome/i, {p} criterio/i"
-
-#, python-brace-format
-msgid "   ⟳ Restricted to {n} selected mapping(s) (of {t})."
-msgstr "   ⟳ Limitato a {n} mappatura/e selezionata/e (di {t})."
-
-#, python-brace-format
-msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
-msgstr "   ⚠  Modalità ELIMINAZIONE attiva — {n} mappatura/e con allow_delete"
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
-msgstr ", incluse {n} PERMANENTI"
-
-msgid ""
-"   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
-msgstr ""
-"   ⚠  mount_check.py mancante: TUTTE le eliminazioni verranno rifiutate "
-"(protezione di sicurezza)."
-
-msgid "❌ --subpath requires --mapping-source to identify the mapping."
-msgstr "❌ --subpath richiede --mapping-source per identificare la mappatura."
-
-#, python-brace-format
-msgid "❌ No mapping with source = {s}"
-msgstr "❌ Nessuna mappatura con origine = {s}"
-
-#, python-brace-format
-msgid "❌ --subpath only applies to 'folder' mappings (this one is '{t}')."
-msgstr ""
-"❌ --subpath si applica solo alle mappature di tipo 'folder' (questa è "
-"'{t}')."
-
-#, python-brace-format
-msgid "== REAL-TIME sync — subpath of a mapping — {m} =="
-msgstr ""
-"== Sincronizzazione in TEMPO REALE — sottopercorso di una mappatura — {m} =="
-
-#, python-brace-format
-msgid "   Mapping: {s}  =>  {d}"
-msgstr "   Mappatura: {s}  =>  {d}"
-
-msgid "   ⚠  Deletion propagation requested (--delete)"
-msgstr "   ⚠  Propagazione delle eliminazioni richiesta (--delete)"
-
-msgid "Done."
-msgstr "Fatto."
-
-#, python-brace-format
-msgid "   ♻ RESET restricted to {n} selected mapping(s) (of {t})."
-msgstr "   ♻ REIMPOSTAZIONE limitata a {n} mappatura/e selezionata/e (di {t})."
-
-#, python-brace-format
-msgid "   ♻ {n} cache entry(ies) purged: {s}"
-msgstr "   ♻ {n} voce/i di cache eliminata/e: {s}"
-
-#, python-brace-format
-msgid ""
-"\n"
-"▶ Mapping {i}/{n} : {s}  =>  {d}"
-msgstr ""
-"\n"
-"▶ Mappatura {i}/{n} : {s}  =>  {d}"
-
-#, python-brace-format
-msgid "  ❌ Source not found, skipped: {s}"
-msgstr "  ❌ Origine non trovata, saltata: {s}"
-
-#, python-brace-format
-msgid "  🔎 self-test marker acknowledged (id {i})."
-msgstr "  🔎 marcatore di autotest confermato (id {i})."
-
-#, python-brace-format
-msgid "  ⚠ self-test reply write failed: {e}"
-msgstr "  ⚠ scrittura risposta autotest fallita: {e}"
-
-#, python-brace-format
-msgid "  ⊘ folder vanished, skipped: {p}"
-msgstr "  ⊘ cartella scomparsa, saltata: {p}"
-
-#, python-brace-format
-msgid "  ⊘ no mapping for: {p} (marker ignored)"
-msgstr "  ⊘ nessuna mappatura per: {p} (marcatore ignorato)"
-
-msgid " [with deletions]"
-msgstr " [con eliminazioni]"
-
-#, python-brace-format
-msgid "  → sync: {p}{f}"
-msgstr "  → sincronizzazione: {p}{f}"
-
-msgid "    🚫 excluded (name filtered) — nothing to sync"
-msgstr "    🚫 escluso (nome filtrato) — niente da sincronizzare"
-
-msgid "    ✓ ok"
-msgstr "    ✓ ok"
-
-msgid ""
-"    ⏳ cold folder — deferred to the scheduled pass (real-time does not "
-"build the cache)"
-msgstr ""
-"    ⏳ cartella fredda — rinviata alla passata pianificata (il tempo reale "
-"non costruisce la cache)"
-
-msgid ""
-"    ⛔ account changed — engine refused (cache belongs to the previous "
-"account); markers kept"
-msgstr ""
-"    ⛔ account cambiato — il motore ha rifiutato (la cache appartiene "
-"all'account precedente); marcatori conservati"
-
-#, python-brace-format
-msgid "    ✗ failure (code {c}) — markers kept for retry"
-msgstr "    ✗ errore (codice {c}) — marcatori conservati per riprovare"
-
-#, python-brace-format
-msgid "Real-time daemon started (user {u})."
-msgstr "Servizio in tempo reale avviato (utente {u})."
-
-#, python-brace-format
-msgid "  Engine: {p}"
-msgstr "  Motore: {p}"
-
-#, python-brace-format
-msgid ""
-"  • {r}/{t} mapping(s) ready for real-time. The others need a full pass "
-"(Schedule) before real-time can sync them."
-msgstr ""
-"  • {r}/{t} mappatura/e pronte per il tempo reale. Le altre necessitano di "
-"una passata completa (Pianificazione) prima che il tempo reale possa "
-"sincronizzarle."
-
-#, python-brace-format
-msgid "  • {r}/{t} mapping(s) ready for real-time."
-msgstr "  • {r}/{t} mappatura/e pronte per il tempo reale."
-
-msgid "▶ NAS back online — resuming NAS mappings."
-msgstr "▶ NAS di nuovo online — ripresa dei mapping NAS."
-
-msgid ""
-"⏸ NAS unreachable — NAS mappings suspended, local mode active. Local "
-"mappings keep syncing."
-msgstr ""
-"⏸ NAS irraggiungibile — mapping NAS sospesi, modalità locale attiva. I "
-"mapping locali continuano a sincronizzarsi."
-
-msgid "NAS disabled — local mode only."
-msgstr "NAS disattivato — solo modalità locale."
-
-msgid "🔓 Session opened — starting the pass."
-msgstr "🔓 Sessione aperta — avvio del passaggio."
-
-msgid "🔓 Lock released — starting the pass."
-msgstr "🔓 Blocco rilasciato — avvio del passaggio."
-
-msgid "🔓 Account matter resolved — starting the pass."
-msgstr "🔓 Problema dell'account risolto — avvio del passaggio."
-
-msgid ""
-"⏳ Proton authentication unavailable (expired session or locked keyring) — "
-"markers kept, no pass launched. Run “proton-drive auth login” (or the “Sign "
-"in to Proton” button) to renew the session."
-msgstr ""
-"⏳ Autenticazione Proton non disponibile (sessione scaduta o portachiavi "
-"bloccato) — marcatori conservati, nessuna passata avviata. Esegui «proton-"
-"drive auth login» (o il pulsante «Accedi a Proton») per rinnovare la "
-"sessione."
-
-msgid ""
-"⛔ Proton account changed — the cache belongs to the previous account. "
-"Markers kept; prime the cache (or reset the mappings) from the GUI to resume."
-msgstr ""
-"⛔ Account Proton cambiato — la cache appartiene all'account precedente. "
-"Marcatori conservati; inizializza la cache (o reimposta le mappature) "
-"dall'interfaccia per riprendere."
-
-msgid ""
-"⏳ Waiting: another pass holds the lock (manual or scheduled run) — markers "
-"kept, no pass launched."
-msgstr ""
-"⏳ In attesa: un'altra passata detiene il blocco (esecuzione manuale o "
-"pianificata) — marcatori conservati, nessuna passata avviata."
-
-msgid "✓ Pass finished."
-msgstr "✓ Passaggio completato."
-
-#, python-brace-format
-msgid "  ⊘ DELETE ignored (NAS mount unhealthy): {p}"
-msgstr "  ⊘ ELIMINAZIONE ignorata (montaggio NAS non integro): {p}"
-
-#, python-brace-format
-msgid "  {t} {p} -> marker on {d}"
-msgstr "  {t} {p} -> marcatore su {d}"
-
-#, python-brace-format
-msgid "  ⚠ marker write failed: {e}"
-msgstr "  ⚠ scrittura del marcatore fallita: {e}"
-
-#, python-brace-format
-msgid "  ➕ target added: [{k}] {d}"
-msgstr "  ➕ destinazione aggiunta: [{k}] {d}"
-
-#, python-brace-format
-msgid "  ⚠ cannot watch {d}: {e}"
-msgstr "  ⚠ impossibile sorvegliare {d}: {e}"
-
-#, python-brace-format
-msgid "  ➖ target removed (mount down or source deleted): {d}"
-msgstr "  ➖ destinazione rimossa (montaggio caduto o origine eliminata): {d}"
-
-#, python-brace-format
 msgid "Local watcher started — {n} target(s) ({l} local, {m} NAS):"
 msgstr "Osservatore locale avviato — {n} destinazione/i ({l} locale, {m} NAS):"
 
-#, python-brace-format
-msgid ""
-"   ⏳ {n} source(s) not mounted yet — picked up automatically as soon as "
-"they appear:"
-msgstr ""
-"   ⏳ {n} origine/i non ancora montata/e — rilevate automaticamente non "
-"appena compaiono:"
-
-#, python-brace-format
 msgid ""
 "Watching — mounts re-scanned every {s}s (faster at startup). (Ctrl+C to "
 "stop.)"
@@ -617,71 +42,120 @@ msgstr ""
 "Sorveglianza — montaggi riesaminati ogni {s}s (più veloce all'avvio). "
 "(Ctrl+C per fermare.)"
 
-#, python-brace-format
+msgid ""
+"   ⏳ {n} source(s) not mounted yet — picked up automatically as soon as "
+"they appear:"
+msgstr ""
+"   ⏳ {n} origine/i non ancora montata/e — rilevate automaticamente non "
+"appena compaiono:"
+
+msgid "  ➖ target removed (mount down or source deleted): {d}"
+msgstr "  ➖ destinazione rimossa (montaggio caduto o origine eliminata): {d}"
+
+msgid "  {t} {p} -> marker on {d}"
+msgstr "  {t} {p} -> marcatore su {d}"
+
+msgid "  ⚠ marker write failed: {e}"
+msgstr "  ⚠ scrittura del marcatore fallita: {e}"
+
+msgid "  ➕ target added: [{k}] {d}"
+msgstr "  ➕ destinazione aggiunta: [{k}] {d}"
+
+msgid "  ⚠ cannot watch {d}: {e}"
+msgstr "  ⚠ impossibile sorvegliare {d}: {e}"
+
 msgid "  🔄 Re-scan: {n} target(s) watched ({l} local, {m} NAS)."
 msgstr "  🔄 Riesame: {n} destinazione/i sorvegliata/e ({l} locale, {m} NAS)."
 
-#, python-brace-format
-msgid "  ⚠ marker write ({u}) failed: {e}"
-msgstr "  ⚠ scrittura del marcatore ({u}) fallita: {e}"
+msgid "  ⊘ DELETE ignored (NAS mount unhealthy): {p}"
+msgstr "  ⊘ ELIMINAZIONE ignorata (montaggio NAS non integro): {p}"
 
-#, python-brace-format
-msgid "  ⊘ no user for {p} (ignored)"
-msgstr "  ⊘ nessun utente per {p} (ignorato)"
-
-#, python-brace-format
-msgid "  ⚠ catch-up: folder missing, skipped: {p}"
-msgstr "  ⚠ recupero: cartella mancante, saltata: {p}"
-
-#, python-brace-format
-msgid "  ⟳ catch-up [{u}] {p}"
-msgstr "  ⟳ recupero [{u}] {p}"
-
-#, python-brace-format
-msgid "  ⚠ catch-up failed ({u}): {e}"
-msgstr "  ⚠ recupero fallito ({u}): {e}"
-
-#, python-brace-format
 msgid ""
-"⚠ Orphan queue (no matching mappings file): {d} ({n} marker(s)) — left "
-"untouched."
+"Not tested: no response from the NAS watcher — is the service running and "
+"the NAS reachable?"
 msgstr ""
-"⚠ Coda orfana (nessun file di mappature corrispondente): {d} ({n} marcatore/"
-"i) — lasciata intatta."
+"Non testato: nessuna risposta dal watcher del NAS — il servizio è attivo e "
+"il NAS raggiungibile?"
 
-#, python-brace-format
-msgid "No mappings copy in {d} (the GUI must push them there)."
-msgstr "Nessuna copia di mappature in {d} (l'interfaccia deve inviarle lì)."
-
-#, python-brace-format
-msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
+msgid "OK: {l} ↔ {n} match and the real-time chain works end to end."
 msgstr ""
-"  Tabelle percorsi: {n} corrispondenza/e su {u} utente/i desktop<->NAS."
+"OK: {l} ↔ {n} corrispondono e la catena in tempo reale funziona da un capo "
+"all'altro."
+
+msgid ""
+"The NAS path {n} does not exist — check the correspondence or the mount."
+msgstr ""
+"Il percorso NAS {n} non esiste — verificate la corrispondenza o il montaggio."
+
+msgid ""
+"The NAS watcher cannot write into {n} — check permissions on the NAS side."
+msgstr ""
+"Il watcher del NAS non può scrivere in {n} — verificate i permessi sul NAS."
+
+msgid ""
+"inotify does not report changes in {n} even for local writes — this "
+"filesystem may not support it; real-time cannot work here."
+msgstr ""
+"inotify non segnala i cambiamenti in {n} nemmeno per le scritture locali — "
+"questo file system potrebbe non supportarlo; il tempo reale non può "
+"funzionare qui."
+
+msgid ""
+"Could not write the test file on this machine — check permissions on {l}."
+msgstr ""
+"Impossibile scrivere il file di prova su questa macchina — verificate i "
+"permessi su {l}."
+
+msgid ""
+"Mismatch: what this machine sees as {l} is not the same folder the NAS sees "
+"as {n} — the correspondence is wrong."
+msgstr ""
+"Discordanza: ciò che questa macchina vede come {l} non è la stessa cartella "
+"che il NAS vede come {n} — la corrispondenza è errata."
+
+msgid ""
+"Paths match ({l} ↔ {n}), and inotify works locally, but changes written from "
+"this machine are not detected — the NAS may not deliver inotify events for "
+"remote (SMB/NFS) writes."
+msgstr ""
+"I percorsi corrispondono ({l} ↔ {n}) e inotify funziona localmente, ma le "
+"modifiche scritte da questa macchina non vengono rilevate — il NAS potrebbe "
+"non fornire eventi inotify per le scritture remote (SMB/NFS)."
+
+msgid ""
+"Paths match ({l} ↔ {n}), but the marker could not be written — check "
+"permissions on the marker queue."
+msgstr ""
+"I percorsi corrispondono ({l} ↔ {n}), ma il segnalatore non ha potuto essere "
+"scritto — verificate i permessi della coda dei segnalatori."
+
+msgid "Watching. (Ctrl+C to stop.)"
+msgstr "Sorveglianza. (Ctrl+C per fermare.)"
 
 msgid "No NAS target to watch. The NAS watcher has nothing to do."
 msgstr ""
 "Nessuna destinazione NAS da sorvegliare. L'osservatore del NAS non ha nulla "
 "da fare."
 
-#, python-brace-format
 msgid "NAS watcher started — {n} target(s):"
 msgstr "Osservatore del NAS avviato — {n} destinazione/i:"
-
-#, python-brace-format
-msgid "Startup catch-up: {n} marker(s) written."
-msgstr "Recupero all'avvio: {n} marcatore/i scritto/i."
-
-#, python-brace-format
-msgid "   ⚠ folder missing, not watched: {p}"
-msgstr "   ⚠ cartella mancante, non sorvegliata: {p}"
-
-msgid "Watching. (Ctrl+C to stop.)"
-msgstr "Sorveglianza. (Ctrl+C per fermare.)"
 
 msgid "  Self-test listener active (correspondence checks)."
 msgstr "  Ascolto autotest attivo (test di corrispondenza)."
 
-#, python-brace-format
+msgid "  ⊘ no user for {p} (ignored)"
+msgstr "  ⊘ nessun utente per {p} (ignorato)"
+
+msgid "No mappings copy in {d} (the GUI must push them there)."
+msgstr "Nessuna copia di mappature in {d} (l'interfaccia deve inviarle lì)."
+
+msgid "  Path maps: {n} correspondence(s) across {u} user(s) desktop<->NAS."
+msgstr ""
+"  Tabelle percorsi: {n} corrispondenza/e su {u} utente/i desktop<->NAS."
+
+msgid "Startup catch-up: {n} marker(s) written."
+msgstr "Recupero all'avvio: {n} marcatore/i scritto/i."
+
 msgid ""
 "⚠ WARNING: ~{t} subfolders to watch, system limit = {l}. Watches may be "
 "missed. Increase fs.inotify.max_user_watches."
@@ -689,255 +163,33 @@ msgstr ""
 "⚠ AVVISO: ~{t} sottocartelle da sorvegliare, limite di sistema = {l}. Alcune "
 "sorveglianze potrebbero mancare. Aumenta fs.inotify.max_user_watches."
 
-#, python-brace-format
 msgid "Watch capacity OK (~{t} folders / limit {l})."
 msgstr "Capacità di sorveglianza OK (~{t} cartelle / limite {l})."
 
-msgid "Proton Drive sync (NAS -> Proton, one-way)"
-msgstr "Sincronizzazione Proton Drive (NAS -> Proton, unidirezionale)"
+msgid "   ⚠ folder missing, not watched: {p}"
+msgstr "   ⚠ cartella mancante, non sorvegliata: {p}"
 
-msgid "Triggers the Proton Drive sync once a day"
-msgstr "Attiva la sincronizzazione Proton Drive una volta al giorno"
+msgid "  ⚠ catch-up: folder missing, skipped: {p}"
+msgstr "  ⚠ recupero: cartella mancante, saltata: {p}"
 
-msgid "✅ success"
-msgstr "✅ successo"
-
-#, python-brace-format
-msgid "❌ failure (code {c})"
-msgstr "❌ errore (codice {c})"
-
-msgid "⏹ interrupted (signal)"
-msgstr "⏹ interrotto (segnale)"
-
-msgid "❔ undetermined (run in progress?)"
-msgstr "❔ indeterminato (esecuzione in corso?)"
-
-msgid "(no run found in the journal)"
-msgstr "(nessuna esecuzione trovata nel registro)"
-
-msgid "(invalid date — expected format YYYY-MM-DD)"
-msgstr "(data non valida — formato previsto AAAA-MM-GG)"
-
-#, python-brace-format
-msgid "Failed to write the systemd files: {e}"
-msgstr "Impossibile scrivere i file systemd: {e}"
-
-#, python-brace-format
-msgid "daemon-reload failed: {e}"
-msgstr "daemon-reload fallito: {e}"
-
-#, python-brace-format
-msgid "Enabling the timer failed: {e}"
-msgstr "L'abilitazione del timer è fallita: {e}"
-
-msgid "Schedule installed and timer enabled."
-msgstr "Pianificazione installata e timer abilitato."
-
-msgid "Schedule installed (timer not enabled)."
-msgstr "Pianificazione installata (timer non abilitato)."
-
-msgid "Service not found — install the schedule first."
-msgstr "Servizio non trovato — installa prima la pianificazione."
-
-#, python-brace-format
-msgid "Failed: {e}"
-msgstr "Fallito: {e}"
-
-msgid "Timer enabled."
-msgstr "Timer abilitato."
-
-msgid "Timer disabled."
-msgstr "Timer disabilitato."
-
-msgid "Timer paused."
-msgstr "Timer sospeso."
-
-msgid "Timer resumed."
-msgstr "Timer ripreso."
-
-#, python-brace-format
-msgid "Start failed: {e}"
-msgstr "Avvio fallito: {e}"
-
-msgid "Service started (see journalctl for the result)."
-msgstr "Servizio avviato (vedi journalctl per il risultato)."
-
-msgid "Invalid delay values (integers expected)."
-msgstr "Valori di ritardo non validi (attesi numeri interi)."
-
-msgid "Delays must be at least 1 second."
-msgstr "I ritardi devono essere di almeno 1 secondo."
-
-#, python-brace-format
-msgid "Failed to write the config: {e}"
-msgstr "Impossibile scrivere la configurazione: {e}"
-
-#, python-brace-format
-msgid "Delays saved (debounce {d}s, cycle {c}s). Applied at the next cycle."
-msgstr ""
-"Ritardi salvati (antirimbalzo {d}s, ciclo {c}s). Applicati al ciclo "
-"successivo."
-
-msgid "Local-only mode is active — nothing to migrate on a NAS."
-msgstr "La modalità solo locale è attiva — nulla da migrare su un NAS."
-
-#, python-brace-format
-msgid ""
-"NAS unreachable (NFS mount missing). Check that {mount} is mounted, then try "
-"again."
-msgstr ""
-"NAS irraggiungibile (montaggio NFS mancante). Verifica che {mount} sia "
-"montato, poi riprova."
-
-#, python-brace-format
-msgid ""
-"The identity “{n}” already exists on the NAS — migration refused (possible "
-"collision with another user). Choose another name."
-msgstr ""
-"L'identità «{n}» esiste già sul NAS — migrazione rifiutata (possibile "
-"collisione con un altro utente). Scegli un altro nome."
-
-#, python-brace-format
-msgid "Migration failed: {e}"
-msgstr "La migrazione è fallita: {e}"
-
-#, python-brace-format
-msgid ""
-"Identity migrated on the NAS: “{a}” → “{b}” (queue and mappings copy "
-"renamed, markers preserved)."
-msgstr ""
-"Identità migrata sul NAS: «{a}» → «{b}» (coda e copia delle mappature "
-"rinominate, marcatori preservati)."
-
-msgid "scripts not pushed (NAS unreachable)"
-msgstr "script non inviati (NAS irraggiungibile)"
-
-msgid "translation catalogues"
-msgstr "cataloghi di traduzione"
-
-#, python-brace-format
-msgid "scripts partly pushed ({e})"
-msgstr "script inviati parzialmente ({e})"
-
-#, python-brace-format
-msgid ""
-"NAS scripts updated: {files}. The service file also changed — on the NAS, "
-"review proton-sync/nas_watcher.service.new, then run the command below."
-msgstr ""
-"Script NAS aggiornati: {files}. Anche il file di servizio è cambiato — sul "
-"NAS, controlla proton-sync/nas_watcher.service.new, poi esegui il comando "
-"qui sotto."
-
-#, python-brace-format
-msgid ""
-"NAS scripts updated: {files}.\n"
-"To apply, restart the NAS watcher with the command below."
-msgstr ""
-"Script NAS aggiornati: {files}.\n"
-"Per applicare, riavvia il watcher NAS con il comando qui sotto."
-
-msgid "No active mappings file to push."
-msgstr "Nessun file di mappature attivo da inviare."
+msgid "  ⟳ catch-up [{u}] {p}"
+msgstr "  ⟳ recupero [{u}] {p}"
 
 msgid ""
-"Local-only mode is active (see Configuration…) — there is no NAS to push "
-"mappings to."
+"⚠ Orphan queue (no matching mappings file): {d} ({n} marker(s)) — left "
+"untouched."
 msgstr ""
-"La modalità solo locale è attiva (vedi Configurazione…) — non c'è alcun NAS "
-"a cui inviare le mappature."
+"⚠ Coda orfana (nessun file di mappature corrispondente): {d} ({n} marcatore/"
+"i) — lasciata intatta."
 
-msgid "Could not read the local mappings file."
-msgstr "Impossibile leggere il file di mappature locale."
+msgid "  ⚠ marker write ({u}) failed: {e}"
+msgstr "  ⚠ scrittura del marcatore ({u}) fallita: {e}"
 
-#, python-brace-format
-msgid "Push to the NAS failed: {e}"
-msgstr "L'invio al NAS è fallito: {e}"
-
-#, python-brace-format
-msgid ""
-"Mappings for “{user}” pushed to the NAS (version {v}…). The NAS watcher "
-"reloads them live."
-msgstr ""
-"Mappature di «{user}» inviate al NAS (versione {v}…). L'osservatore del NAS "
-"le ricarica in tempo reale."
-
-msgid "Local real-time watcher (Proton Drive) — writes markers"
-msgstr "Osservatore locale in tempo reale (Proton Drive) — scrive i marcatori"
-
-msgid "Real-time consumer (Proton Drive) — runs the engine on mature folders"
-msgstr ""
-"Consumatore in tempo reale (Proton Drive) — esegue il motore sulle cartelle "
-"mature"
-
-msgid "No active mappings file."
-msgstr "Nessun file di mappature attivo."
-
-#, python-brace-format
-msgid "Enabling {u} failed: {e}"
-msgstr "L'abilitazione di {u} è fallita: {e}"
-
-#, python-brace-format
-msgid "Restarting {u} failed: {e}"
-msgstr "Il riavvio di {u} è fallito: {e}"
-
-msgid "Daemons installed and started (auto-restart at session login)."
-msgstr ""
-"Servizi installati e avviati (riavvio automatico all'accesso alla sessione)."
-
-msgid "Daemons installed (not started)."
-msgstr "Servizi installati (non avviati)."
-
-#, python-brace-format
-msgid "Starting {u} failed: {e}"
-msgstr "L'avvio di {u} è fallito: {e}"
-
-msgid "Daemons started."
-msgstr "Servizi avviati."
-
-#, python-brace-format
-msgid "Stopping {u} failed: {e}"
-msgstr "L'arresto di {u} è fallito: {e}"
-
-msgid "Daemons stopped."
-msgstr "Servizi fermati."
-
-msgid "Consumer stopped (watcher kept running)."
-msgstr "Consumatore fermato (l'osservatore resta attivo)."
-
-msgid "Consumer restarted."
-msgstr "Consumatore riavviato."
-
-msgid "Daemons restarted."
-msgstr "Servizi riavviati."
-
-#, python-brace-format
-msgid "Disabling {u} failed: {e}"
-msgstr "La disabilitazione di {u} è fallita: {e}"
-
-msgid "Daemons stopped and autostart disabled."
-msgstr "Servizi fermati e avvio automatico disabilitato."
-
-msgid "Signed out of Proton."
-msgstr "Disconnesso da Proton."
-
-msgid "Sign-out failed."
-msgstr "La disconnessione è fallita."
-
-#, python-brace-format
-msgid "{n} marker(s) removed — "
-msgstr "{n} marcatore/i rimosso/i — "
-
-msgid "Self-test module unavailable."
-msgstr "Modulo di autotest non disponibile."
+msgid "  ⚠ catch-up failed ({u}): {e}"
+msgstr "  ⚠ recupero fallito ({u}): {e}"
 
 msgid "Mappings editor — Proton Drive sync"
 msgstr "Editor delle mappature — Sincronizzazione di Proton Drive"
-
-msgid "Copied ✓"
-msgstr "Copiato ✓"
-
-msgid "Copy"
-msgstr "Copia"
 
 msgid "Yes"
 msgstr "Sì"
@@ -950,9 +202,6 @@ msgstr "Apri un file di mappature"
 
 msgid "Save the mappings file"
 msgstr "Salva il file di mappature"
-
-msgid "Move to which mappings file?"
-msgstr "Spostare in quale file di mappature?"
 
 msgid "Choose a source folder"
 msgstr "Scegli una cartella di origine"
@@ -1202,6 +451,88 @@ msgstr ""
 "contenere / \\ \" ' (caratteri che invaliderebbero un nome di file)."
 
 msgid ""
+"Which extensions to fix\n"
+"\n"
+"Fixing an extension only helps for files Proton can show a preview of — "
+"photos, videos, music, documents. Renaming a router backup or a phone "
+"settings file changes one of your files without repairing anything.\n"
+"\n"
+"It can even cause a pile-up: if another program (a phone backup app, for "
+"example) recreates the original name every night, a new renamed copy is "
+"added every night, on your disk and on your Drive.\n"
+"\n"
+"Separate the extensions with commas. Leave the field empty to fix every "
+"uppercase extension, as older versions did."
+msgstr ""
+"Quali estensioni correggere\n"
+"\n"
+"Correggere un'estensione serve solo per i file di cui Proton sa mostrare "
+"un'anteprima — foto, video, musica, documenti. Rinominare un backup di "
+"router o un file di impostazioni di un telefono modifica uno dei vostri file "
+"senza riparare nulla.\n"
+"\n"
+"Può persino provocare un accumulo: se un altro programma (un'applicazione di "
+"backup del telefono, per esempio) ricrea il nome originale ogni notte, ogni "
+"notte si aggiunge una nuova copia rinominata, sul vostro disco come sul "
+"vostro Drive.\n"
+"\n"
+"Separate le estensioni con delle virgole. Lasciate il campo vuoto per "
+"correggere tutte le estensioni in maiuscolo, come facevano le versioni "
+"precedenti."
+
+msgid ""
+"Stop a frozen upload\n"
+"\n"
+"Proton's CLI can occasionally freeze at the very end of a large upload, "
+"waiting for an answer that never arrives. It would wait forever, and "
+"everything else stays queued behind it.\n"
+"\n"
+"After this many minutes without any activity at all, the app stops it and "
+"tries again later. Nothing is lost: the folder is simply picked up again on "
+"the next pass.\n"
+"\n"
+"A healthy upload has a quiet final stretch of about a minute and a half, so "
+"five minutes leaves a comfortable margin. Set 0 to never stop an upload."
+msgstr ""
+"Interrompere un invio bloccato\n"
+"\n"
+"Il CLI di Proton può occasionalmente bloccarsi proprio alla fine di un invio "
+"voluminoso, in attesa di una risposta che non arriva mai. Aspetterebbe "
+"all'infinito, e tutto il resto resta in coda dietro di lui.\n"
+"\n"
+"Dopo questo numero di minuti senza alcuna attività, l'applicazione lo "
+"interrompe e riprova più tardi. Non si perde nulla: la cartella viene "
+"semplicemente ripresa al passaggio successivo.\n"
+"\n"
+"Un invio sano termina con una fase tranquilla di circa un minuto e mezzo, "
+"quindi cinque minuti lasciano un margine confortevole. Mettete 0 per non "
+"interrompere mai un invio."
+
+msgid ""
+"Repeated freezes\n"
+"\n"
+"If the same folder freezes over and over, each attempt restarts the transfer "
+"from the beginning, which can waste a lot of bandwidth.\n"
+"\n"
+"This setting stops trying after that many freezes in a row and skips one "
+"pass before starting over. The folder is never abandoned — a backup that "
+"quietly stops backing up would be worse than the waste it avoids.\n"
+"\n"
+"Leave 0 to keep retrying every time."
+msgstr ""
+"Blocchi ripetuti\n"
+"\n"
+"Se la stessa cartella si blocca più e più volte, ogni tentativo riprende il "
+"trasferimento dall'inizio, il che può sprecare molta banda.\n"
+"\n"
+"Questa impostazione smette di provare dopo questo numero di blocchi "
+"consecutivi e salta un passaggio prima di ricominciare. La cartella non "
+"viene mai abbandonata: un backup che smettesse silenziosamente di salvare "
+"sarebbe peggio dello spreco che evita.\n"
+"\n"
+"Lasciate 0 per riprovare ogni volta."
+
+msgid ""
 "Path to the Proton Drive CLI\n"
 "\n"
 "This app does not include Proton's CLI — you download it separately from "
@@ -1325,87 +656,32 @@ msgstr ""
 "L'avvio apre l'editor dei mapping (vuoto, o direttamente sul file di mapping "
 "corrente se hai scelto questa opzione)."
 
+msgid "Move to which mappings file?"
+msgstr "Spostare in quale file di mappature?"
+
+msgid ""
+"• Exact names: one per line (e.g. .caltrash, trash, .Trash-1000). Case-"
+"insensitive. Excludes any folder OR file with that name.\n"
+"• Patterns: one per line, shell style (e.g. *.tmp, .Trash-*, ~*). The * "
+"matches any sequence of characters."
+msgstr ""
+"• Nomi esatti: uno per riga (es. .caltrash, trash, .Trash-1000). Non "
+"distingue maiuscole/minuscole. Esclude qualsiasi cartella O file con quel "
+"nome.\n"
+"• Criteri: uno per riga, stile shell (es. *.tmp, .Trash-*, ~*). L'asterisco "
+"corrisponde a qualsiasi sequenza di caratteri."
+
+msgid "Daily"
+msgstr "Giornaliero"
+
+msgid "Weekly"
+msgstr "Settimanale"
+
+msgid "Hourly"
+msgstr "Ogni ora"
+
 msgid "Choose a destination folder on Proton Drive"
 msgstr "Scegli una cartella di destinazione su Proton Drive"
-
-msgid "Loading…"
-msgstr "Caricamento…"
-
-msgid "Choose this folder"
-msgstr "Scegli questa cartella"
-
-msgid ""
-"Could not list Proton Drive — check the session (⚙ Configuration…) and try "
-"again."
-msgstr ""
-"Impossibile elencare Proton Drive — controlla la sessione (⚙ "
-"Configurazione…) e riprova."
-
-msgid "(no subfolder)"
-msgstr "(nessuna sottocartella)"
-
-msgid ""
-"Double-click to open a folder; select the destination, then “Choose this "
-"folder”."
-msgstr ""
-"Doppio clic per aprire una cartella; seleziona la destinazione, poi «Scegli "
-"questa cartella»."
-
-#, python-brace-format
-msgid ""
-"The installed Proton CLI is {v}, but this application was tested with {t}.\n"
-"\n"
-"An older CLI lacks behaviours the application relies on, so some features "
-"stay restricted.\n"
-"\n"
-"You can quit to install {t}, or continue at your own risk."
-msgstr ""
-"La CLI Proton installata è {v}, ma questa applicazione è stata testata con "
-"{t}.\n"
-"\n"
-"Una CLI più vecchia non offre comportamenti su cui l'applicazione si basa, "
-"quindi alcune funzioni restano limitate.\n"
-"\n"
-"Puoi uscire per installare {t}, o continuare a tuo rischio."
-
-#, python-brace-format
-msgid ""
-"The installed Proton CLI is {v}, which is newer than {t} — the version this "
-"application was tested with.\n"
-"\n"
-"Newer releases can change behaviour in ways that have not been validated "
-"here.\n"
-"\n"
-"You can quit to reinstall {t}, or continue at your own risk."
-msgstr ""
-"La CLI Proton installata è {v}, più recente di {t} — la versione con cui "
-"questa applicazione è stata testata.\n"
-"\n"
-"Le versioni più recenti possono modificare comportamenti non convalidati "
-"qui.\n"
-"\n"
-"Puoi uscire per reinstallare {t}, o continuare a tuo rischio."
-
-#, python-brace-format
-msgid ""
-"The Proton CLI version could not be determined. This application was tested "
-"with {t}.\n"
-"\n"
-"You can quit to check your installation, or continue at your own risk."
-msgstr ""
-"Non è stato possibile determinare la versione della CLI Proton. Questa "
-"applicazione è stata testata con {t}.\n"
-"\n"
-"Puoi uscire per verificare l'installazione, o continuare a tuo rischio."
-
-msgid "Proton CLI version"
-msgstr "Versione della CLI Proton"
-
-msgid "Quit"
-msgstr "Esci"
-
-msgid "Continue anyway"
-msgstr "Continua comunque"
 
 msgid ""
 "Automatic lowercasing of file extensions has been turned off.\n"
@@ -1428,8 +704,965 @@ msgstr ""
 "estensioni, o per riparare caricamenti precedenti inviati con l'estensione "
 "in maiuscolo. La tua scelta sarà mantenuta."
 
+msgid "Test (dry-run)"
+msgstr "Prova (dry-run)"
+
+msgid "Propagate deletions"
+msgstr "Propaga eliminazioni"
+
+msgid "Verbose"
+msgstr "Dettagliato"
+
+msgid "SHA1 check"
+msgstr "Verifica SHA1"
+
+msgid "(no help)"
+msgstr "(nessun aiuto)"
+
+msgid "(new file)"
+msgstr "(nuovo file)"
+
+msgid "(none)"
+msgstr "(nessuno)"
+
+msgid ""
+"Mapping moved.\n"
+"\n"
+"Remember to reinstall/restart the background services of both files (⚡ Real-"
+"time…, ⏰ Schedule…) so they follow the change."
+msgstr ""
+"Mappatura spostata.\n"
+"\n"
+"Ricorda di reinstallare/riavviare i servizi in background di entrambi i file "
+"(⚡ Tempo reale…, ⏰ Pianificazione…) affinché seguano la modifica."
+
+msgid "Global exclusions"
+msgstr "Esclusioni globali"
+
+msgid ""
+"These exclusions apply to ALL mappings. A folder or file whose name matches "
+"will be ignored during the sync."
+msgstr ""
+"Queste esclusioni si applicano a TUTTE le mappature. Una cartella o un file "
+"il cui nome corrisponde verrà ignorato durante la sincronizzazione."
+
+msgid "Global exclusions updated."
+msgstr "Esclusioni globali aggiornate."
+
+msgid "Exclusions of this mapping"
+msgstr "Esclusioni di questa mappatura"
+
+msgid "Mapping exclusions updated."
+msgstr "Esclusioni della mappatura aggiornate."
+
+msgid "🔑 Proton: session expired"
+msgstr "🔑 Proton: sessione scaduta"
+
+msgid "Configuration"
+msgstr "Configurazione"
+
+msgid "Command copied to the clipboard."
+msgstr "Comando copiato negli appunti."
+
+msgid "Resetting the mapping(s)"
+msgstr "Reimpostazione della/e mappatura/e"
+
+msgid "Reset aborted: sign in to Proton first."
+msgstr "Reimpostazione interrotta: accedi prima a Proton."
+
+msgid "Priming the cache"
+msgstr "Inizializzazione della cache"
+
+msgid "Priming aborted: sign in to Proton first."
+msgstr "Inizializzazione interrotta: accedi prima a Proton."
+
+msgid "Monday"
+msgstr "Lunedì"
+
+msgid "Tuesday"
+msgstr "Martedì"
+
+msgid "Wednesday"
+msgstr "Mercoledì"
+
+msgid "Thursday"
+msgstr "Giovedì"
+
+msgid "Friday"
+msgstr "Venerdì"
+
+msgid "Saturday"
+msgstr "Sabato"
+
+msgid "Sunday"
+msgstr "Domenica"
+
+msgid "Sync schedule"
+msgstr "Pianificazione della sincronizzazione"
+
+msgid "B (deletions active)"
+msgstr "B (eliminazioni attive)"
+
+msgid "A (additive)"
+msgstr "A (additivo)"
+
+msgid "Schedule run history"
+msgstr "Cronologia delle esecuzioni pianificate"
+
+msgid "View: last run"
+msgstr "Vista: ultima esecuzione"
+
+msgid "Reading the journal…"
+msgstr "Lettura del registro…"
+
+msgid "Sign in to Proton"
+msgstr "Accedi a Proton"
+
+msgid "active"
+msgstr "attivo"
+
+msgid "inactive"
+msgstr "inattivo"
+
+msgid "— (NAS unreachable)"
+msgstr "— (NAS irraggiungibile)"
+
+msgid ""
+"No mapping is ready for real-time yet: no full pass has analyzed the tree.\n"
+"\n"
+"Real-time only synchronizes folders whose entire tree has been analyzed; it "
+"never builds that analysis itself (it would freeze for hours on large "
+"folders). Until a full pass runs, real-time will hand every change over to "
+"the scheduled pass.\n"
+"\n"
+"Recommended: run a full pass first (⏰ Schedule, or the “Run sync” button) "
+"and let it finish, then enable real-time.\n"
+"\n"
+"Enable real-time anyway?"
+msgstr ""
+"Nessuna mappatura è ancora pronta per il tempo reale: nessuna passata "
+"completa ha analizzato l'albero.\n"
+"\n"
+"Il tempo reale sincronizza solo le cartelle il cui intero albero è stato "
+"analizzato; non costruisce mai quell'analisi da sé (si bloccherebbe per ore "
+"su cartelle grandi). Finché non viene eseguita una passata completa, il "
+"tempo reale passerà ogni modifica alla passata pianificata.\n"
+"\n"
+"Consigliato: esegui prima una passata completa (⏰ Pianificazione, o il "
+"pulsante «Esegui sincronizzazione») e lasciala terminare, poi abilita il "
+"tempo reale.\n"
+"\n"
+"Abilitare comunque il tempo reale?"
+
+msgid "Loading…"
+msgstr "Caricamento…"
+
+msgid "Choose this folder"
+msgstr "Scegli questa cartella"
+
+msgid ""
+"Double-click to open a folder; select the destination, then “Choose this "
+"folder”."
+msgstr ""
+"Doppio clic per aprire una cartella; seleziona la destinazione, poi «Scegli "
+"questa cartella»."
+
+msgid "Proton CLI version"
+msgstr "Versione della CLI Proton"
+
+msgid "Quit"
+msgstr "Esci"
+
+msgid "Continue anyway"
+msgstr "Continua comunque"
+
 msgid "File extensions"
 msgstr "Estensioni dei file"
+
+msgid "Ready."
+msgstr "Pronto."
+
+msgid "Manual sync"
+msgstr "Sincronizzazione manuale"
+
+msgid "▶ Run sync"
+msgstr "▶ Esegui sincronizzazione"
+
+msgid "⏹ Stop"
+msgstr "⏹ Ferma"
+
+msgid "Advanced options ▾"
+msgstr "Opzioni avanzate ▾"
+
+msgid "Cache"
+msgstr "Cache"
+
+msgid "🌱 Prime cache"
+msgstr "🌱 Inizializza cache"
+
+msgid "♻ Reset mapping"
+msgstr "♻ Reimposta mappatura"
+
+msgid "Ready"
+msgstr "Pronto"
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid "Source (local)"
+msgstr "Origine (locale)"
+
+msgid "Destination (parent folder on Proton Drive)"
+msgstr "Destinazione (cartella superiore su Proton Drive)"
+
+msgid "Mapping exclusions"
+msgstr "Esclusioni della mappatura"
+
+msgid "Sync output"
+msgstr "Output della sincronizzazione"
+
+msgid "Folder"
+msgstr "Cartella"
+
+msgid "File"
+msgstr "File"
+
+msgid "🌐 Global exclusions — "
+msgstr "🌐 Esclusioni globali — "
+
+msgid "Edit mapping"
+msgstr "Modifica mappatura"
+
+msgid "Deletion propagation"
+msgstr "Propagazione delle eliminazioni"
+
+msgid "Allow this mapping to delete on Proton what was deleted locally"
+msgstr ""
+"Consenti a questa mappatura di eliminare su Proton ciò che è stato eliminato "
+"localmente"
+
+msgid "Proton trash (recoverable for 30 days)"
+msgstr "Cestino di Proton (recuperabile per 30 giorni)"
+
+msgid "Permanent deletion"
+msgstr "Eliminazione permanente"
+
+msgid "NFS (network/NAS)"
+msgstr "NFS (rete/NAS)"
+
+msgid "Local (internal disk)"
+msgstr "Locale (disco interno)"
+
+msgid "First select a row in the list."
+msgstr "Seleziona prima una riga nell'elenco."
+
+msgid ""
+"Several mappings are selected. This action applies to a single mapping — "
+"select just one row."
+msgstr ""
+"Sono selezionate più mappature. Questa azione si applica a una sola "
+"mappatura — seleziona una sola riga."
+
+msgid "Save the current mappings file first."
+msgstr "Salva prima il file di mappature corrente."
+
+msgid "Source and destination are the same file."
+msgstr "Origine e destinazione sono lo stesso file."
+
+msgid "Move mapping"
+msgstr "Sposta la mappatura"
+
+msgid "Exact names (one per line)"
+msgstr "Nomi esatti (uno per riga)"
+
+msgid "Patterns (one per line)"
+msgstr "Criteri (uno per riga)"
+
+msgid ""
+"The schedule_manager.py module was not found.\n"
+"\n"
+"Place it next to proton_mapping_editor.py to manage the schedule from this "
+"interface."
+msgstr ""
+"Il modulo schedule_manager.py non è stato trovato.\n"
+"\n"
+"Collocalo accanto a proton_mapping_editor.py per gestire la pianificazione "
+"da questa interfaccia."
+
+msgid ""
+"No mappings file is open and no schedule is installed. Open or save a "
+"mappings file to configure one."
+msgstr ""
+"Nessun file di mapping aperto e nessuna pianificazione installata. Apri o "
+"salva un file di mapping per configurarne una."
+
+msgid ""
+"The realtime_manager.py module was not found.\n"
+"\n"
+"Place it next to proton_mapping_editor.py to manage real-time from this "
+"interface."
+msgstr ""
+"Il modulo realtime_manager.py non è stato trovato.\n"
+"\n"
+"Collocalo accanto a proton_mapping_editor.py per gestire il tempo reale da "
+"questa interfaccia."
+
+msgid ""
+"No mappings file is open and no real-time service is installed. Open or save "
+"a mappings file to configure one."
+msgstr ""
+"Nessun file di mapping aperto e nessun servizio in tempo reale installato. "
+"Apri o salva un file di mapping per configurarne uno."
+
+msgid "🔑 Proton: connected"
+msgstr "🔑 Proton: connesso"
+
+msgid "The realtime_manager.py module was not found."
+msgstr "Il modulo realtime_manager.py non è stato trovato."
+
+msgid ""
+"Proton authentication failed during the run — open “⚙ Configuration…” to "
+"renew the session."
+msgstr ""
+"L'autenticazione Proton è fallita durante l'esecuzione — apri «⚙ "
+"Configurazione…» per rinnovare la sessione."
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"The background daemons were restarted to apply the new NAS identity."
+msgstr ""
+"Configurazione salvata.\n"
+"\n"
+"I daemon in background sono stati riavviati per applicare la nuova identità "
+"NAS."
+
+msgid ""
+"Configuration saved.\n"
+"\n"
+"Changes apply automatically (the window uses them at its next launch)."
+msgstr ""
+"Configurazione salvata.\n"
+"\n"
+"Le modifiche si applicano automaticamente (la finestra le usa al prossimo "
+"avvio)."
+
+msgid "Open or save a mappings file first."
+msgstr "Apri o salva prima un file di mappature."
+
+msgid "The mappings file has unsaved changes. Save them before running?"
+msgstr ""
+"Il file di mappature ha modifiche non salvate. Salvarle prima di eseguire?"
+
+msgid "A sync is already running."
+msgstr "Una sincronizzazione è già in corso."
+
+msgid "Scope: {s}"
+msgstr "Ambito: {s}"
+
+msgid "Sync in progress…"
+msgstr "Sincronizzazione in corso…"
+
+msgid "Sync interrupted."
+msgstr "Sincronizzazione interrotta."
+
+msgid "The mappings file has unsaved changes. Save them before priming?"
+msgstr ""
+"Il file di mappature ha modifiche non salvate. Salvarle prima di "
+"inizializzare?"
+
+msgid "No mapping to prime."
+msgstr "Nessuna mappatura da inizializzare."
+
+msgid "Priming cancelled."
+msgstr "Inizializzazione annullata."
+
+msgid "The mappings file has unsaved changes. Save them before resetting?"
+msgstr ""
+"Il file di mappature ha modifiche non salvate. Salvarle prima di reimpostare?"
+
+msgid "Select the mapping(s) to reset in the list first."
+msgstr "Seleziona prima nell'elenco la/e mappatura/e da reimpostare."
+
+msgid "No mapping to reset."
+msgstr "Nessuna mappatura da reimpostare."
+
+msgid "Also empty the remote folder (→ Proton trash)"
+msgstr "Svuota anche la cartella remota (→ cestino di Proton)"
+
+msgid "Reset mapping"
+msgstr "Reimposta mappatura"
+
+msgid "Start reset"
+msgstr "Avvia reimpostazione"
+
+msgid "Reset cancelled."
+msgstr "Reimpostazione annullata."
+
+msgid "Current state"
+msgstr "Stato attuale"
+
+msgid "Reading…"
+msgstr "Lettura…"
+
+msgid "Settings"
+msgstr "Impostazioni"
+
+msgid "Actions"
+msgstr "Azioni"
+
+msgid "▶ Enable the timer"
+msgstr "▶ Abilita il timer"
+
+msgid "⏸ Disable the timer"
+msgstr "⏸ Disabilita il timer"
+
+msgid "Linger (persistence)"
+msgstr "Linger (persistenza)"
+
+msgid "✅ Linger active — the schedule survives logout and reboots."
+msgstr "✅ Linger attivo — la pianificazione sopravvive a logout e riavvii."
+
+msgid ""
+"⚠ Linger inactive. Without it, the schedule only runs while a session is "
+"open. To enable it (admin rights required, once), copy and run this command "
+"in a terminal:"
+msgstr ""
+"⚠ Linger inattivo. Senza di esso, la pianificazione viene eseguita solo "
+"mentre una sessione è aperta. Per abilitarlo (richiede diritti di "
+"amministratore, una volta), copia ed esegui questo comando in un terminale:"
+
+msgid "Manual run"
+msgstr "Esecuzione manuale"
+
+msgid "Last run"
+msgstr "Ultima esecuzione"
+
+msgid "Log"
+msgstr "Registro"
+
+msgid "(state unavailable — the scheduled service may never have run)"
+msgstr ""
+"(stato non disponibile — il servizio pianificato potrebbe non essere mai "
+"stato eseguito)"
+
+msgid "Pick a date"
+msgstr "Scegli una data"
+
+msgid "Date (YYYY-MM-DD):"
+msgstr "Data (AAAA-MM-GG):"
+
+msgid "📋 Copy URL"
+msgstr "📋 Copia URL"
+
+msgid "Sign-in progress"
+msgstr "Avanzamento dell'accesso"
+
+msgid "Starting sign-in…"
+msgstr "Avvio dell'accesso…"
+
+msgid "Close"
+msgstr "Chiudi"
+
+msgid "✓ Connected to Proton."
+msgstr "✓ Connesso a Proton."
+
+msgid "1) Local machine daemons (watcher + consumer)"
+msgstr "1) Servizi della macchina locale (osservatore + consumatore)"
+
+msgid "▶ Start"
+msgstr "▶ Avvia"
+
+msgid "2) Consumer delays"
+msgstr "2) Ritardi del consumatore"
+
+msgid "5) Marker queues"
+msgstr "5) Code dei marcatori"
+
+msgid "Linger (persistence outside the session)"
+msgstr "Linger (persistenza fuori dalla sessione)"
+
+msgid "Real-time events (daemon logs)"
+msgstr "Eventi in tempo reale (registri dei servizi)"
+
+msgid "⚠ Daemon scripts not found in ~/Logiciels/Proton-drive/"
+msgstr "⚠ Script dei servizi non trovati in ~/Logiciels/Proton-drive/"
+
+msgid "🟢 Up to date on the NAS"
+msgstr "🟢 Aggiornato sul NAS"
+
+msgid "🟠 Local modified — push to the NAS"
+msgstr "🟠 Locale modificato — invia al NAS"
+
+msgid "🟠 Never pushed to the NAS"
+msgstr "🟠 Mai inviato al NAS"
+
+msgid "🔴 NAS unreachable"
+msgstr "🔴 NAS irraggiungibile"
+
+msgid "⚪ Local mode — no NAS configured."
+msgstr "⚪ Modalità locale — nessun NAS configurato."
+
+msgid ""
+"⚠ NAS scripts out of date — run Install / Update to push them, then restart "
+"the NAS watcher."
+msgstr ""
+"⚠ Script NAS obsoleti — esegui Installa / Aggiorna per inviarli, poi riavvia "
+"il watcher NAS."
+
+msgid "✅ Linger active — the daemons survive logout and reboots."
+msgstr "✅ Linger attivo — i servizi sopravvivono a logout e riavvii."
+
+msgid ""
+"⚠ Linger inactive. Without it, the daemons only run while a session is open "
+"(they stop at logout). To keep them running continuously (admin rights, "
+"once), copy and run:"
+msgstr ""
+"⚠ Linger inattivo. Senza di esso, i servizi vengono eseguiti solo mentre una "
+"sessione è aperta (si fermano al logout). Per mantenerli in esecuzione "
+"continua (diritti di amministratore, una volta), copia ed esegui:"
+
+msgid "No mapping ready for real-time"
+msgstr "Nessuna mappatura pronta per il tempo reale"
+
+msgid "Enable anyway"
+msgstr "Abilita comunque"
+
+msgid ""
+"Pending markers: none right now (new ones may still arrive at any moment)."
+msgstr ""
+"Marcatori in sospeso: nessuno al momento (potrebbero arrivarne di nuovi in "
+"qualsiasi momento)."
+
+msgid "Daemons"
+msgstr "Servizi"
+
+msgid ""
+"Stop the daemons and disable their autostart?\n"
+"\n"
+"Real-time will be off until re-enabled. The scheduled nightly sync is not "
+"affected."
+msgstr ""
+"Fermare i servizi e disabilitare il loro avvio automatico?\n"
+"\n"
+"Il tempo reale sarà disattivato fino a nuova riattivazione. La "
+"sincronizzazione notturna pianificata non è interessata."
+
+msgid "Delays"
+msgstr "Ritardi"
+
+msgid "Push to the NAS"
+msgstr "Invia al NAS"
+
+msgid "Queues"
+msgstr "Code"
+
+msgid "Copy"
+msgstr "Copia"
+
+msgid "(no subfolder)"
+msgstr "(nessuna sottocartella)"
+
+msgid ""
+"The installed Proton CLI is {v}, but this application was tested with {t}.\n"
+"\n"
+"An older CLI lacks behaviours the application relies on, so some features "
+"stay restricted.\n"
+"\n"
+"You can quit to install {t}, or continue at your own risk."
+msgstr ""
+"La CLI Proton installata è {v}, ma questa applicazione è stata testata con "
+"{t}.\n"
+"\n"
+"Una CLI più vecchia non offre comportamenti su cui l'applicazione si basa, "
+"quindi alcune funzioni restano limitate.\n"
+"\n"
+"Puoi uscire per installare {t}, o continuare a tuo rischio."
+
+msgid "Advanced options ▴"
+msgstr "Opzioni avanzate ▴"
+
+msgid "Help — "
+msgstr "Aiuto — "
+
+msgid "names: "
+msgstr "nomi: "
+
+msgid "patterns: "
+msgstr "criteri: "
+
+msgid "A sync is currently running. Quitting will interrupt it. Continue?"
+msgstr "È in corso una sincronizzazione. Uscire la interromperà. Continuare?"
+
+msgid "Some changes have not been saved. Quit without saving?"
+msgstr "Alcune modifiche non sono state salvate. Uscire senza salvare?"
+
+msgid "Add a folder"
+msgstr "Aggiungi una cartella"
+
+msgid "Add a file"
+msgstr "Aggiungi un file"
+
+msgid "Added (folder): {s}"
+msgstr "Aggiunto (cartella): {s}"
+
+msgid "Added (file): {s}"
+msgstr "Aggiunto (file): {s}"
+
+msgid "No selection"
+msgstr "Nessuna selezione"
+
+msgid "Single selection required"
+msgstr "È richiesta una sola selezione"
+
+msgid ""
+"This mapping switches from MIRROR to ADDITIVE: it will no longer delete "
+"anything on Proton. No re-priming is required — its primed state stays "
+"valid.\n"
+"\n"
+"Note: if you switch it back to mirror later, the next mirror priming will "
+"take longer to reconcile the destination again."
+msgstr ""
+"Questa mappatura passa da MIRROR ad ADDITIVA: non eliminerà più nulla su "
+"Proton. Nessuna reinizializzazione richiesta — il suo stato di "
+"inizializzazione resta valido.\n"
+"\n"
+"Nota: se la riporti a mirror più tardi, la prossima inizializzazione mirror "
+"richiederà più tempo per riconciliare di nuovo la destinazione."
+
+msgid "Mapping updated: {s}"
+msgstr "Mappatura aggiornata: {s}"
+
+msgid ""
+"This file has unsaved changes. Moving a mapping saves the whole file (to "
+"keep both files consistent). Continue and save?"
+msgstr ""
+"Questo file ha modifiche non salvate. Spostare una mappatura salva l'intero "
+"file (per mantenere coerenti entrambi i file). Continuare e salvare?"
+
+msgid ""
+"The destination file already has mappings but no cache yet, so its Proton "
+"account cannot be verified.\n"
+"\n"
+"Prime the destination file at least once first, then move the mapping — this "
+"avoids mixing two accounts by mistake."
+msgstr ""
+"Il file di destinazione ha già delle mappature ma non ancora una cache, "
+"quindi il suo account Proton non può essere verificato.\n"
+"\n"
+"Inizializza prima il file di destinazione almeno una volta, poi sposta la "
+"mappatura — così eviti di mescolare due account per errore."
+
+msgid "Move"
+msgstr "Sposta"
+
+msgid "Mapping moved to {f}: {s}"
+msgstr "Mappatura spostata in {f}: {s}"
+
+msgid "Removed: {s}"
+msgstr "Rimosso: {s}"
+
+msgid ""
+"These exclusions add to the global exclusions, ONLY for:\n"
+"{s}"
+msgstr ""
+"Queste esclusioni si aggiungono alle esclusioni globali, SOLO per:\n"
+"{s}"
+
+msgid "Missing module"
+msgstr "Modulo mancante"
+
+msgid "No file"
+msgstr "Nessun file"
+
+msgid "Connected to Proton."
+msgstr "Connesso a Proton."
+
+msgid "Proton account"
+msgstr "Account Proton"
+
+msgid "Checking…"
+msgstr "Verifica…"
+
+msgid "Proton Drive CLI"
+msgstr "CLI di Proton Drive"
+
+msgid "Interface language"
+msgstr "Lingua dell'interfaccia"
+
+msgid "Auto (system language)"
+msgstr "Automatico (lingua di sistema)"
+
+msgid "NAS"
+msgstr "NAS"
+
+msgid "Not tested yet."
+msgstr "Non ancora testato."
+
+msgid "System tray"
+msgstr "Barra delle applicazioni"
+
+msgid "Application launcher"
+msgstr "Avvio applicazione"
+
+msgid "the current mapping"
+msgstr "il mapping corrente"
+
+msgid "< 0.01 GB"
+msgstr "< 0,01 GB"
+
+msgid "Uploading — {n} file(s), {size}"
+msgstr "Caricamento — {n} file, {size}"
+
+msgid "Save first?"
+msgstr "Salvare prima?"
+
+msgid "Save"
+msgstr "Salva"
+
+msgid "No"
+msgstr "No"
+
+msgid "Already running"
+msgstr "Già in esecuzione"
+
+msgid "Engine not found"
+msgstr "Motore non trovato"
+
+msgid "{n} selected mapping(s)"
+msgstr "{n} mappatura/e selezionata/e"
+
+msgid "all {n} mapping(s)"
+msgstr "tutte le {n} mappatura/e"
+
+msgid ""
+"“Propagate deletions” is checked, but no mapping in scope allows deletion "
+"(set it via Edit). Nothing will be deleted.\n"
+"\n"
+"Run anyway?"
+msgstr ""
+"«Propaga eliminazioni» è selezionato, ma nessuna mappatura nell'ambito "
+"consente l'eliminazione (impostala tramite Modifica). Non verrà eliminato "
+"nulla.\n"
+"\n"
+"Eseguire comunque?"
+
+msgid "Launch cancelled."
+msgstr "Avvio annullato."
+
+msgid "Nothing to do"
+msgstr "Niente da fare"
+
+msgid "Prime cache"
+msgstr "Inizializza cache"
+
+msgid "Start priming"
+msgstr "Avvia inizializzazione"
+
+msgid ""
+"Reset {n} selected mapping(s):\n"
+"  • {names}\n"
+"\n"
+"This PURGES their local cache (they fall back to ⏳ “pending”) and rebuilds "
+"them with a targeted pass — like priming. Each mapping is rebuilt according "
+"to ITS OWN configuration (the trash field): additive mappings come back "
+"ready for real-time without deleting anything; mirror mappings come back "
+"fully armed for their deletions (trash or permanent, as configured).\n"
+"\n"
+"Optionally, tick below to also empty each mapping's REMOTE folder (sent to "
+"Proton TRASH, recoverable 30 days) before rebuilding — under the mount "
+"guard. You will purge the trash yourself once you have checked the re-upload "
+"succeeded.\n"
+"\n"
+"Real-time consumer and the scheduled timer are paused during the reset and "
+"restored afterwards. It is interruptible: to resume, just press Reset again "
+"(idempotent).\n"
+"\n"
+"Start reset?"
+msgstr ""
+"Reimpostare {n} mappatura/e selezionata/e:\n"
+"  • {names}\n"
+"\n"
+"Questo ELIMINA la loro cache locale (tornano a ⏳ «in sospeso») e le "
+"ricostruisce con una passata mirata — come l'inizializzazione. Ogni "
+"mappatura viene ricostruita secondo la PROPRIA configurazione (il campo "
+"cestino): le mappature additive tornano pronte per il tempo reale senza "
+"eliminare nulla; le mappature mirror tornano pienamente preparate per le "
+"loro eliminazioni (cestino o permanente, come configurato).\n"
+"\n"
+"Facoltativamente, seleziona sotto per svuotare anche la cartella REMOTA di "
+"ogni mappatura (inviata al CESTINO di Proton, recuperabile 30 giorni) prima "
+"di ricostruire — sotto la protezione di montaggio. Svuoterai tu stesso il "
+"cestino dopo aver verificato che il ricaricamento sia riuscito.\n"
+"\n"
+"Il consumatore in tempo reale e il timer pianificato vengono sospesi durante "
+"la reimpostazione e ripristinati dopo. È interrompibile: per riprendere, "
+"basta premere di nuovo Reimposta (idempotente).\n"
+"\n"
+"Avviare la reimpostazione?"
+
+msgid "▶ Reset started ({n} mapping(s))…"
+msgstr "▶ Reimpostazione avviata ({n} mappatura/e)…"
+
+msgid "▶ Priming started ({n} mapping(s))…"
+msgstr "▶ Inizializzazione avviata ({n} mappatura/e)…"
+
+msgid "[realtime_manager.py missing — cannot orchestrate daemons]"
+msgstr "[realtime_manager.py mancante — impossibile orchestrare i servizi]"
+
+msgid "Service installed : {v}"
+msgstr "Servizio installato : {v}"
+
+msgid "Timer installed   : {v}"
+msgstr "Timer installato   : {v}"
+
+msgid "Timer active      : {v}"
+msgstr "Timer attivo       : {v}"
+
+msgid "Mode              : Option {v}"
+msgstr "Modalità           : Opzione {v}"
+
+msgid "Weekly — {d} at {h}:00"
+msgstr "Settimanale — {d} alle {h}:00"
+
+msgid "Daily at {h}:00"
+msgstr "Giornaliero alle {h}:00"
+
+msgid ""
+"You are enabling Option B: the scheduled sync will AUTOMATICALLY propagate "
+"local deletions to Proton (according to each mapping's settings), without "
+"intervention.\n"
+"\n"
+"Safety nets: a several-hour window before execution, and the Proton trash "
+"for 30 days (mappings in trash mode).\n"
+"\n"
+"Make sure you have tested --delete manually first. Continue?"
+msgstr ""
+"Stai abilitando l'Opzione B: la sincronizzazione pianificata propagherà "
+"AUTOMATICAMENTE le eliminazioni locali su Proton (secondo le impostazioni di "
+"ogni mappatura), senza intervento.\n"
+"\n"
+"Reti di sicurezza: una finestra di diverse ore prima dell'esecuzione, e il "
+"cestino di Proton per 30 giorni (mappature in modalità cestino).\n"
+"\n"
+"Assicurati di aver prima testato --delete manualmente. Continuare?"
+
+msgid "Schedule"
+msgstr "Pianificazione"
+
+msgid ""
+"{when}\n"
+"Result: {label}"
+msgstr ""
+"{when}\n"
+"Risultato: {label}"
+
+msgid "View: {d}"
+msgstr "Vista: {d}"
+
+msgid "[proton-drive binary not found]\n"
+msgstr "[binario proton-drive non trovato]\n"
+
+msgid "❌ proton-drive not found — check its path."
+msgstr "❌ proton-drive non trovato — controlla il suo percorso."
+
+msgid "Real-time — watching {f}"
+msgstr "Tempo reale — Sorveglianza {f}"
+
+msgid "3) Mappings push to the NAS"
+msgstr "3) Invio delle mappature al NAS"
+
+msgid "4) NAS watcher (observation)"
+msgstr "4) Osservatore del NAS (osservazione)"
+
+msgid "3-4) NAS features"
+msgstr "3-4) Funzioni NAS"
+
+msgid "Services installed : {v}"
+msgstr "Servizi installati  : {v}"
+
+msgid "Services' file     : {v}"
+msgstr "File dei servizi   : {v}"
+
+msgid "Local watcher      : {v}"
+msgstr "Osservatore locale : {v}"
+
+msgid "Consumer           : {v}"
+msgstr "Consumatore        : {v}"
+
+msgid "Debounce / cycle   : {d} s / {c} s"
+msgstr "Antirimbalzo / ciclo: {d} s / {c} s"
+
+msgid "Linger             : {v}"
+msgstr "Linger             : {v}"
+
+msgid "🔴 NAS configured but unreachable — please check."
+msgstr "🔴 NAS configurato ma irraggiungibile — verificare."
+
+msgid "Local: {n} marker(s)    NAS ({u}): {p}"
+msgstr "Locale: {n} marcatore/i    NAS ({u}): {p}"
+
+msgid ""
+"The services currently use:\n"
+"  {old}\n"
+"You are installing:\n"
+"  {new}\n"
+"\n"
+"{counts}"
+msgstr ""
+"I servizi usano attualmente:\n"
+"  {old}\n"
+"Stai installando:\n"
+"  {new}\n"
+"\n"
+"{counts}"
+
+msgid "Disable real-time?"
+msgstr "Disabilitare il tempo reale?"
+
+msgid "Disable"
+msgstr "Disabilita"
+
+msgid "Clear the queues?"
+msgstr "Svuotare le code?"
+
+msgid "Clear"
+msgstr "Svuota"
+
+msgid ""
+"Could not list this folder — check the session (⚙ Configuration…) and try "
+"again. Expand it again to retry."
+msgstr ""
+"Impossibile elencare questa cartella — verificate la sessione (⚙ "
+"Configurazione…) e riprovate. Espandetela di nuovo per ritentare."
+
+msgid ""
+"The installed Proton CLI is {v}, which is newer than {t} — the version this "
+"application was tested with.\n"
+"\n"
+"Newer releases can change behaviour in ways that have not been validated "
+"here.\n"
+"\n"
+"You can quit to reinstall {t}, or continue at your own risk."
+msgstr ""
+"La CLI Proton installata è {v}, più recente di {t} — la versione con cui "
+"questa applicazione è stata testata.\n"
+"\n"
+"Le versioni più recenti possono modificare comportamenti non convalidati "
+"qui.\n"
+"\n"
+"Puoi uscire per reinstallare {t}, o continuare a tuo rischio."
+
+msgid ""
+"The Proton CLI version could not be determined. This application was tested "
+"with {t}.\n"
+"\n"
+"You can quit to check your installation, or continue at your own risk."
+msgstr ""
+"Non è stato possibile determinare la versione della CLI Proton. Questa "
+"applicazione è stata testata con {t}.\n"
+"\n"
+"Puoi uscire per verificare l'installazione, o continuare a tuo rischio."
 
 msgid ""
 "Proton session unavailable (expired token or locked keyring) — open “⚙ "
@@ -1477,38 +1710,8 @@ msgstr "🗑 Elimina"
 msgid "↪ Move to file…"
 msgstr "↪ Sposta in un file…"
 
-msgid "Ready."
-msgstr "Pronto."
-
-msgid "Manual sync"
-msgstr "Sincronizzazione manuale"
-
-msgid "▶ Run sync"
-msgstr "▶ Esegui sincronizzazione"
-
-msgid "⏹ Stop"
-msgstr "⏹ Ferma"
-
 msgid "📋 Copy command"
 msgstr "📋 Copia comando"
-
-msgid "Test (dry-run)"
-msgstr "Prova (dry-run)"
-
-msgid "Propagate deletions"
-msgstr "Propaga eliminazioni"
-
-msgid "Verbose"
-msgstr "Dettagliato"
-
-msgid "Advanced options ▾"
-msgstr "Opzioni avanzate ▾"
-
-msgid "SHA1 check"
-msgstr "Verifica SHA1"
-
-msgid "Cache"
-msgstr "Cache"
 
 msgid ""
 "Real pass, driven by each mapping's own settings — the Test (dry-run) option "
@@ -1517,107 +1720,35 @@ msgstr ""
 "Passaggio reale, guidato dalle impostazioni di ciascun mapping — l'opzione "
 "«Test (dry-run)» non si applica qui."
 
-msgid "🌱 Prime cache"
-msgstr "🌱 Inizializza cache"
-
-msgid "♻ Reset mapping"
-msgstr "♻ Reimposta mappatura"
-
-msgid "Ready"
-msgstr "Pronto"
-
-msgid "Type"
-msgstr "Tipo"
-
-msgid "Source (local)"
-msgstr "Origine (locale)"
-
-msgid "Destination (parent folder on Proton Drive)"
-msgstr "Destinazione (cartella superiore su Proton Drive)"
-
-msgid "Mapping exclusions"
-msgstr "Esclusioni della mappatura"
-
-msgid "Sync output"
-msgstr "Output della sincronizzazione"
-
 msgid "❗ Errors only"
 msgstr "❗ Solo errori"
 
 msgid "🧹 Clear output"
 msgstr "🧹 Pulisci output"
 
-msgid "Folder"
-msgstr "Cartella"
-
-msgid "File"
-msgstr "File"
-
-#, python-brace-format
 msgid "{n} name(s), {m} pattern(s)"
 msgstr "{n} nome/i, {m} modello/i"
 
-msgid "Advanced options ▴"
-msgstr "Opzioni avanzate ▴"
-
-msgid "(no help)"
-msgstr "(nessun aiuto)"
-
-msgid "Help — "
-msgstr "Aiuto — "
-
-msgid "(new file)"
-msgstr "(nuovo file)"
-
-msgid "names: "
-msgstr "nomi: "
-
-msgid "patterns: "
-msgstr "criteri: "
-
-msgid "(none)"
-msgstr "(nessuno)"
-
-msgid "🌐 Global exclusions — "
-msgstr "🌐 Esclusioni globali — "
-
-#, python-brace-format
 msgid "Loaded: {p} ({n} entries)"
 msgstr "Caricato: {p} ({n} voci)"
 
 msgid "Load error"
 msgstr "Errore di caricamento"
 
-#, python-brace-format
 msgid "Saved: {p}"
 msgstr "Salvato: {p}"
 
 msgid "Save error"
 msgstr "Errore di salvataggio"
 
-msgid "A sync is currently running. Quitting will interrupt it. Continue?"
-msgstr "È in corso una sincronizzazione. Uscire la interromperà. Continuare?"
-
 msgid "Sync in progress"
 msgstr "Sincronizzazione in corso"
-
-msgid "Some changes have not been saved. Quit without saving?"
-msgstr "Alcune modifiche non sono state salvate. Uscire senza salvare?"
 
 msgid "Unsaved changes"
 msgstr "Modifiche non salvate"
 
 msgid "Quit without saving"
 msgstr "Esci senza salvare"
-
-msgid "Edit mapping"
-msgstr "Modifica mappatura"
-
-msgid "Add a folder"
-msgstr "Aggiungi una cartella"
-
-msgid "Add a file"
-msgstr "Aggiungi un file"
 
 msgid "Choose a source file"
 msgstr "Scegli un file di origine"
@@ -1628,31 +1759,11 @@ msgstr "Sfoglia…"
 msgid "🔍 Browse Proton…"
 msgstr "🔍 Sfoglia Proton…"
 
-msgid "Deletion propagation"
-msgstr "Propagazione delle eliminazioni"
-
-msgid "Allow this mapping to delete on Proton what was deleted locally"
-msgstr ""
-"Consenti a questa mappatura di eliminare su Proton ciò che è stato eliminato "
-"localmente"
-
 msgid "Mode: "
 msgstr "Modalità: "
 
-msgid "Proton trash (recoverable for 30 days)"
-msgstr "Cestino di Proton (recuperabile per 30 giorni)"
-
-msgid "Permanent deletion"
-msgstr "Eliminazione permanente"
-
 msgid "Confirmed source type: "
 msgstr "Tipo di origine confermato: "
-
-msgid "NFS (network/NAS)"
-msgstr "NFS (rete/NAS)"
-
-msgid "Local (internal disk)"
-msgstr "Locale (disco interno)"
 
 msgid "(pick a source to detect its type)"
 msgstr "(scegli un'origine per rilevarne il tipo)"
@@ -1670,133 +1781,11 @@ msgstr ""
 "propagate verso una destinazione «Condivisi con me»: questo mapping è solo "
 "in aggiunta."
 
-msgid ""
-"This folder belongs to someone else. If you enable deletion, anything inside "
-"THIS destination folder that is missing locally is deleted and sent to the "
-"OWNER'S trash."
-msgstr ""
-"Questa cartella appartiene a qualcun altro. Se attivi l'eliminazione, tutto "
-"ciò che si trova in QUESTA cartella di destinazione e manca in locale viene "
-"eliminato e inviato nel CESTINO DEL PROPRIETARIO."
-
 msgid "Missing source"
 msgstr "Origine mancante"
 
 msgid "Missing destination"
 msgstr "Destinazione mancante"
-
-msgid "Source type required"
-msgstr "Tipo di origine richiesto"
-
-msgid ""
-"You chose PERMANENT deletion (no trash).\n"
-"\n"
-"Files deleted locally will be erased from Proton with no possibility of "
-"recovery.\n"
-"\n"
-"Confirm this choice?"
-msgstr ""
-"Hai scelto l'eliminazione PERMANENTE (senza cestino).\n"
-"\n"
-"I file eliminati localmente verranno cancellati da Proton senza possibilità "
-"di recupero.\n"
-"\n"
-"Confermare questa scelta?"
-
-msgid "Confirm"
-msgstr "Conferma"
-
-msgid ""
-"This destination is a folder shared with you — it belongs to someone else.\n"
-"\n"
-"With deletion enabled, every file inside THIS folder and its subfolders that "
-"is missing from your local source will be deleted and sent to the OWNER'S "
-"trash — including files other people put there. Only this destination folder "
-"is affected, not the rest of the Drive.\n"
-"\n"
-"Only enable deletion on a folder you are the sole contributor to, as one-way "
-"delivery to its owner. Any other use is potentially destructive.\n"
-"\n"
-"Enable deletion on this shared folder?"
-msgstr ""
-"Questa destinazione è una cartella condivisa con te — appartiene a qualcun "
-"altro.\n"
-"\n"
-"Con l'eliminazione attiva, ogni file in QUESTA cartella e nelle sue "
-"sottocartelle che manca nella tua origine locale verrà eliminato e inviato "
-"nel CESTINO DEL PROPRIETARIO — compresi i file lasciati da altre persone. È "
-"interessata solo questa cartella di destinazione, non il resto del Drive.\n"
-"\n"
-"Attiva l'eliminazione solo su una cartella di cui sei l'unico collaboratore, "
-"come invio a senso unico verso il proprietario. Qualsiasi altro uso è "
-"potenzialmente distruttivo.\n"
-"\n"
-"Attivare l'eliminazione su questa cartella condivisa?"
-
-msgid "Deletion on a shared folder"
-msgstr "Eliminazione in una cartella condivisa"
-
-msgid "Enable"
-msgstr "Attiva"
-
-msgid "its last test FAILED (paths do not match)"
-msgstr "il suo ultimo test è FALLITO (i percorsi non corrispondono)"
-
-msgid "its last test reported a problem"
-msgstr "il suo ultimo test ha segnalato un problema"
-
-msgid "it has not been tested yet"
-msgstr "non è ancora stata testata"
-
-#, python-brace-format
-msgid ""
-"This folder is on the NAS and depends on the path correspondence {l} ↔ {n}, "
-"but {d}.\n"
-"\n"
-"If the correspondence is wrong, real-time sync may not work for this folder. "
-"You can check it in Configuration (coloured dots next to each "
-"correspondence).\n"
-"\n"
-"Add this mapping anyway?"
-msgstr ""
-"Questa cartella è sul NAS e dipende dalla corrispondenza di percorso {l} ↔ "
-"{n}, ma {d}.\n"
-"\n"
-"Se la corrispondenza è errata, la sincronizzazione in tempo reale potrebbe "
-"non funzionare per questa cartella. Puoi verificarla in Configurazione "
-"(punti colorati accanto a ogni corrispondenza).\n"
-"\n"
-"Aggiungere comunque questa mappatura?"
-
-msgid "Correspondence not validated"
-msgstr "Corrispondenza non validata"
-
-msgid "Add anyway"
-msgstr "Aggiungi comunque"
-
-#, python-brace-format
-msgid "Added (folder): {s}"
-msgstr "Aggiunto (cartella): {s}"
-
-#, python-brace-format
-msgid "Added (file): {s}"
-msgstr "Aggiunto (file): {s}"
-
-msgid "First select a row in the list."
-msgstr "Seleziona prima una riga nell'elenco."
-
-msgid "No selection"
-msgstr "Nessuna selezione"
-
-msgid ""
-"Several mappings are selected. This action applies to a single mapping — "
-"select just one row."
-msgstr ""
-"Sono selezionate più mappature. Questa azione si applica a una sola "
-"mappatura — seleziona una sola riga."
-
-msgid "Single selection required"
-msgstr "È richiesta una sola selezione"
 
 msgid ""
 "This mapping was primed as ADDITIVE and you are switching it to MIRROR "
@@ -1826,90 +1815,14 @@ msgstr ""
 "\n"
 "Salvare e reimpostare lo stato di inizializzazione?"
 
-msgid "Change to mirror mode"
-msgstr "Passaggio a modalità mirror"
-
-msgid "Save and reset"
-msgstr "Salva e reimposta"
-
-#, python-brace-format
-msgid ""
-"Mapping switched to mirror — prime it again to enable real-time deletions: "
-"{s}"
-msgstr ""
-"Mappatura passata a mirror — inizializzala di nuovo per attivare le "
-"eliminazioni in tempo reale: {s}"
-
-msgid ""
-"This mapping switches from MIRROR to ADDITIVE: it will no longer delete "
-"anything on Proton. No re-priming is required — its primed state stays "
-"valid.\n"
-"\n"
-"Note: if you switch it back to mirror later, the next mirror priming will "
-"take longer to reconcile the destination again."
-msgstr ""
-"Questa mappatura passa da MIRROR ad ADDITIVA: non eliminerà più nulla su "
-"Proton. Nessuna reinizializzazione richiesta — il suo stato di "
-"inizializzazione resta valido.\n"
-"\n"
-"Nota: se la riporti a mirror più tardi, la prossima inizializzazione mirror "
-"richiederà più tempo per riconciliare di nuovo la destinazione."
-
 msgid "Change to additive mode"
 msgstr "Passaggio a modalità additiva"
-
-#, python-brace-format
-msgid "Mapping updated: {s}"
-msgstr "Mappatura aggiornata: {s}"
-
-msgid "Save the current mappings file first."
-msgstr "Salva prima il file di mappature corrente."
-
-msgid "Move mapping"
-msgstr "Sposta la mappatura"
-
-msgid ""
-"This file has unsaved changes. Moving a mapping saves the whole file (to "
-"keep both files consistent). Continue and save?"
-msgstr ""
-"Questo file ha modifiche non salvate. Spostare una mappatura salva l'intero "
-"file (per mantenere coerenti entrambi i file). Continuare e salvare?"
 
 msgid "Continue"
 msgstr "Continua"
 
-msgid "Source and destination are the same file."
-msgstr "Origine e destinazione sono lo stesso file."
-
-#, python-brace-format
-msgid ""
-"The destination file is linked to another Proton account:\n"
-"  destination: {b}\n"
-"  source: {a}\n"
-"\n"
-"Transfer refused — the cache must not mix two accounts."
-msgstr ""
-"Il file di destinazione è collegato a un altro account Proton:\n"
-"  destinazione: {b}\n"
-"  origine: {a}\n"
-"\n"
-"Trasferimento rifiutato — la cache non deve mescolare due account."
-
 msgid "Different Proton account"
 msgstr "Account Proton diverso"
-
-msgid ""
-"The destination file already has mappings but no cache yet, so its Proton "
-"account cannot be verified.\n"
-"\n"
-"Prime the destination file at least once first, then move the mapping — this "
-"avoids mixing two accounts by mistake."
-msgstr ""
-"Il file di destinazione ha già delle mappature ma non ancora una cache, "
-"quindi il suo account Proton non può essere verificato.\n"
-"\n"
-"Inizializza prima il file di destinazione almeno una volta, poi sposta la "
-"mappatura — così eviti di mescolare due account per errore."
 
 msgid "Destination identity unknown"
 msgstr "Identità della destinazione sconosciuta"
@@ -1922,42 +1835,6 @@ msgstr ""
 "destinazione — è necessario affinché la mappatura mantenga il suo stato "
 "inizializzato e si sincronizzi allo stesso modo."
 
-msgid "Global exclusions copied"
-msgstr "Esclusioni globali copiate"
-
-#, python-brace-format
-msgid ""
-"The destination file uses different global exclusions, and applying this "
-"file's would make {n} already-primed mapping(s) there no longer ready:\n"
-"  • {names}\n"
-"\n"
-"They would fall back to ⏳ and need re-priming. Other mappings are "
-"unaffected.\n"
-"\n"
-"Apply this file's global exclusions to the destination?\n"
-"(Cancel to check and harmonize them yourself first.)"
-msgstr ""
-"Il file di destinazione usa esclusioni globali diverse, e applicare quelle "
-"di questo file renderebbe {n} mappatura/e già inizializzata/e lì non più "
-"pronta/e:\n"
-"  • {names}\n"
-"\n"
-"Tornerebbero a ⏳ e dovrebbero essere reinizializzate. Le altre mappature "
-"non sono interessate.\n"
-"\n"
-"Applicare le esclusioni globali di questo file alla destinazione?\n"
-"(Annulla per verificarle e armonizzarle prima tu stesso.)"
-
-msgid "Global exclusions differ"
-msgstr "Esclusioni globali diverse"
-
-msgid "Apply and move"
-msgstr "Applica e sposta"
-
-msgid "Move cancelled."
-msgstr "Spostamento annullato."
-
-#, python-brace-format
 msgid ""
 "Move this mapping to “{f}”?\n"
 "\n"
@@ -1980,419 +1857,18 @@ msgstr ""
 "Dopo, reinstalla/riavvia i servizi in background di ENTRAMBI i file (⚡ "
 "Tempo reale…, ⏰ Pianificazione…) affinché seguano la modifica."
 
-msgid "Move"
-msgstr "Sposta"
-
-#, python-brace-format
-msgid "Move failed: {e}"
-msgstr "Lo spostamento è fallito: {e}"
-
-#, python-brace-format
-msgid "Mapping moved to {f}: {s}"
-msgstr "Mappatura spostata in {f}: {s}"
-
-msgid ""
-"Mapping moved.\n"
-"\n"
-"Remember to reinstall/restart the background services of both files (⚡ Real-"
-"time…, ⏰ Schedule…) so they follow the change."
-msgstr ""
-"Mappatura spostata.\n"
-"\n"
-"Ricorda di reinstallare/riavviare i servizi in background di entrambi i file "
-"(⚡ Tempo reale…, ⏰ Pianificazione…) affinché seguano la modifica."
-
-#, python-brace-format
-msgid "Removed: {s}"
-msgstr "Rimosso: {s}"
-
-msgid ""
-"• Exact names: one per line (e.g. .caltrash, trash, .Trash-1000). Case-"
-"insensitive. Excludes any folder OR file with that name.\n"
-"• Patterns: one per line, shell style (e.g. *.tmp, .Trash-*, ~*). The * "
-"matches any sequence of characters."
-msgstr ""
-"• Nomi esatti: uno per riga (es. .caltrash, trash, .Trash-1000). Non "
-"distingue maiuscole/minuscole. Esclude qualsiasi cartella O file con quel "
-"nome.\n"
-"• Criteri: uno per riga, stile shell (es. *.tmp, .Trash-*, ~*). L'asterisco "
-"corrisponde a qualsiasi sequenza di caratteri."
-
-msgid "Exact names (one per line)"
-msgstr "Nomi esatti (uno per riga)"
-
-msgid "Patterns (one per line)"
-msgstr "Criteri (uno per riga)"
-
-msgid "Global exclusions"
-msgstr "Esclusioni globali"
-
-msgid ""
-"These exclusions apply to ALL mappings. A folder or file whose name matches "
-"will be ignored during the sync."
-msgstr ""
-"Queste esclusioni si applicano a TUTTE le mappature. Una cartella o un file "
-"il cui nome corrisponde verrà ignorato durante la sincronizzazione."
-
-msgid "Global exclusions updated."
-msgstr "Esclusioni globali aggiornate."
-
-msgid "Exclusions of this mapping"
-msgstr "Esclusioni di questa mappatura"
-
-#, python-brace-format
-msgid ""
-"These exclusions add to the global exclusions, ONLY for:\n"
-"{s}"
-msgstr ""
-"Queste esclusioni si aggiungono alle esclusioni globali, SOLO per:\n"
-"{s}"
-
-msgid "Mapping exclusions updated."
-msgstr "Esclusioni della mappatura aggiornate."
-
-msgid ""
-"The schedule_manager.py module was not found.\n"
-"\n"
-"Place it next to proton_mapping_editor.py to manage the schedule from this "
-"interface."
-msgstr ""
-"Il modulo schedule_manager.py non è stato trovato.\n"
-"\n"
-"Collocalo accanto a proton_mapping_editor.py per gestire la pianificazione "
-"da questa interfaccia."
-
-msgid "Missing module"
-msgstr "Modulo mancante"
-
-msgid ""
-"No mappings file is open and no schedule is installed. Open or save a "
-"mappings file to configure one."
-msgstr ""
-"Nessun file di mapping aperto e nessuna pianificazione installata. Apri o "
-"salva un file di mapping per configurarne una."
-
-msgid "No file"
-msgstr "Nessun file"
-
-msgid ""
-"The realtime_manager.py module was not found.\n"
-"\n"
-"Place it next to proton_mapping_editor.py to manage real-time from this "
-"interface."
-msgstr ""
-"Il modulo realtime_manager.py non è stato trovato.\n"
-"\n"
-"Collocalo accanto a proton_mapping_editor.py per gestire il tempo reale da "
-"questa interfaccia."
-
-msgid ""
-"No mappings file is open and no real-time service is installed. Open or save "
-"a mappings file to configure one."
-msgstr ""
-"Nessun file di mapping aperto e nessun servizio in tempo reale installato. "
-"Apri o salva un file di mapping per configurarne uno."
-
-#, python-brace-format
 msgid "🔑 Proton: connected — {u}"
 msgstr "🔑 Proton: connesso — {u}"
-
-msgid "🔑 Proton: connected"
-msgstr "🔑 Proton: connesso"
-
-msgid "Connected to Proton."
-msgstr "Connesso a Proton."
-
-msgid "🔑 Proton: session expired"
-msgstr "🔑 Proton: sessione scaduta"
-
-msgid "The realtime_manager.py module was not found."
-msgstr "Il modulo realtime_manager.py non è stato trovato."
-
-msgid ""
-"Proton authentication failed during the run — open “⚙ Configuration…” to "
-"renew the session."
-msgstr ""
-"L'autenticazione Proton è fallita durante l'esecuzione — apri «⚙ "
-"Configurazione…» per rinnovare la sessione."
-
-msgid "Configuration"
-msgstr "Configurazione"
-
-msgid "Proton account"
-msgstr "Account Proton"
-
-msgid "Checking…"
-msgstr "Verifica…"
-
-#, python-brace-format
-msgid "🔑 Connected — {u}"
-msgstr "🔑 Connesso — {u}"
-
-msgid "🔑 Connected"
-msgstr "🔑 Connesso"
-
-msgid "🔑 Session expired or locked"
-msgstr "🔑 Sessione scaduta o bloccata"
-
-msgid "🔑 Sign in to Proton"
-msgstr "🔑 Accedi a Proton"
-
-msgid "Proton Drive CLI"
-msgstr "CLI di Proton Drive"
-
-msgid "Path to the proton-drive binary: "
-msgstr "Percorso del binario proton-drive: "
-
-msgid "Interface language"
-msgstr "Lingua dell'interfaccia"
-
-msgid "Auto (system language)"
-msgstr "Automatico (lingua di sistema)"
-
-msgid "NAS"
-msgstr "NAS"
-
-msgid "Use a NAS"
-msgstr "Usa un NAS"
-
-msgid "NAS mount point: "
-msgstr "Punto di montaggio del NAS: "
-
-msgid "NAS identity (account name): "
-msgstr "Identità NAS (nome dell'account): "
-
-msgid "NAS data-path correspondence:"
-msgstr "Corrispondenza percorsi dati NAS:"
-
-msgid "Seen on this machine (desktop)"
-msgstr "Visto su questa macchina (desktop)"
-
-msgid "Seen on the NAS"
-msgstr "Visto sul NAS"
-
-msgid "Choose a data folder on this machine"
-msgstr "Scegli una cartella dati su questa macchina"
-
-msgid "Not tested yet."
-msgstr "Non ancora testato."
-
-msgid "Correspondence test"
-msgstr "Test di corrispondenza"
-
-msgid "Fill both the desktop path and the NAS path before testing."
-msgstr "Compila il percorso desktop E il percorso NAS prima di testare."
-
-#, python-brace-format
-msgid "Test error: {e}"
-msgstr "Errore di test: {e}"
-
-msgid "Test"
-msgstr "Test"
-
-msgid ""
-"Last test: OK (paths match and the real-time chain works). Re-test for a "
-"fresh check."
-msgstr ""
-"Ultimo test: OK (i percorsi corrispondono e la catena in tempo reale "
-"funziona). Ripeti il test per una verifica aggiornata."
-
-msgid "Last test: a problem was reported. Re-test for details."
-msgstr ""
-"Ultimo test: è stato segnalato un problema. Ripeti il test per i dettagli."
-
-msgid "Last test: paths did not match. Re-test for details."
-msgstr ""
-"Ultimo test: i percorsi non corrispondevano. Ripeti il test per i dettagli."
-
-msgid "+ Add a correspondence"
-msgstr "+ Aggiungi una corrispondenza"
-
-msgid "Test all"
-msgstr "Testa tutto"
-
-msgid ""
-"Test: ● green = works · ● yellow = issue · ● red = paths don't match · click "
-"a dot for details"
-msgstr ""
-"Test: ● verde = funziona · ● giallo = problema · ● rosso = percorsi non "
-"corrispondono · clicca un punto per i dettagli"
-
-msgid "Fix uppercase extensions"
-msgstr "Correggi le estensioni in maiuscolo"
-
-msgid "Suffix on name clash: "
-msgstr "Suffisso in caso di conflitto di nome: "
-
-msgid "System tray"
-msgstr "Barra delle applicazioni"
-
-msgid "Show the status icon in the system tray"
-msgstr "Mostra l'icona di stato nella barra delle applicazioni"
-
-msgid "Application launcher"
-msgstr "Avvio applicazione"
-
-msgid "Show in the applications menu"
-msgstr "Mostra nel menu delle applicazioni"
-
-msgid "Usually appears in the “Internet” section of the menu."
-msgstr "Di solito appare nella sezione «Internet» del menu."
-
-msgid "Create a desktop shortcut"
-msgstr "Crea un collegamento sul desktop"
-
-msgid "The launcher opens:"
-msgstr "L'avvio apre:"
-
-msgid "no file"
-msgstr "nessun file"
-
-msgid "the current mapping"
-msgstr "il mapping corrente"
-
-#, python-brace-format
-msgid ""
-"The identity “{a}” exists on the NAS (marker queue and/or mappings copy).\n"
-"\n"
-"Migrate it to “{b}”? Everything is simply renamed — pending markers and "
-"continuity are preserved."
-msgstr ""
-"L'identità «{a}» esiste sul NAS (coda di marcatori e/o copia dei mapping).\n"
-"\n"
-"Migrarla a «{b}»? Tutto viene semplicemente rinominato — i marcatori in "
-"sospeso e la continuità sono preservati."
-
-msgid "NAS identity"
-msgstr "Identità NAS"
-
-msgid "Migrate"
-msgstr "Migra"
-
-msgid "Do not migrate"
-msgstr "Non migrare"
-
-msgid ""
-"Configuration saved.\n"
-"\n"
-"The background daemons were restarted to apply the new NAS identity."
-msgstr ""
-"Configurazione salvata.\n"
-"\n"
-"I daemon in background sono stati riavviati per applicare la nuova identità "
-"NAS."
-
-msgid ""
-"Configuration saved.\n"
-"\n"
-"Changes apply automatically (the window uses them at its next launch)."
-msgstr ""
-"Configurazione salvata.\n"
-"\n"
-"Le modifiche si applicano automaticamente (la finestra le usa al prossimo "
-"avvio)."
 
 msgid "OK"
 msgstr "OK"
 
-msgid "Open or save a mappings file first."
-msgstr "Apri o salva prima un file di mappature."
-
-msgid "Command copied to the clipboard."
-msgstr "Comando copiato negli appunti."
-
-#, python-brace-format
-msgid "{gb:.2f} GB"
-msgstr "{gb:.2f} GB"
-
-msgid "< 0.01 GB"
-msgstr "< 0,01 GB"
-
-#, python-brace-format
-msgid "Uploading — {n} file(s), {size}"
-msgstr "Caricamento — {n} file, {size}"
-
-msgid "The mappings file has unsaved changes. Save them before running?"
-msgstr ""
-"Il file di mappature ha modifiche non salvate. Salvarle prima di eseguire?"
-
-msgid "Save first?"
-msgstr "Salvare prima?"
-
-msgid "Save"
-msgstr "Salva"
-
-msgid "No"
-msgstr "No"
-
-msgid "A sync is already running."
-msgstr "Una sincronizzazione è già in corso."
-
-msgid "Already running"
-msgstr "Già in esecuzione"
-
-#, python-brace-format
 msgid ""
 "The engine was not found at:\n"
 "{p}"
 msgstr ""
 "Il motore non è stato trovato in:\n"
 "{p}"
-
-msgid "Engine not found"
-msgstr "Motore non trovato"
-
-#, python-brace-format
-msgid "{n} selected mapping(s)"
-msgstr "{n} mappatura/e selezionata/e"
-
-#, python-brace-format
-msgid "all {n} mapping(s)"
-msgstr "tutte le {n} mappatura/e"
-
-#, python-brace-format
-msgid "Scope: {s}"
-msgstr "Ambito: {s}"
-
-msgid ""
-"“Propagate deletions” is checked, but no mapping in scope allows deletion "
-"(set it via Edit). Nothing will be deleted.\n"
-"\n"
-"Run anyway?"
-msgstr ""
-"«Propaga eliminazioni» è selezionato, ma nessuna mappatura nell'ambito "
-"consente l'eliminazione (impostala tramite Modifica). Non verrà eliminato "
-"nulla.\n"
-"\n"
-"Eseguire comunque?"
-
-#, python-brace-format
-msgid ""
-"You are launching a sync with “Propagate deletions”.\n"
-"\n"
-"⚠  {n} mapping(s) are in PERMANENT mode (deletion without trash, "
-"IRREVERSIBLE):\n"
-"  • {names}\n"
-"\n"
-"The other mappings allowing deletion will go to the trash (recoverable for "
-"30 days).\n"
-"\n"
-"Tip: a “Test (dry-run)” first shows what would be deleted.\n"
-"\n"
-"Run anyway?"
-msgstr ""
-"Stai avviando una sincronizzazione con «Propaga eliminazioni».\n"
-"\n"
-"⚠  {n} mappatura/e sono in modalità PERMANENTE (eliminazione senza cestino, "
-"IRREVERSIBILE):\n"
-"  • {names}\n"
-"\n"
-"Le altre mappature che consentono l'eliminazione andranno nel cestino "
-"(recuperabile per 30 giorni).\n"
-"\n"
-"Suggerimento: una «Prova (dry-run)» mostra prima cosa verrebbe eliminato.\n"
-"\n"
-"Eseguire comunque?"
 
 msgid ""
 "You are launching a sync with “Propagate deletions”.\n"
@@ -2419,59 +1895,14 @@ msgstr "Conferma la propagazione delle eliminazioni"
 msgid "Run"
 msgstr "Esegui"
 
-msgid "Launch cancelled."
-msgstr "Avvio annullato."
-
-#, python-brace-format
 msgid "=== Launch: {c} ==="
 msgstr "=== Avvio: {c} ==="
 
-#, python-brace-format
 msgid "=== Log: {p} ==="
 msgstr "=== Registro: {p} ==="
 
-msgid "Sync in progress…"
-msgstr "Sincronizzazione in corso…"
-
-msgid ""
-"Proton account changed — prime the cache (or reset the mappings) to rebuild "
-"on the new account."
-msgstr ""
-"Account Proton cambiato — inizializza la cache (o reimposta le mappature) "
-"per ricostruire sul nuovo account."
-
 msgid "  ✓ Nothing to update — everything is already in sync."
 msgstr "  ✓ Niente da aggiornare — tutto è già sincronizzato."
-
-#, python-brace-format
-msgid "=== Finished (code {c}) — log: {p} ==="
-msgstr "=== Terminato (codice {c}) — registro: {p} ==="
-
-#, python-brace-format
-msgid "Sync finished (code {c})."
-msgstr "Sincronizzazione terminata (codice {c})."
-
-#, python-brace-format
-msgid "=== Launch error: {e} ==="
-msgstr "=== Errore di avvio: {e} ==="
-
-#, python-brace-format
-msgid "Error: {e}"
-msgstr "Errore: {e}"
-
-msgid "Sync interrupted."
-msgstr "Sincronizzazione interrotta."
-
-msgid "The mappings file has unsaved changes. Save them before priming?"
-msgstr ""
-"Il file di mappature ha modifiche non salvate. Salvarle prima di "
-"inizializzare?"
-
-msgid "No mapping to prime."
-msgstr "Nessuna mappatura da inizializzare."
-
-msgid "Nothing to do"
-msgstr "Niente da fare"
 
 msgid ""
 "This is a REAL pass, not a test — the Test (dry-run) option does not apply "
@@ -2480,7 +1911,405 @@ msgstr ""
 "Questa è una passata REALE, non un test — l'opzione «Test (dry-run)» non si "
 "applica all'inizializzazione."
 
-#, python-brace-format
+msgid "♻ Resetting — {n} folder(s) analyzed{c}"
+msgstr "♻ Reimpostazione — {n} cartella/e analizzata/e{c}"
+
+msgid "🌱 Priming — {n} folder(s) analyzed{c}"
+msgstr "🌱 Inizializzazione — {n} cartella/e analizzata/e{c}"
+
+msgid "🔑 Checking Proton session…"
+msgstr "🔑 Controllo della sessione Proton…"
+
+msgid "   ✓ session OK"
+msgstr "   ✓ sessione OK"
+
+msgid "⏸ Stopping the consumer (watcher kept running)…"
+msgstr "⏸ Arresto del consumatore (l'osservatore resta attivo)…"
+
+msgid "⏸ Pausing the scheduled timer…"
+msgstr "⏸ Sospensione del timer pianificato…"
+
+msgid "🔓 Lock released — starting."
+msgstr "🔓 Blocco rilasciato — avvio."
+
+msgid "▶ Restarting the consumer…"
+msgstr "▶ Riavvio del consumatore…"
+
+msgid "Scheduled mappings file:"
+msgstr "File di mappature pianificato:"
+
+msgid "Frequency: "
+msgstr "Frequenza: "
+
+msgid "   Day: "
+msgstr "   Giorno: "
+
+msgid "   Time: "
+msgstr "   Ora: "
+
+msgid "Option B — propagate deletions in the schedule (--delete)"
+msgstr "Opzione B — propaga le eliminazioni nella pianificazione (--delete)"
+
+msgid ""
+"Unchecked = Option A (additive, recommended). Checked = mirror: local "
+"deletions propagate automatically at night."
+msgstr ""
+"Non selezionato = Opzione A (additivo, consigliato). Selezionato = mirror: "
+"le eliminazioni locali si propagano automaticamente di notte."
+
+msgid "💾 Install / Update"
+msgstr "💾 Installa / Aggiorna"
+
+msgid "🧪 Run a pass now"
+msgstr "🧪 Esegui una passata ora"
+
+msgid "🔄 Refresh state"
+msgstr "🔄 Aggiorna stato"
+
+msgid "📜 Run history…"
+msgstr "📜 Cronologia…"
+
+msgid "📋 Copy"
+msgstr "📋 Copia"
+
+msgid "yes"
+msgstr "sì"
+
+msgid "no"
+msgstr "no"
+
+msgid "Scheduled         : {v}"
+msgstr "Pianificato        : {v}"
+
+msgid "Scheduled mappings: {v}"
+msgstr "Mappature pianific.: {v}"
+
+msgid "Next run          : {v}"
+msgstr "Prossima esecuz.   : {v}"
+
+msgid "Enable automatic deletions?"
+msgstr "Abilitare le eliminazioni automatiche?"
+
+msgid "Enable Option B"
+msgstr "Abilita l'Opzione B"
+
+msgid "Active mappings file change"
+msgstr "Cambio del file di mappature attivo"
+
+msgid "Confirm the change"
+msgstr "Conferma il cambiamento"
+
+msgid "Cancel (keep the current file)"
+msgstr "Annulla (mantieni il file corrente)"
+
+msgid "⟲ Last run"
+msgstr "⟲ Ultima esecuzione"
+
+msgid "📅 Pick a date…"
+msgstr "📅 Scegli una data…"
+
+msgid "Log of the scheduled run for that day:"
+msgstr "Registro dell'esecuzione pianificata di quel giorno:"
+
+msgid ""
+"A browser window will open for you to sign in to Proton (password and 2FA "
+"stay in the browser — never handled here).\n"
+"Keep this window open until it confirms success."
+msgstr ""
+"Si aprirà una finestra del browser per accedere a Proton (password e 2FA "
+"restano nel browser — mai gestiti qui).\n"
+"Tieni questa finestra aperta finché non conferma il successo."
+
+msgid "❌ Sign-in failed (code {c})."
+msgstr "❌ Accesso fallito (codice {c})."
+
+msgid "🔄 Restart"
+msgstr "🔄 Riavvia"
+
+msgid "🚫 Disable autostart"
+msgstr "🚫 Disabilita avvio automatico"
+
+msgid "🔃 Refresh state"
+msgstr "🔃 Aggiorna stato"
+
+msgid "Debounce: "
+msgstr "Antirimbalzo: "
+
+msgid " s     Cycle: "
+msgstr " s     Ciclo: "
+
+msgid "💾 Apply"
+msgstr "💾 Applica"
+
+msgid ""
+"The debounce groups bursts of writes before starting the engine; the cycle "
+"is the polling rhythm of the queues. Applied live, at the next cycle."
+msgstr ""
+"L'antirimbalzo raggruppa raffiche di scritture prima di avviare il motore; "
+"il ciclo è il ritmo di interrogazione delle code. Applicato in tempo reale, "
+"al ciclo successivo."
+
+msgid "🧹 Clear the queues"
+msgstr "🧹 Svuota le code"
+
+msgid ""
+"Clears the pending markers (local + NAS). Useful for a fresh start; changes "
+"not yet processed will be forgotten."
+msgstr ""
+"Svuota i marcatori in sospeso (locale + NAS). Utile per ripartire da zero; "
+"le modifiche non ancora elaborate andranno perse."
+
+msgid "Auto-scroll"
+msgstr "Scorrimento automatico"
+
+msgid "Detailed"
+msgstr "Dettagliata"
+
+msgid "🧹 Clear"
+msgstr "🧹 Pulisci"
+
+msgid "stopped"
+msgstr "fermato"
+
+msgid ""
+"ℹ The background services currently watch this file: {f} (not the one open "
+"in the editor)."
+msgstr ""
+"ℹ I servizi in background sorvegliano attualmente questo file: {f} (non "
+"quello aperto nell'editor)."
+
+msgid "Last push: {t}"
+msgstr "Ultimo invio: {t}"
+
+msgid "🟢 NAS reachable — no pending marker"
+msgstr "🟢 NAS raggiungibile — nessun marcatore in sospeso"
+
+msgid ""
+"Pending markers: {n} — {m} of them target folders NOT covered by the new "
+"file. Those will be DISCARDED (“⊘” lines in the journal); they can only be "
+"recovered by reloading the old file and running a manual or scheduled pass."
+msgstr ""
+"Marcatori in sospeso: {n} — {m} di essi puntano a cartelle NON coperte dal "
+"nuovo file. Quelli verranno SCARTATI (righe «⊘» nel registro); possono "
+"essere recuperati solo ricaricando il vecchio file ed eseguendo una passata "
+"manuale o pianificata."
+
+msgid "Push"
+msgstr "Invia"
+
+msgid ""
+"Clear the pending markers?\n"
+"\n"
+"Local: {n}    NAS ({u}): {p}\n"
+"\n"
+"Changes not yet processed will be forgotten (the nightly sync remains the "
+"safety net)."
+msgstr ""
+"Svuotare i marcatori in sospeso?\n"
+"\n"
+"Locale: {n}    NAS ({u}): {p}\n"
+"\n"
+"Le modifiche non ancora elaborate andranno perse (la sincronizzazione "
+"notturna resta la rete di sicurezza)."
+
+msgid "Copied ✓"
+msgstr "Copiato ✓"
+
+msgid ""
+"This folder belongs to someone else. If you enable deletion, anything inside "
+"THIS destination folder that is missing locally is deleted and sent to the "
+"OWNER'S trash."
+msgstr ""
+"Questa cartella appartiene a qualcun altro. Se attivi l'eliminazione, tutto "
+"ciò che si trova in QUESTA cartella di destinazione e manca in locale viene "
+"eliminato e inviato nel CESTINO DEL PROPRIETARIO."
+
+msgid "Source type required"
+msgstr "Tipo di origine richiesto"
+
+msgid ""
+"You chose PERMANENT deletion (no trash).\n"
+"\n"
+"Files deleted locally will be erased from Proton with no possibility of "
+"recovery.\n"
+"\n"
+"Confirm this choice?"
+msgstr ""
+"Hai scelto l'eliminazione PERMANENTE (senza cestino).\n"
+"\n"
+"I file eliminati localmente verranno cancellati da Proton senza possibilità "
+"di recupero.\n"
+"\n"
+"Confermare questa scelta?"
+
+msgid ""
+"This destination is a folder shared with you — it belongs to someone else.\n"
+"\n"
+"With deletion enabled, every file inside THIS folder and its subfolders that "
+"is missing from your local source will be deleted and sent to the OWNER'S "
+"trash — including files other people put there. Only this destination folder "
+"is affected, not the rest of the Drive.\n"
+"\n"
+"Only enable deletion on a folder you are the sole contributor to, as one-way "
+"delivery to its owner. Any other use is potentially destructive.\n"
+"\n"
+"Enable deletion on this shared folder?"
+msgstr ""
+"Questa destinazione è una cartella condivisa con te — appartiene a qualcun "
+"altro.\n"
+"\n"
+"Con l'eliminazione attiva, ogni file in QUESTA cartella e nelle sue "
+"sottocartelle che manca nella tua origine locale verrà eliminato e inviato "
+"nel CESTINO DEL PROPRIETARIO — compresi i file lasciati da altre persone. È "
+"interessata solo questa cartella di destinazione, non il resto del Drive.\n"
+"\n"
+"Attiva l'eliminazione solo su una cartella di cui sei l'unico collaboratore, "
+"come invio a senso unico verso il proprietario. Qualsiasi altro uso è "
+"potenzialmente distruttivo.\n"
+"\n"
+"Attivare l'eliminazione su questa cartella condivisa?"
+
+msgid "its last test FAILED (paths do not match)"
+msgstr "il suo ultimo test è FALLITO (i percorsi non corrispondono)"
+
+msgid "Change to mirror mode"
+msgstr "Passaggio a modalità mirror"
+
+msgid "Save and reset"
+msgstr "Salva e reimposta"
+
+msgid ""
+"Mapping switched to mirror — prime it again to enable real-time deletions: "
+"{s}"
+msgstr ""
+"Mappatura passata a mirror — inizializzala di nuovo per attivare le "
+"eliminazioni in tempo reale: {s}"
+
+msgid ""
+"The destination file is linked to another Proton account:\n"
+"  destination: {b}\n"
+"  source: {a}\n"
+"\n"
+"Transfer refused — the cache must not mix two accounts."
+msgstr ""
+"Il file di destinazione è collegato a un altro account Proton:\n"
+"  destinazione: {b}\n"
+"  origine: {a}\n"
+"\n"
+"Trasferimento rifiutato — la cache non deve mescolare due account."
+
+msgid "Global exclusions copied"
+msgstr "Esclusioni globali copiate"
+
+msgid "Global exclusions differ"
+msgstr "Esclusioni globali diverse"
+
+msgid "Apply and move"
+msgstr "Applica e sposta"
+
+msgid "Move cancelled."
+msgstr "Spostamento annullato."
+
+msgid "Move failed: {e}"
+msgstr "Lo spostamento è fallito: {e}"
+
+msgid "🔑 Sign in to Proton"
+msgstr "🔑 Accedi a Proton"
+
+msgid "Path to the proton-drive binary: "
+msgstr "Percorso del binario proton-drive: "
+
+msgid "Stop a frozen upload after (minutes): "
+msgstr "Interrompere un invio bloccato dopo (minuti): "
+
+msgid "  (0 = never)"
+msgstr "  (0 = mai)"
+
+msgid "Consecutive freezes before skipping a pass: "
+msgstr "Blocchi consecutivi prima di saltare un passaggio: "
+
+msgid "  (0 = unlimited)"
+msgstr "  (0 = illimitato)"
+
+msgid "Use a NAS"
+msgstr "Usa un NAS"
+
+msgid "NAS mount point: "
+msgstr "Punto di montaggio del NAS: "
+
+msgid "NAS identity (account name): "
+msgstr "Identità NAS (nome dell'account): "
+
+msgid "NAS data-path correspondence:"
+msgstr "Corrispondenza percorsi dati NAS:"
+
+msgid "Seen on this machine (desktop)"
+msgstr "Visto su questa macchina (desktop)"
+
+msgid "Seen on the NAS"
+msgstr "Visto sul NAS"
+
+msgid "Choose a data folder on this machine"
+msgstr "Scegli una cartella dati su questa macchina"
+
+msgid "Correspondence test"
+msgstr "Test di corrispondenza"
+
+msgid "Fill both the desktop path and the NAS path before testing."
+msgstr "Compila il percorso desktop E il percorso NAS prima di testare."
+
+msgid "+ Add a correspondence"
+msgstr "+ Aggiungi una corrispondenza"
+
+msgid "Test all"
+msgstr "Testa tutto"
+
+msgid ""
+"Test: ● green = works · ● yellow = issue · ● red = paths don't match · click "
+"a dot for details"
+msgstr ""
+"Test: ● verde = funziona · ● giallo = problema · ● rosso = percorsi non "
+"corrispondono · clicca un punto per i dettagli"
+
+msgid "Fix uppercase extensions"
+msgstr "Correggi le estensioni in maiuscolo"
+
+msgid "Suffix on name clash: "
+msgstr "Suffisso in caso di conflitto di nome: "
+
+msgid "Only these extensions: "
+msgstr "Solo queste estensioni: "
+
+msgid "Show the status icon in the system tray"
+msgstr "Mostra l'icona di stato nella barra delle applicazioni"
+
+msgid "Show in the applications menu"
+msgstr "Mostra nel menu delle applicazioni"
+
+msgid "Usually appears in the “Internet” section of the menu."
+msgstr "Di solito appare nella sezione «Internet» del menu."
+
+msgid "Create a desktop shortcut"
+msgstr "Crea un collegamento sul desktop"
+
+msgid "The launcher opens:"
+msgstr "L'avvio apre:"
+
+msgid "no file"
+msgstr "nessun file"
+
+msgid "NAS identity"
+msgstr "Identità NAS"
+
+msgid "Migrate"
+msgstr "Migra"
+
+msgid "Do not migrate"
+msgstr "Non migrare"
+
+msgid "{gb:.2f} GB"
+msgstr "{gb:.2f} GB"
+
 msgid ""
 "Prime {scope}:\n"
 "  • {names}\n"
@@ -2511,81 +2340,164 @@ msgstr ""
 "\n"
 "Avviare l'inizializzazione?"
 
-msgid "Prime cache"
-msgstr "Inizializza cache"
+msgid "Emptying a shared folder"
+msgstr "Svuotamento di una cartella condivisa"
 
-msgid "Start priming"
-msgstr "Avvia inizializzazione"
+msgid "Empty anyway"
+msgstr "Svuota comunque"
 
-msgid "Priming cancelled."
-msgstr "Inizializzazione annullata."
-
-msgid "The mappings file has unsaved changes. Save them before resetting?"
-msgstr ""
-"Il file di mappature ha modifiche non salvate. Salvarle prima di reimpostare?"
-
-msgid "Select the mapping(s) to reset in the list first."
-msgstr "Seleziona prima nell'elenco la/e mappatura/e da reimpostare."
-
-msgid "No mapping to reset."
-msgstr "Nessuna mappatura da reimpostare."
-
-#, python-brace-format
 msgid ""
-"Reset {n} selected mapping(s):\n"
-"  • {names}\n"
-"\n"
-"This PURGES their local cache (they fall back to ⏳ “pending”) and rebuilds "
-"them with a targeted pass — like priming. Each mapping is rebuilt according "
-"to ITS OWN configuration (the trash field): additive mappings come back "
-"ready for real-time without deleting anything; mirror mappings come back "
-"fully armed for their deletions (trash or permanent, as configured).\n"
-"\n"
-"Optionally, tick below to also empty each mapping's REMOTE folder (sent to "
-"Proton TRASH, recoverable 30 days) before rebuilding — under the mount "
-"guard. You will purge the trash yourself once you have checked the re-upload "
-"succeeded.\n"
-"\n"
-"Real-time consumer and the scheduled timer are paused during the reset and "
-"restored afterwards. It is interruptible: to resume, just press Reset again "
-"(idempotent).\n"
-"\n"
-"Start reset?"
+"❌ Proton session unavailable — sign in first (button “Sign in to Proton”), "
+"then prime again."
 msgstr ""
-"Reimpostare {n} mappatura/e selezionata/e:\n"
+"❌ Sessione Proton non disponibile — accedi prima (pulsante «Accedi a "
+"Proton»), poi inizializza di nuovo."
+
+msgid "⏹ Cancelled while waiting for the lock."
+msgstr "⏹ Annullato durante l'attesa del blocco."
+
+msgid ""
+"⏳ Waiting for the lock to be released (another pass is running)… (Stop to "
+"cancel)"
+msgstr ""
+"⏳ In attesa del rilascio del blocco (un'altra passata è in corso)… (Ferma "
+"per annullare)"
+
+msgid ""
+"The scheduled service currently uses:\n"
+"  {old}\n"
+"You are installing:\n"
+"  {new}\n"
+"\n"
+"This will switch the schedule to the file you are editing. Continue?"
+msgstr ""
+"Il servizio pianificato usa attualmente:\n"
+"  {old}\n"
+"Stai installando:\n"
+"  {new}\n"
+"\n"
+"Questo cambierà la pianificazione al file che stai modificando. Continuare?"
+
+msgid "⬆ Push mappings to the NAS"
+msgstr "⬆ Invia le mappature al NAS"
+
+msgid ""
+"The NAS watcher reads this copy to watch the NAS sources; the push also "
+"happens automatically on every save."
+msgstr ""
+"L'osservatore del NAS legge questa copia per sorvegliare le origini del NAS; "
+"l'invio avviene anche automaticamente a ogni salvataggio."
+
+msgid ""
+"The NAS watcher runs on the NAS (its own systemd) and stays active on its "
+"own. The GUI does not control it: it observes its activity through the NFS "
+"queue."
+msgstr ""
+"L'osservatore del NAS è eseguito sul NAS (con il proprio systemd) e resta "
+"attivo autonomamente. L'interfaccia non lo controlla: ne osserva l'attività "
+"tramite la coda NFS."
+
+msgid ""
+"Local-only mode is active (see Configuration…): no NAS mapping push, no NAS "
+"watcher to observe."
+msgstr ""
+"La modalità solo locale è attiva (vedi Configurazione…): nessun invio di "
+"mappature al NAS, nessun osservatore del NAS da osservare."
+
+msgid ""
+"The background services watch {units} — that is the file that will be pushed "
+"to the NAS, not the one open in the editor ({open}). Push it?"
+msgstr ""
+"I servizi in background sorvegliano {units} — è questo il file che verrà "
+"inviato al NAS, non quello aperto nell'editor ({open}). Inviarlo?"
+
+msgid "Confirm"
+msgstr "Conferma"
+
+msgid "Deletion on a shared folder"
+msgstr "Eliminazione in una cartella condivisa"
+
+msgid "Enable"
+msgstr "Attiva"
+
+msgid "its last test reported a problem"
+msgstr "il suo ultimo test ha segnalato un problema"
+
+msgid "it has not been tested yet"
+msgstr "non è ancora stata testata"
+
+msgid ""
+"The destination file uses different global exclusions, and applying this "
+"file's would make {n} already-primed mapping(s) there no longer ready:\n"
 "  • {names}\n"
 "\n"
-"Questo ELIMINA la loro cache locale (tornano a ⏳ «in sospeso») e le "
-"ricostruisce con una passata mirata — come l'inizializzazione. Ogni "
-"mappatura viene ricostruita secondo la PROPRIA configurazione (il campo "
-"cestino): le mappature additive tornano pronte per il tempo reale senza "
-"eliminare nulla; le mappature mirror tornano pienamente preparate per le "
-"loro eliminazioni (cestino o permanente, come configurato).\n"
+"They would fall back to ⏳ and need re-priming. Other mappings are "
+"unaffected.\n"
 "\n"
-"Facoltativamente, seleziona sotto per svuotare anche la cartella REMOTA di "
-"ogni mappatura (inviata al CESTINO di Proton, recuperabile 30 giorni) prima "
-"di ricostruire — sotto la protezione di montaggio. Svuoterai tu stesso il "
-"cestino dopo aver verificato che il ricaricamento sia riuscito.\n"
+"Apply this file's global exclusions to the destination?\n"
+"(Cancel to check and harmonize them yourself first.)"
+msgstr ""
+"Il file di destinazione usa esclusioni globali diverse, e applicare quelle "
+"di questo file renderebbe {n} mappatura/e già inizializzata/e lì non più "
+"pronta/e:\n"
+"  • {names}\n"
 "\n"
-"Il consumatore in tempo reale e il timer pianificato vengono sospesi durante "
-"la reimpostazione e ripristinati dopo. È interrompibile: per riprendere, "
-"basta premere di nuovo Reimposta (idempotente).\n"
+"Tornerebbero a ⏳ e dovrebbero essere reinizializzate. Le altre mappature "
+"non sono interessate.\n"
 "\n"
-"Avviare la reimpostazione?"
+"Applicare le esclusioni globali di questo file alla destinazione?\n"
+"(Annulla per verificarle e armonizzarle prima tu stesso.)"
 
-msgid "Also empty the remote folder (→ Proton trash)"
-msgstr "Svuota anche la cartella remota (→ cestino di Proton)"
+msgid "🔑 Session expired or locked"
+msgstr "🔑 Sessione scaduta o bloccata"
 
-msgid "Reset mapping"
-msgstr "Reimposta mappatura"
+msgid "Test"
+msgstr "Test"
 
-msgid "Start reset"
-msgstr "Avvia reimpostazione"
+msgid ""
+"The identity “{a}” exists on the NAS (marker queue and/or mappings copy).\n"
+"\n"
+"Migrate it to “{b}”? Everything is simply renamed — pending markers and "
+"continuity are preserved."
+msgstr ""
+"L'identità «{a}» esiste sul NAS (coda di marcatori e/o copia dei mapping).\n"
+"\n"
+"Migrarla a «{b}»? Tutto viene semplicemente rinominato — i marcatori in "
+"sospeso e la continuità sono preservati."
 
-msgid "Reset cancelled."
-msgstr "Reimpostazione annullata."
+msgid ""
+"You are launching a sync with “Propagate deletions”.\n"
+"\n"
+"⚠  {n} mapping(s) are in PERMANENT mode (deletion without trash, "
+"IRREVERSIBLE):\n"
+"  • {names}\n"
+"\n"
+"The other mappings allowing deletion will go to the trash (recoverable for "
+"30 days).\n"
+"\n"
+"Tip: a “Test (dry-run)” first shows what would be deleted.\n"
+"\n"
+"Run anyway?"
+msgstr ""
+"Stai avviando una sincronizzazione con «Propaga eliminazioni».\n"
+"\n"
+"⚠  {n} mappatura/e sono in modalità PERMANENTE (eliminazione senza cestino, "
+"IRREVERSIBILE):\n"
+"  • {names}\n"
+"\n"
+"Le altre mappature che consentono l'eliminazione andranno nel cestino "
+"(recuperabile per 30 giorni).\n"
+"\n"
+"Suggerimento: una «Prova (dry-run)» mostra prima cosa verrebbe eliminato.\n"
+"\n"
+"Eseguire comunque?"
 
-#, python-brace-format
+msgid "=== Finished (code {c}) — log: {p} ==="
+msgstr "=== Terminato (codice {c}) — registro: {p} ==="
+
+msgid "Sync finished (code {c})."
+msgstr "Sincronizzazione terminata (codice {c})."
+
 msgid ""
 "You asked to empty the remote folder, and {n} of the selected mapping(s) "
 "target a folder shared with you:\n"
@@ -2606,738 +2518,818 @@ msgstr ""
 "\n"
 "Svuotare comunque queste cartelle condivise?"
 
-msgid "Emptying a shared folder"
-msgstr "Svuotamento di una cartella condivisa"
-
-msgid "Empty anyway"
-msgstr "Svuota comunque"
-
-#, python-brace-format
-msgid "♻ Resetting — {n} folder(s) analyzed{c}"
-msgstr "♻ Reimpostazione — {n} cartella/e analizzata/e{c}"
-
-#, python-brace-format
-msgid "🌱 Priming — {n} folder(s) analyzed{c}"
-msgstr "🌱 Inizializzazione — {n} cartella/e analizzata/e{c}"
-
-msgid "Resetting the mapping(s)"
-msgstr "Reimpostazione della/e mappatura/e"
-
-msgid "Reset aborted: sign in to Proton first."
-msgstr "Reimpostazione interrotta: accedi prima a Proton."
-
-#, python-brace-format
-msgid "▶ Reset started ({n} mapping(s))…"
-msgstr "▶ Reimpostazione avviata ({n} mappatura/e)…"
-
-msgid "Priming the cache"
-msgstr "Inizializzazione della cache"
-
-msgid "Priming aborted: sign in to Proton first."
-msgstr "Inizializzazione interrotta: accedi prima a Proton."
-
-#, python-brace-format
-msgid "▶ Priming started ({n} mapping(s))…"
-msgstr "▶ Inizializzazione avviata ({n} mappatura/e)…"
-
-msgid "[realtime_manager.py missing — cannot orchestrate daemons]"
-msgstr "[realtime_manager.py mancante — impossibile orchestrare i servizi]"
-
-msgid "🔑 Checking Proton session…"
-msgstr "🔑 Controllo della sessione Proton…"
-
-msgid ""
-"❌ Proton session unavailable — sign in first (button “Sign in to Proton”), "
-"then prime again."
-msgstr ""
-"❌ Sessione Proton non disponibile — accedi prima (pulsante «Accedi a "
-"Proton»), poi inizializza di nuovo."
-
-msgid "   ✓ session OK"
-msgstr "   ✓ sessione OK"
-
-msgid "⏸ Stopping the consumer (watcher kept running)…"
-msgstr "⏸ Arresto del consumatore (l'osservatore resta attivo)…"
-
-msgid "⏸ Pausing the scheduled timer…"
-msgstr "⏸ Sospensione del timer pianificato…"
-
-msgid "⏹ Cancelled while waiting for the lock."
-msgstr "⏹ Annullato durante l'attesa del blocco."
-
-msgid ""
-"⏳ Waiting for the lock to be released (another pass is running)… (Stop to "
-"cancel)"
-msgstr ""
-"⏳ In attesa del rilascio del blocco (un'altra passata è in corso)… (Ferma "
-"per annullare)"
-
-msgid "🔓 Lock released — starting."
-msgstr "🔓 Blocco rilasciato — avvio."
-
-#, python-brace-format
-msgid "Reset finished (code {c})"
-msgstr "Reimpostazione terminata (codice {c})"
-
-#, python-brace-format
-msgid "Priming finished (code {c})"
-msgstr "Inizializzazione terminata (codice {c})"
-
-msgid "▶ Restarting the consumer…"
-msgstr "▶ Riavvio del consumatore…"
-
 msgid "▶ Scheduled timer restored."
 msgstr "▶ Timer pianificato ripristinato."
 
-#, python-brace-format
 msgid "✓ {r}/{t} mapping(s) now ready for real-time."
 msgstr "✓ {r}/{t} mappatura/e ora pronte per il tempo reale."
 
-#, python-brace-format
+msgid "🟢 NAS reachable — last activity {t} ago"
+msgstr "🟢 NAS raggiungibile — ultima attività {t} fa"
+
+msgid "Correspondence not validated"
+msgstr "Corrispondenza non validata"
+
+msgid "Add anyway"
+msgstr "Aggiungi comunque"
+
+msgid "🔑 Connected"
+msgstr "🔑 Connesso"
+
+msgid ""
+"Last test: OK (paths match and the real-time chain works). Re-test for a "
+"fresh check."
+msgstr ""
+"Ultimo test: OK (i percorsi corrispondono e la catena in tempo reale "
+"funziona). Ripeti il test per una verifica aggiornata."
+
+msgid "Last test: a problem was reported. Re-test for details."
+msgstr ""
+"Ultimo test: è stato segnalato un problema. Ripeti il test per i dettagli."
+
+msgid "Last test: paths did not match. Re-test for details."
+msgstr ""
+"Ultimo test: i percorsi non corrispondevano. Ripeti il test per i dettagli."
+
+msgid ""
+"Proton account changed — prime the cache (or reset the mappings) to rebuild "
+"on the new account."
+msgstr ""
+"Account Proton cambiato — inizializza la cache (o reimposta le mappature) "
+"per ricostruire sul nuovo account."
+
+msgid "=== Launch error: {e} ==="
+msgstr "=== Errore di avvio: {e} ==="
+
+msgid "Error: {e}"
+msgstr "Errore: {e}"
+
+msgid "Reset finished (code {c})"
+msgstr "Reimpostazione terminata (codice {c})"
+
+msgid "Priming finished (code {c})"
+msgstr "Inizializzazione terminata (codice {c})"
+
+msgid ""
+"This folder is on the NAS and depends on the path correspondence {l} ↔ {n}, "
+"but {d}.\n"
+"\n"
+"If the correspondence is wrong, real-time sync may not work for this folder. "
+"You can check it in Configuration (coloured dots next to each "
+"correspondence).\n"
+"\n"
+"Add this mapping anyway?"
+msgstr ""
+"Questa cartella è sul NAS e dipende dalla corrispondenza di percorso {l} ↔ "
+"{n}, ma {d}.\n"
+"\n"
+"Se la corrispondenza è errata, la sincronizzazione in tempo reale potrebbe "
+"non funzionare per questa cartella. Puoi verificarla in Configurazione "
+"(punti colorati accanto a ogni corrispondenza).\n"
+"\n"
+"Aggiungere comunque questa mappatura?"
+
 msgid "Reset done — {r}/{t} mapping(s) ready for real-time."
 msgstr ""
 "Reimpostazione completata — {r}/{t} mappatura/e pronte per il tempo reale."
 
-#, python-brace-format
 msgid "Priming done — {r}/{t} mapping(s) ready for real-time."
 msgstr ""
 "Inizializzazione completata — {r}/{t} mappatura/e pronte per il tempo reale."
 
-#, python-brace-format
 msgid "Reset finished (code {c})."
 msgstr "Reimpostazione terminata (codice {c})."
 
-#, python-brace-format
 msgid "Priming finished (code {c})."
 msgstr "Inizializzazione terminata (codice {c})."
 
-#, python-brace-format
 msgid "Reset error: {e}"
 msgstr "Errore di reimpostazione: {e}"
 
-#, python-brace-format
 msgid "Priming error: {e}"
 msgstr "Errore di inizializzazione: {e}"
 
-msgid "Daily"
-msgstr "Giornaliero"
+msgid "🔑 Connected — {u}"
+msgstr "🔑 Connesso — {u}"
 
-msgid "Weekly"
-msgstr "Settimanale"
+msgid "Test error: {e}"
+msgstr "Errore di test: {e}"
 
-msgid "Hourly"
-msgstr "Ogni ora"
+msgid "permanently deleted"
+msgstr "eliminato permanentemente"
 
-msgid "Monday"
-msgstr "Lunedì"
+msgid "sent to trash"
+msgstr "inviato nel cestino"
 
-msgid "Tuesday"
-msgstr "Martedì"
+msgid "DRY-RUN (nothing will be transferred)"
+msgstr "DRY-RUN (non verrà trasferito nulla)"
 
-msgid "Wednesday"
-msgstr "Mercoledì"
+msgid "real"
+msgstr "reale"
 
-msgid "Thursday"
-msgstr "Giovedì"
+msgid "    [debug] first raw element received from 'filesystem list -j':"
+msgstr "    [debug] primo elemento grezzo ricevuto da 'filesystem list -j':"
 
-msgid "Friday"
-msgstr "Venerdì"
+msgid "upload frozen, stopped by the engine"
+msgstr "invio bloccato, interrotto dal motore"
 
-msgid "Saturday"
-msgstr "Sabato"
+msgid "would delete PERMANENTLY"
+msgstr "eliminerebbe PERMANENTEMENTE"
 
-msgid "Sunday"
-msgstr "Domenica"
+msgid "would move to trash"
+msgstr "sposterebbe nel cestino"
 
-msgid "Sync schedule"
-msgstr "Pianificazione della sincronizzazione"
-
-msgid "Close"
-msgstr "Chiudi"
-
-msgid "Current state"
-msgstr "Stato attuale"
-
-msgid "Reading…"
-msgstr "Lettura…"
-
-msgid "Settings"
-msgstr "Impostazioni"
-
-msgid "Scheduled mappings file:"
-msgstr "File di mappature pianificato:"
-
-msgid "Frequency: "
-msgstr "Frequenza: "
-
-msgid "   Day: "
-msgstr "   Giorno: "
-
-msgid "   Time: "
-msgstr "   Ora: "
-
-msgid "Option B — propagate deletions in the schedule (--delete)"
-msgstr "Opzione B — propaga le eliminazioni nella pianificazione (--delete)"
-
-msgid ""
-"Unchecked = Option A (additive, recommended). Checked = mirror: local "
-"deletions propagate automatically at night."
+msgid "     Nothing deleted remotely — this mapping was NOT reset."
 msgstr ""
-"Non selezionato = Opzione A (additivo, consigliato). Selezionato = mirror: "
-"le eliminazioni locali si propagano automaticamente di notte."
+"     Nulla eliminato in remoto — questa mappatura NON è stata reimpostata."
 
-msgid "Actions"
-msgstr "Azioni"
+msgid "❌ --wipe-remote requires --reset-source."
+msgstr "❌ --wipe-remote richiede --reset-source."
 
-msgid "💾 Install / Update"
-msgstr "💾 Installa / Aggiorna"
+msgid "❌ A mappings file is required (config)."
+msgstr "❌ È richiesto un file di mappature (configurazione)."
 
-msgid "▶ Enable the timer"
-msgstr "▶ Abilita il timer"
+msgid "   Adjust the PROTON_DRIVE_CLI environment variable if needed."
+msgstr "   Regola la variabile d'ambiente PROTON_DRIVE_CLI se necessario."
 
-msgid "⏸ Disable the timer"
-msgstr "⏸ Disabilita il timer"
+msgid "   Likely cause: the graphical session is not open, so the"
+msgstr "   Causa probabile: la sessione grafica non è aperta, quindi il"
 
-msgid "🧪 Run a pass now"
-msgstr "🧪 Esegui una passata ora"
+msgid "   secrets keyring is locked and the CLI cannot read its"
+msgstr "   portachiavi dei segreti è bloccato e la CLI non può leggere le sue"
 
-msgid "🔄 Refresh state"
-msgstr "🔄 Aggiorna stato"
+msgid "   credentials."
+msgstr "   credenziali."
 
-msgid "📜 Run history…"
-msgstr "📜 Cronologia…"
+msgid "   (This is not a serious error: the next run will retry."
+msgstr "   (Non è un errore grave: la prossima esecuzione riproverà."
 
-msgid "Linger (persistence)"
-msgstr "Linger (persistenza)"
-
-msgid "📋 Copy"
-msgstr "📋 Copia"
-
-#, python-brace-format
-msgid "Service installed : {v}"
-msgstr "Servizio installato : {v}"
-
-msgid "yes"
-msgstr "sì"
-
-msgid "no"
-msgstr "no"
-
-#, python-brace-format
-msgid "Timer installed   : {v}"
-msgstr "Timer installato   : {v}"
-
-#, python-brace-format
-msgid "Timer active      : {v}"
-msgstr "Timer attivo       : {v}"
-
-#, python-brace-format
-msgid "Scheduled         : {v}"
-msgstr "Pianificato        : {v}"
-
-#, python-brace-format
-msgid "Scheduled mappings: {v}"
-msgstr "Mappature pianific.: {v}"
-
-msgid "B (deletions active)"
-msgstr "B (eliminazioni attive)"
-
-msgid "A (additive)"
-msgstr "A (additivo)"
-
-#, python-brace-format
-msgid "Mode              : Option {v}"
-msgstr "Modalità           : Opzione {v}"
-
-#, python-brace-format
-msgid "Next run          : {v}"
-msgstr "Prossima esecuz.   : {v}"
-
-msgid "✅ Linger active — the schedule survives logout and reboots."
-msgstr "✅ Linger attivo — la pianificazione sopravvive a logout e riavvii."
+msgid "    Open this user's session to unlock the keyring.)"
+msgstr "    Apri la sessione di questo utente per sbloccare il portachiavi.)"
 
 msgid ""
-"⚠ Linger inactive. Without it, the schedule only runs while a session is "
-"open. To enable it (admin rights required, once), copy and run this command "
-"in a terminal:"
+"   ↺ Resuming on an existing cache — work already recorded won't be redone "
+"(unchanged folders are skipped)."
 msgstr ""
-"⚠ Linger inattivo. Senza di esso, la pianificazione viene eseguita solo "
-"mentre una sessione è aperta. Per abilitarlo (richiede diritti di "
-"amministratore, una volta), copia ed esegui questo comando in un terminale:"
+"   ↺ Ripresa su una cache esistente — il lavoro già registrato non verrà "
+"rifatto (le cartelle invariate vengono saltate)."
 
-#, python-brace-format
-msgid "Weekly — {d} at {h}:00"
-msgstr "Settimanale — {d} alle {h}:00"
-
-#, python-brace-format
-msgid "Daily at {h}:00"
-msgstr "Giornaliero alle {h}:00"
+msgid "Done."
+msgstr "Fatto."
 
 msgid ""
-"You are enabling Option B: the scheduled sync will AUTOMATICALLY propagate "
-"local deletions to Proton (according to each mapping's settings), without "
-"intervention.\n"
+"    ⚠  Batch upload to {p} reported a failure — isolating the culprit "
+"file(s)…"
+msgstr ""
+"    ⚠  Il caricamento in blocco su {p} ha segnalato un errore — isolamento "
+"del/dei file colpevole/i…"
+
+msgid "  🗑  Wiping remote folder to TRASH: {p}"
+msgstr "  🗑  Cancellazione della cartella remota nel CESTINO: {p}"
+
+msgid "      (uploads continue normally)"
+msgstr "      (i caricamenti continuano normalmente)"
+
+msgid "permanent"
+msgstr "permanente"
+
+msgid "to trash"
+msgstr "nel cestino"
+
+msgid "  ↪ subpath: {s}  =>  {d}"
+msgstr "  ↪ sottopercorso: {s}  =>  {d}"
+
+msgid "❌ Another instance of proton_sync.py is already running."
+msgstr "❌ Un'altra istanza di proton_sync.py è già in esecuzione."
+
+msgid "   (If you are sure no other instance is running, delete this file.)"
+msgstr ""
+"   (Se sei sicuro che nessun'altra istanza sia in esecuzione, elimina questo "
+"file.)"
+
+msgid "Proton Drive authentication impossible — pass skipped."
+msgstr "Autenticazione Proton Drive impossibile — passata saltata."
+
+msgid ""
+"   Nothing was synced or modified — the cache describes the OLD account's "
+"Drive."
+msgstr ""
+"   Nulla è stato sincronizzato o modificato — la cache descrive il Drive del "
+"VECCHIO account."
+
+msgid ""
+"   To proceed on the NEW account: run “Prime the cache” (or reset the "
+"mappings). The destinations will be (re)created on the new Drive."
+msgstr ""
+"   Per procedere sul NUOVO account: esegui «Inizializza cache» (o reimposta "
+"le mappature). Le destinazioni verranno (ri)create sul nuovo Drive."
+
+msgid "== Proton Drive sync — {n} entry(ies) — {m}{x} =="
+msgstr "== Sincronizzazione Proton Drive — {n} voce/i — {m}{x} =="
+
+msgid "   Cache: {p} ({n} known folder(s))"
+msgstr "   Cache: {p} ({n} cartella/e nota/e)"
+
+msgid "❌ --subpath requires --mapping-source to identify the mapping."
+msgstr "❌ --subpath richiede --mapping-source per identificare la mappatura."
+
+msgid "   ⚠  Deletion propagation requested (--delete)"
+msgstr "   ⚠  Propagazione delle eliminazioni richiesta (--delete)"
+
+msgid ""
+"    ⏭  {p} skipped this pass: the last {n} attempt(s) froze. It will be "
+"tried again next pass."
+msgstr ""
+"    ⏭  {p} saltato in questo passaggio: gli ultimi {n} tentativi si sono "
+"bloccati. Sarà ritentato al passaggio successivo."
+
+msgid "    ✅ {n} file(s) sent to {p}"
+msgstr "    ✅ {n} file inviato/i a {p}"
+
+msgid ""
+"    ⚠  Could not re-read {p} after the batch — nothing re-sent, this folder "
+"will be retried later."
+msgstr ""
+"    ⚠  Impossibile rileggere {p} dopo il lotto — nulla è stato rinviato, "
+"questa cartella sarà ritentata più tardi."
+
+msgid "    ✅ {n} file(s) recovered on individual retry."
+msgstr "    ✅ {n} file recuperato/i al nuovo tentativo individuale."
+
+msgid ""
+"    ⚠  {n} file(s) uploaded WITHOUT thumbnail (image format needs an OS "
+"codec — saved anyway, logged in {log})."
+msgstr ""
+"    ⚠  {n} file caricato/i SENZA miniatura (il formato immagine richiede un "
+"codec del SO — salvato comunque, registrato in {log})."
+
+msgid ""
+"    – {n} file(s) vanished (deleted meanwhile) — skipped, not a failure."
+msgstr ""
+"    – {n} file scomparso/i (eliminato/i nel frattempo) — saltato/i, non è un "
+"errore."
+
+msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
+msgstr ""
+"    ❌ {n} file continuano a fallire (vedi il registro degli errori: {log})."
+
+msgid "    ❌ {a} of {p} failed: {e}"
+msgstr "    ❌ {a} di {p} fallito: {e}"
+
+msgid "  ⛔ Remote wipe REFUSED (mount guard): {r}"
+msgstr "  ⛔ Cancellazione remota RIFIUTATA (protezione di montaggio): {r}"
+
+msgid "  ♻ No remote folder to wipe (already absent): {p}"
+msgstr "  ♻ Nessuna cartella remota da cancellare (già assente): {p}"
+
+msgid ""
+"    ⚠  Could not list {p} — folder skipped this pass (nothing sent, nothing "
+"deleted)."
+msgstr ""
+"    ⚠  Impossibile elencare {p} — cartella saltata in questo passaggio "
+"(nulla inviato, nulla eliminato)."
+
+msgid "    ⚠  Could not list {p} — file skipped this pass."
+msgstr "    ⚠  Impossibile elencare {p} — file saltato in questo passaggio."
+
+msgid "  ❌ Subpath not found or not a folder: {p}"
+msgstr "  ❌ Sottopercorso non trovato o non è una cartella: {p}"
+
+msgid "❌ proton-drive binary not found at {p}"
+msgstr "❌ binario proton-drive non trovato in {p}"
+
+msgid ""
+"   ⚠  Proton CLI {v} is older than the tested {t} — some behaviours differ; "
+"consider updating."
+msgstr ""
+"   ⚠  La CLI Proton {v} è precedente alla versione testata {t} — alcuni "
+"comportamenti differiscono; valuta un aggiornamento."
+
+msgid "   Global exclusions: {n} name(s), {p} pattern(s)"
+msgstr "   Esclusioni globali: {n} nome/i, {p} criterio/i"
+
+msgid "   ⟳ Restricted to {n} selected mapping(s) (of {t})."
+msgstr "   ⟳ Limitato a {n} mappatura/e selezionata/e (di {t})."
+
+msgid ""
+"   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
+msgstr ""
+"   ⚠  mount_check.py mancante: TUTTE le eliminazioni verranno rifiutate "
+"(protezione di sicurezza)."
+
+msgid "== REAL-TIME sync — subpath of a mapping — {m} =="
+msgstr ""
+"== Sincronizzazione in TEMPO REALE — sottopercorso di una mappatura — {m} =="
+
+msgid "   Mapping: {s}  =>  {d}"
+msgstr "   Mappatura: {s}  =>  {d}"
+
+msgid "   ♻ RESET restricted to {n} selected mapping(s) (of {t})."
+msgstr "   ♻ REIMPOSTAZIONE limitata a {n} mappatura/e selezionata/e (di {t})."
+
+msgid ""
 "\n"
-"Safety nets: a several-hour window before execution, and the Proton trash "
-"for 30 days (mappings in trash mode).\n"
-"\n"
-"Make sure you have tested --delete manually first. Continue?"
+"▶ Mapping {i}/{n} : {s}  =>  {d}"
 msgstr ""
-"Stai abilitando l'Opzione B: la sincronizzazione pianificata propagherà "
-"AUTOMATICAMENTE le eliminazioni locali su Proton (secondo le impostazioni di "
-"ogni mappatura), senza intervento.\n"
 "\n"
-"Reti di sicurezza: una finestra di diverse ore prima dell'esecuzione, e il "
-"cestino di Proton per 30 giorni (mappature in modalità cestino).\n"
-"\n"
-"Assicurati di aver prima testato --delete manualmente. Continuare?"
+"▶ Mappatura {i}/{n} : {s}  =>  {d}"
 
-msgid "Enable automatic deletions?"
-msgstr "Abilitare le eliminazioni automatiche?"
+msgid "    ✎ [DRY-RUN] would fix uppercase extension: {a} -> {b}"
+msgstr "    ✎ [DRY-RUN] correggerebbe l'estensione in maiuscolo: {a} -> {b}"
 
-msgid "Enable Option B"
-msgstr "Abilita l'Opzione B"
-
-#, python-brace-format
-msgid ""
-"The scheduled service currently uses:\n"
-"  {old}\n"
-"You are installing:\n"
-"  {new}\n"
-"\n"
-"This will switch the schedule to the file you are editing. Continue?"
-msgstr ""
-"Il servizio pianificato usa attualmente:\n"
-"  {old}\n"
-"Stai installando:\n"
-"  {new}\n"
-"\n"
-"Questo cambierà la pianificazione al file che stai modificando. Continuare?"
-
-msgid "Active mappings file change"
-msgstr "Cambio del file di mappature attivo"
-
-msgid "Confirm the change"
-msgstr "Conferma il cambiamento"
-
-msgid "Cancel (keep the current file)"
-msgstr "Annulla (mantieni il file corrente)"
-
-msgid "Schedule"
-msgstr "Pianificazione"
-
-msgid "Manual run"
-msgstr "Esecuzione manuale"
-
-msgid "Schedule run history"
-msgstr "Cronologia delle esecuzioni pianificate"
-
-msgid "Last run"
-msgstr "Ultima esecuzione"
-
-msgid "⟲ Last run"
-msgstr "⟲ Ultima esecuzione"
-
-msgid "📅 Pick a date…"
-msgstr "📅 Scegli una data…"
-
-msgid "Log"
-msgstr "Registro"
-
-msgid "(state unavailable — the scheduled service may never have run)"
-msgstr ""
-"(stato non disponibile — il servizio pianificato potrebbe non essere mai "
-"stato eseguito)"
-
-#, python-brace-format
-msgid ""
-"{when}\n"
-"Result: {label}"
-msgstr ""
-"{when}\n"
-"Risultato: {label}"
-
-msgid "View: last run"
-msgstr "Vista: ultima esecuzione"
-
-msgid "Reading the journal…"
-msgstr "Lettura del registro…"
-
-msgid "Pick a date"
-msgstr "Scegli una data"
-
-msgid "Log of the scheduled run for that day:"
-msgstr "Registro dell'esecuzione pianificata di quel giorno:"
-
-msgid "Date (YYYY-MM-DD):"
-msgstr "Data (AAAA-MM-GG):"
-
-#, python-brace-format
-msgid "View: {d}"
-msgstr "Vista: {d}"
-
-msgid "Sign in to Proton"
-msgstr "Accedi a Proton"
+msgid "    ✎ fixed uppercase extension: {a} -> {b}"
+msgstr "    ✎ estensione in maiuscolo corretta: {a} -> {b}"
 
 msgid ""
-"A browser window will open for you to sign in to Proton (password and 2FA "
-"stay in the browser — never handled here).\n"
-"Keep this window open until it confirms success."
+"    ⏱  Upload frozen for {m} min (no activity) — stopping the Proton CLI; "
+"this folder will be retried."
 msgstr ""
-"Si aprirà una finestra del browser per accedere a Proton (password e 2FA "
-"restano nel browser — mai gestiti qui).\n"
-"Tieni questa finestra aperta finché non conferma il successo."
+"    ⏱  Invio bloccato da {m} min (nessuna attività) — arresto del CLI "
+"Proton; questa cartella sarà ritentata."
 
-msgid "📋 Copy URL"
-msgstr "📋 Copia URL"
+msgid "    (nothing found at {p}: {e})"
+msgstr "    (nulla trovato in {p}: {e})"
 
-msgid "Sign-in progress"
-msgstr "Avanzamento dell'accesso"
+msgid "    (remote size unknown for {f}, re-sending to be safe)"
+msgstr "    (dimensione remota sconosciuta per {f}, reinvio per sicurezza)"
 
-msgid "Starting sign-in…"
-msgstr "Avvio dell'accesso…"
+msgid "    [DRY-RUN] would upload: {p}"
+msgstr "    [DRY-RUN] caricherebbe: {p}"
 
-msgid "[proton-drive binary not found]\n"
-msgstr "[binario proton-drive non trovato]\n"
+msgid "      ⚠ thumbnail/codec issue — retrying without thumbnail: {p}"
+msgstr ""
+"      ⚠ problema miniatura/codec — nuovo tentativo senza miniatura: {p}"
 
-msgid "❌ proton-drive not found — check its path."
-msgstr "❌ proton-drive non trovato — controlla il suo percorso."
+msgid "    ❌ upload failed: {p}"
+msgstr "    ❌ caricamento fallito: {p}"
 
-msgid "✓ Connected to Proton."
-msgstr "✓ Connesso a Proton."
+msgid "    ❌   reason: {e}"
+msgstr "    ❌   motivo: {e}"
 
-#, python-brace-format
-msgid "❌ Sign-in failed (code {c})."
-msgstr "❌ Accesso fallito (codice {c})."
+msgid "  ❌ Could not read {p}: {e}"
+msgstr "  ❌ Impossibile leggere {p}: {e}"
 
-#, python-brace-format
-msgid "Real-time — watching {f}"
-msgstr "Tempo reale — Sorveglianza {f}"
+msgid "  ⚡ {t}, skipping the CLI call for {p}"
+msgstr "  ⚡ {t}, salto la chiamata CLI per {p}"
 
-msgid "1) Local machine daemons (watcher + consumer)"
-msgstr "1) Servizi della macchina locale (osservatore + consumatore)"
+msgid "  ⚠  Deletions disabled for this mapping: {r}"
+msgstr "  ⚠  Eliminazioni disabilitate per questa mappatura: {r}"
 
-msgid "▶ Start"
-msgstr "▶ Avvia"
+msgid "  🗑  Deletion propagation ACTIVE ({l}) for this mapping"
+msgstr "  🗑  Propagazione delle eliminazioni ATTIVA ({l}) per questa mappatura"
 
-msgid "🔄 Restart"
-msgstr "🔄 Riavvia"
+msgid "    🚫 excluded (file): {p}"
+msgstr "    🚫 escluso (file): {p}"
 
-msgid "🚫 Disable autostart"
-msgstr "🚫 Disabilita avvio automatico"
+msgid "    ⏭  unchanged: {p}"
+msgstr "    ⏭  invariato: {p}"
 
-msgid "🔃 Refresh state"
-msgstr "🔃 Aggiorna stato"
+msgid "subpath excluded (“{s}” filtered), skipped: {p}"
+msgstr "sottopercorso escluso («{s}» filtrato), saltato: {p}"
 
-msgid "2) Consumer delays"
-msgstr "2) Ritardi del consumatore"
+msgid "  ⚠  Deletions disabled for this subpath: {r}"
+msgstr "  ⚠  Eliminazioni disabilitate per questo sottopercorso: {r}"
 
-msgid "Debounce: "
-msgstr "Antirimbalzo: "
+msgid "  🗑  Deletion propagation ACTIVE ({l}) for this subpath"
+msgstr ""
+"  🗑  Propagazione delle eliminazioni ATTIVA ({l}) per questo sottopercorso"
 
-msgid " s     Cycle: "
-msgstr " s     Ciclo: "
+msgid "   Lock: {p}"
+msgstr "   Blocco: {p}"
 
-msgid "💾 Apply"
-msgstr "💾 Applica"
+msgid "   CLI detail: {e}"
+msgstr "   Dettaglio CLI: {e}"
 
 msgid ""
-"The debounce groups bursts of writes before starting the engine; the cycle "
-"is the polling rhythm of the queues. Applied live, at the next cycle."
+"⏹ Interrupted — cache progress saved: resuming will skip what is already "
+"done (no restart from zero)."
 msgstr ""
-"L'antirimbalzo raggruppa raffiche di scritture prima di avviare il motore; "
-"il ciclo è il ritmo di interrogazione delle code. Applicato in tempo reale, "
-"al ciclo successivo."
-
-msgid "3) Mappings push to the NAS"
-msgstr "3) Invio delle mappature al NAS"
-
-msgid "⬆ Push mappings to the NAS"
-msgstr "⬆ Invia le mappature al NAS"
+"⏹ Interrotto — avanzamento della cache salvato: alla ripresa verrà saltato "
+"ciò che è già fatto (nessun riavvio da zero)."
 
 msgid ""
-"The NAS watcher reads this copy to watch the NAS sources; the push also "
-"happens automatically on every save."
+"   ⚠  Proton CLI {v} is newer than the tested {t} — not validated by this "
+"project's tests."
 msgstr ""
-"L'osservatore del NAS legge questa copia per sorvegliare le origini del NAS; "
-"l'invio avviene anche automaticamente a ogni salvataggio."
+"   ⚠  La CLI Proton {v} è più recente della versione testata {t} — non "
+"convalidata dai test di questo progetto."
 
-msgid "4) NAS watcher (observation)"
-msgstr "4) Osservatore del NAS (osservazione)"
+msgid "❌ No mapping with source = {s}"
+msgstr "❌ Nessuna mappatura con origine = {s}"
+
+msgid "❌ --subpath only applies to 'folder' mappings (this one is '{t}')."
+msgstr ""
+"❌ --subpath si applica solo alle mappature di tipo 'folder' (questa è "
+"'{t}')."
+
+msgid "   ♻ {n} cache entry(ies) purged: {s}"
+msgstr "   ♻ {n} voce/i di cache eliminata/e: {s}"
+
+msgid "  ❌ Source not found, skipped: {s}"
+msgstr "  ❌ Origine non trovata, saltata: {s}"
+
+msgid "    ⚠  Could not rename {a}: {e}"
+msgstr "    ⚠  Impossibile rinominare {a}: {e}"
+
+msgid "⚠  Cache corrupted or unreadable ({e}) — starting fresh."
+msgstr "⚠  Cache danneggiata o illeggibile ({e}) — ripartenza da zero."
+
+msgid "    ⚠  Could not create {p}: {e}"
+msgstr "    ⚠  Impossibile creare {p}: {e}"
+
+msgid "    (same size but different content: {f})"
+msgstr "    (stessa dimensione ma contenuto diverso: {f})"
+
+msgid "      – vanished before upload (deleted meanwhile), skipped: {p}"
+msgstr ""
+"      – scomparso prima del caricamento (eliminato nel frattempo), saltato: "
+"{p}"
+
+msgid "      – vanished during upload (deleted meanwhile), skipped: {p}"
+msgstr ""
+"      – scomparso durante il caricamento (eliminato nel frattempo), saltato: "
+"{p}"
+
+msgid "      ✓ uploaded WITHOUT thumbnail (no Proton preview): {p}"
+msgstr "      ✓ caricato SENZA miniatura (nessuna anteprima Proton): {p}"
+
+msgid "      ✓ recovered on individual retry: {p}"
+msgstr "      ✓ recuperato al nuovo tentativo individuale: {p}"
+
+msgid "(no message from the CLI)"
+msgstr "(nessun messaggio dalla CLI)"
+
+msgid "    🚫 excluded ({k}): {p}"
+msgstr "    🚫 escluso ({k}): {p}"
 
 msgid ""
-"The NAS watcher runs on the NAS (its own systemd) and stays active on its "
-"own. The GUI does not control it: it observes its activity through the NFS "
-"queue."
+"folder not fully indexed yet (cache not built by a full pass), deferred to "
+"scheduling: {p}"
 msgstr ""
-"L'osservatore del NAS è eseguito sul NAS (con il proprio systemd) e resta "
-"attivo autonomamente. L'interfaccia non lo controlla: ne osserva l'attività "
-"tramite la coda NFS."
-
-msgid "3-4) NAS features"
-msgstr "3-4) Funzioni NAS"
+"cartella non ancora completamente indicizzata (cache non costruita da una "
+"passata completa), rinviata alla pianificazione: {p}"
 
 msgid ""
-"Local-only mode is active (see Configuration…): no NAS mapping push, no NAS "
-"watcher to observe."
+"Account change accepted ({a} → {b}) — the previous cache is discarded and "
+"will be rebuilt for the new account."
 msgstr ""
-"La modalità solo locale è attiva (vedi Configurazione…): nessun invio di "
-"mappature al NAS, nessun osservatore del NAS da osservare."
-
-msgid "5) Marker queues"
-msgstr "5) Code dei marcatori"
-
-msgid "🧹 Clear the queues"
-msgstr "🧹 Svuota le code"
+"Cambio di account accettato ({a} → {b}) — la cache precedente viene scartata "
+"e verrà ricostruita per il nuovo account."
 
 msgid ""
-"Clears the pending markers (local + NAS). Useful for a fresh start; changes "
-"not yet processed will be forgotten."
+"The connected Proton account has changed: this cache was built for {a}, but "
+"the session is now {b}."
 msgstr ""
-"Svuota i marcatori in sospeso (locale + NAS). Utile per ripartire da zero; "
-"le modifiche non ancora elaborate andranno perse."
+"L'account Proton connesso è cambiato: questa cache è stata creata per {a}, "
+"ma la sessione ora è {b}."
 
-msgid "Linger (persistence outside the session)"
-msgstr "Linger (persistenza fuori dalla sessione)"
-
-msgid "Real-time events (daemon logs)"
-msgstr "Eventi in tempo reale (registri dei servizi)"
-
-msgid "Auto-scroll"
-msgstr "Scorrimento automatico"
-
-msgid "Detailed"
-msgstr "Dettagliata"
-
-msgid "🧹 Clear"
-msgstr "🧹 Pulisci"
-
-msgid "⚠ Daemon scripts not found in ~/Logiciels/Proton-drive/"
-msgstr "⚠ Script dei servizi non trovati in ~/Logiciels/Proton-drive/"
-
-#, python-brace-format
-msgid "Services installed : {v}"
-msgstr "Servizi installati  : {v}"
-
-#, python-brace-format
-msgid "Services' file     : {v}"
-msgstr "File dei servizi   : {v}"
-
-#, python-brace-format
-msgid "Local watcher      : {v}"
-msgstr "Osservatore locale : {v}"
-
-msgid "active"
-msgstr "attivo"
-
-msgid "stopped"
-msgstr "fermato"
-
-#, python-brace-format
-msgid "Consumer           : {v}"
-msgstr "Consumatore        : {v}"
-
-#, python-brace-format
-msgid "Debounce / cycle   : {d} s / {c} s"
-msgstr "Antirimbalzo / ciclo: {d} s / {c} s"
-
-msgid "inactive"
-msgstr "inattivo"
-
-#, python-brace-format
-msgid "Linger             : {v}"
-msgstr "Linger             : {v}"
-
-#, python-brace-format
-msgid ""
-"ℹ The background services currently watch this file: {f} (not the one open "
-"in the editor)."
+msgid "   ⚠  Could not determine the Proton CLI version (tested: {t})."
 msgstr ""
-"ℹ I servizi in background sorvegliano attualmente questo file: {f} (non "
-"quello aperto nell'editor)."
+"   ⚠  Impossibile determinare la versione della CLI Proton (testata: {t})."
 
-msgid "🟢 Up to date on the NAS"
-msgstr "🟢 Aggiornato sul NAS"
-
-msgid "🟠 Local modified — push to the NAS"
-msgstr "🟠 Locale modificato — invia al NAS"
-
-msgid "🟠 Never pushed to the NAS"
-msgstr "🟠 Mai inviato al NAS"
-
-msgid "🔴 NAS unreachable"
-msgstr "🔴 NAS irraggiungibile"
-
-#, python-brace-format
-msgid "Last push: {t}"
-msgstr "Ultimo invio: {t}"
-
-msgid "⚪ Local mode — no NAS configured."
-msgstr "⚪ Modalità locale — nessun NAS configurato."
-
-msgid "🔴 NAS configured but unreachable — please check."
-msgstr "🔴 NAS configurato ma irraggiungibile — verificare."
-
-#, python-brace-format
-msgid "🟢 NAS reachable — last activity {t} ago"
-msgstr "🟢 NAS raggiungibile — ultima attività {t} fa"
-
-msgid "🟢 NAS reachable — no pending marker"
-msgstr "🟢 NAS raggiungibile — nessun marcatore in sospeso"
+msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
+msgstr "   ⚠  Modalità ELIMINAZIONE attiva — {n} mappatura/e con allow_delete"
 
 msgid ""
-"⚠ NAS scripts out of date — run Install / Update to push them, then restart "
-"the NAS watcher."
+"    ⛔ No write permission on {p} — ask the owner for access; skipping. ({e})"
 msgstr ""
-"⚠ Script NAS obsoleti — esegui Installa / Aggiorna per inviarli, poi riavvia "
-"il watcher NAS."
+"    ⛔ Nessun permesso di scrittura su {p} — chiedi l'accesso al "
+"proprietario; ignorato. ({e})"
 
-msgid "— (NAS unreachable)"
-msgstr "— (NAS irraggiungibile)"
+msgid "    (orphan folder: {n} — size not measured, listing failed)"
+msgstr ""
+"    (cartella orfana: {n} — dimensione non misurata, elenco non riuscito)"
 
-#, python-brace-format
-msgid "Local: {n} marker(s)    NAS ({u}): {p}"
-msgstr "Locale: {n} marcatore/i    NAS ({u}): {p}"
+msgid "    (orphan folder: {n} — ~{c} remote element(s))"
+msgstr "    (cartella orfana: {n} — ~{c} elemento/i remoto/i)"
 
-msgid "✅ Linger active — the daemons survive logout and reboots."
-msgstr "✅ Linger attivo — i servizi sopravvivono a logout e riavvii."
+msgid ", including {n} PERMANENT"
+msgstr ", incluse {n} PERMANENTI"
+
+msgid "  🚫 excluded (folder): {p}"
+msgstr "  🚫 escluso (cartella): {p}"
+
+msgid " [with deletions]"
+msgstr " [con eliminazioni]"
+
+msgid "  → sync: {p}{f}"
+msgstr "  → sincronizzazione: {p}{f}"
+
+msgid "    🚫 excluded (name filtered) — nothing to sync"
+msgstr "    🚫 escluso (nome filtrato) — niente da sincronizzare"
+
+msgid "    ✓ ok"
+msgstr "    ✓ ok"
 
 msgid ""
-"⚠ Linger inactive. Without it, the daemons only run while a session is open "
-"(they stop at logout). To keep them running continuously (admin rights, "
-"once), copy and run:"
+"    ⏳ cold folder — deferred to the scheduled pass (real-time does not "
+"build the cache)"
 msgstr ""
-"⚠ Linger inattivo. Senza di esso, i servizi vengono eseguiti solo mentre una "
-"sessione è aperta (si fermano al logout). Per mantenerli in esecuzione "
-"continua (diritti di amministratore, una volta), copia ed esegui:"
+"    ⏳ cartella fredda — rinviata alla passata pianificata (il tempo reale "
+"non costruisce la cache)"
+
+msgid "Real-time daemon started (user {u})."
+msgstr "Servizio in tempo reale avviato (utente {u})."
+
+msgid "  Engine: {p}"
+msgstr "  Motore: {p}"
+
+msgid "  ⊘ folder vanished, skipped: {p}"
+msgstr "  ⊘ cartella scomparsa, saltata: {p}"
+
+msgid "  ⊘ no mapping for: {p} (marker ignored)"
+msgstr "  ⊘ nessuna mappatura per: {p} (marcatore ignorato)"
 
 msgid ""
-"No mapping is ready for real-time yet: no full pass has analyzed the tree.\n"
-"\n"
-"Real-time only synchronizes folders whose entire tree has been analyzed; it "
-"never builds that analysis itself (it would freeze for hours on large "
-"folders). Until a full pass runs, real-time will hand every change over to "
-"the scheduled pass.\n"
-"\n"
-"Recommended: run a full pass first (⏰ Schedule, or the “Run sync” button) "
-"and let it finish, then enable real-time.\n"
-"\n"
-"Enable real-time anyway?"
+"    ⛔ account changed — engine refused (cache belongs to the previous "
+"account); markers kept"
 msgstr ""
-"Nessuna mappatura è ancora pronta per il tempo reale: nessuna passata "
-"completa ha analizzato l'albero.\n"
-"\n"
-"Il tempo reale sincronizza solo le cartelle il cui intero albero è stato "
-"analizzato; non costruisce mai quell'analisi da sé (si bloccherebbe per ore "
-"su cartelle grandi). Finché non viene eseguita una passata completa, il "
-"tempo reale passerà ogni modifica alla passata pianificata.\n"
-"\n"
-"Consigliato: esegui prima una passata completa (⏰ Pianificazione, o il "
-"pulsante «Esegui sincronizzazione») e lasciala terminare, poi abilita il "
-"tempo reale.\n"
-"\n"
-"Abilitare comunque il tempo reale?"
-
-msgid "No mapping ready for real-time"
-msgstr "Nessuna mappatura pronta per il tempo reale"
-
-msgid "Enable anyway"
-msgstr "Abilita comunque"
-
-#, python-brace-format
-msgid ""
-"Pending markers: {n} — {m} of them target folders NOT covered by the new "
-"file. Those will be DISCARDED (“⊘” lines in the journal); they can only be "
-"recovered by reloading the old file and running a manual or scheduled pass."
-msgstr ""
-"Marcatori in sospeso: {n} — {m} di essi puntano a cartelle NON coperte dal "
-"nuovo file. Quelli verranno SCARTATI (righe «⊘» nel registro); possono "
-"essere recuperati solo ricaricando il vecchio file ed eseguendo una passata "
-"manuale o pianificata."
+"    ⛔ account cambiato — il motore ha rifiutato (la cache appartiene "
+"all'account precedente); marcatori conservati"
 
 msgid ""
-"Pending markers: none right now (new ones may still arrive at any moment)."
+"  • {r}/{t} mapping(s) ready for real-time. The others need a full pass "
+"(Schedule) before real-time can sync them."
 msgstr ""
-"Marcatori in sospeso: nessuno al momento (potrebbero arrivarne di nuovi in "
-"qualsiasi momento)."
+"  • {r}/{t} mappatura/e pronte per il tempo reale. Le altre necessitano di "
+"una passata completa (Pianificazione) prima che il tempo reale possa "
+"sincronizzarle."
 
-#, python-brace-format
-msgid ""
-"The services currently use:\n"
-"  {old}\n"
-"You are installing:\n"
-"  {new}\n"
-"\n"
-"{counts}"
-msgstr ""
-"I servizi usano attualmente:\n"
-"  {old}\n"
-"Stai installando:\n"
-"  {new}\n"
-"\n"
-"{counts}"
+msgid "▶ NAS back online — resuming NAS mappings."
+msgstr "▶ NAS di nuovo online — ripresa dei mapping NAS."
 
-msgid "Daemons"
-msgstr "Servizi"
+msgid "🔓 Session opened — starting the pass."
+msgstr "🔓 Sessione aperta — avvio del passaggio."
+
+msgid "  • {r}/{t} mapping(s) ready for real-time."
+msgstr "  • {r}/{t} mappatura/e pronte per il tempo reale."
 
 msgid ""
-"Stop the daemons and disable their autostart?\n"
-"\n"
-"Real-time will be off until re-enabled. The scheduled nightly sync is not "
-"affected."
+"⏸ NAS unreachable — NAS mappings suspended, local mode active. Local "
+"mappings keep syncing."
 msgstr ""
-"Fermare i servizi e disabilitare il loro avvio automatico?\n"
-"\n"
-"Il tempo reale sarà disattivato fino a nuova riattivazione. La "
-"sincronizzazione notturna pianificata non è interessata."
+"⏸ NAS irraggiungibile — mapping NAS sospesi, modalità locale attiva. I "
+"mapping locali continuano a sincronizzarsi."
 
-msgid "Disable real-time?"
-msgstr "Disabilitare il tempo reale?"
+msgid "🔓 Lock released — starting the pass."
+msgstr "🔓 Blocco rilasciato — avvio del passaggio."
 
-msgid "Disable"
-msgstr "Disabilita"
-
-msgid "Delays"
-msgstr "Ritardi"
-
-#, python-brace-format
 msgid ""
-"The background services watch {units} — that is the file that will be pushed "
-"to the NAS, not the one open in the editor ({open}). Push it?"
+"⏳ Proton authentication unavailable (expired session or locked keyring) — "
+"markers kept, no pass launched. Run “proton-drive auth login” (or the “Sign "
+"in to Proton” button) to renew the session."
 msgstr ""
-"I servizi in background sorvegliano {units} — è questo il file che verrà "
-"inviato al NAS, non quello aperto nell'editor ({open}). Inviarlo?"
+"⏳ Autenticazione Proton non disponibile (sessione scaduta o portachiavi "
+"bloccato) — marcatori conservati, nessuna passata avviata. Esegui «proton-"
+"drive auth login» (o il pulsante «Accedi a Proton») per rinnovare la "
+"sessione."
 
-msgid "Push to the NAS"
-msgstr "Invia al NAS"
+msgid "✓ Pass finished."
+msgstr "✓ Passaggio completato."
 
-msgid "Push"
-msgstr "Invia"
+msgid "  🔎 self-test marker acknowledged (id {i})."
+msgstr "  🔎 marcatore di autotest confermato (id {i})."
 
-#, python-brace-format
+msgid "    ✗ failure (code {c}) — markers kept for retry"
+msgstr "    ✗ errore (codice {c}) — marcatori conservati per riprovare"
+
+msgid "NAS disabled — local mode only."
+msgstr "NAS disattivato — solo modalità locale."
+
+msgid "🔓 Account matter resolved — starting the pass."
+msgstr "🔓 Problema dell'account risolto — avvio del passaggio."
+
 msgid ""
-"Clear the pending markers?\n"
-"\n"
-"Local: {n}    NAS ({u}): {p}\n"
-"\n"
-"Changes not yet processed will be forgotten (the nightly sync remains the "
-"safety net)."
+"⛔ Proton account changed — the cache belongs to the previous account. "
+"Markers kept; prime the cache (or reset the mappings) from the GUI to resume."
 msgstr ""
-"Svuotare i marcatori in sospeso?\n"
-"\n"
-"Locale: {n}    NAS ({u}): {p}\n"
-"\n"
-"Le modifiche non ancora elaborate andranno perse (la sincronizzazione "
-"notturna resta la rete di sicurezza)."
+"⛔ Account Proton cambiato — la cache appartiene all'account precedente. "
+"Marcatori conservati; inizializza la cache (o reimposta le mappature) "
+"dall'interfaccia per riprendere."
 
-msgid "Clear the queues?"
-msgstr "Svuotare le code?"
+msgid ""
+"⏳ Waiting: another pass holds the lock (manual or scheduled run) — markers "
+"kept, no pass launched."
+msgstr ""
+"⏳ In attesa: un'altra passata detiene il blocco (esecuzione manuale o "
+"pianificata) — marcatori conservati, nessuna passata avviata."
 
-msgid "Clear"
-msgstr "Svuota"
+msgid "  ⚠ self-test reply write failed: {e}"
+msgstr "  ⚠ scrittura risposta autotest fallita: {e}"
 
-msgid "Queues"
-msgstr "Code"
+msgid "Local real-time watcher (Proton Drive) — writes markers"
+msgstr "Osservatore locale in tempo reale (Proton Drive) — scrive i marcatori"
+
+msgid "Real-time consumer (Proton Drive) — runs the engine on mature folders"
+msgstr ""
+"Consumatore in tempo reale (Proton Drive) — esegue il motore sulle cartelle "
+"mature"
+
+msgid "Daemons installed and started (auto-restart at session login)."
+msgstr ""
+"Servizi installati e avviati (riavvio automatico all'accesso alla sessione)."
+
+msgid "Daemons installed (not started)."
+msgstr "Servizi installati (non avviati)."
+
+msgid "Daemons started."
+msgstr "Servizi avviati."
+
+msgid "Daemons stopped."
+msgstr "Servizi fermati."
+
+msgid "Consumer stopped (watcher kept running)."
+msgstr "Consumatore fermato (l'osservatore resta attivo)."
+
+msgid "Consumer restarted."
+msgstr "Consumatore riavviato."
+
+msgid "Daemons restarted."
+msgstr "Servizi riavviati."
+
+msgid "Daemons stopped and autostart disabled."
+msgstr "Servizi fermati e avvio automatico disabilitato."
+
+msgid "Delays must be at least 1 second."
+msgstr "I ritardi devono essere di almeno 1 secondo."
+
+msgid "Local-only mode is active — nothing to migrate on a NAS."
+msgstr "La modalità solo locale è attiva — nulla da migrare su un NAS."
+
+msgid "scripts not pushed (NAS unreachable)"
+msgstr "script non inviati (NAS irraggiungibile)"
+
+msgid "No active mappings file to push."
+msgstr "Nessun file di mappature attivo da inviare."
+
+msgid ""
+"Local-only mode is active (see Configuration…) — there is no NAS to push "
+"mappings to."
+msgstr ""
+"La modalità solo locale è attiva (vedi Configurazione…) — non c'è alcun NAS "
+"a cui inviare le mappature."
+
+msgid "Could not read the local mappings file."
+msgstr "Impossibile leggere il file di mappature locale."
+
+msgid "No active mappings file."
+msgstr "Nessun file di mappature attivo."
+
+msgid "Invalid delay values (integers expected)."
+msgstr "Valori di ritardo non validi (attesi numeri interi)."
+
+msgid "Delays saved (debounce {d}s, cycle {c}s). Applied at the next cycle."
+msgstr ""
+"Ritardi salvati (antirimbalzo {d}s, ciclo {c}s). Applicati al ciclo "
+"successivo."
+
+msgid ""
+"Identity migrated on the NAS: “{a}” → “{b}” (queue and mappings copy "
+"renamed, markers preserved)."
+msgstr ""
+"Identità migrata sul NAS: «{a}» → «{b}» (coda e copia delle mappature "
+"rinominate, marcatori preservati)."
+
+msgid "translation catalogues"
+msgstr "cataloghi di traduzione"
+
+msgid ""
+"Mappings for “{user}” pushed to the NAS (version {v}…). The NAS watcher "
+"reloads them live."
+msgstr ""
+"Mappature di «{user}» inviate al NAS (versione {v}…). L'osservatore del NAS "
+"le ricarica in tempo reale."
+
+msgid "Signed out of Proton."
+msgstr "Disconnesso da Proton."
+
+msgid "Self-test module unavailable."
+msgstr "Modulo di autotest non disponibile."
+
+msgid ""
+"NAS unreachable (NFS mount missing). Check that {mount} is mounted, then try "
+"again."
+msgstr ""
+"NAS irraggiungibile (montaggio NFS mancante). Verifica che {mount} sia "
+"montato, poi riprova."
+
+msgid ""
+"The identity “{n}” already exists on the NAS — migration refused (possible "
+"collision with another user). Choose another name."
+msgstr ""
+"L'identità «{n}» esiste già sul NAS — migrazione rifiutata (possibile "
+"collisione con un altro utente). Scegli un altro nome."
+
+msgid ""
+"NAS scripts updated: {files}. The service file also changed — on the NAS, "
+"review proton-sync/nas_watcher.service.new, then run the command below."
+msgstr ""
+"Script NAS aggiornati: {files}. Anche il file di servizio è cambiato — sul "
+"NAS, controlla proton-sync/nas_watcher.service.new, poi esegui il comando "
+"qui sotto."
+
+msgid ""
+"NAS scripts updated: {files}.\n"
+"To apply, restart the NAS watcher with the command below."
+msgstr ""
+"Script NAS aggiornati: {files}.\n"
+"Per applicare, riavvia il watcher NAS con il comando qui sotto."
+
+msgid "daemon-reload failed: {e}"
+msgstr "daemon-reload fallito: {e}"
+
+msgid "Stopping {u} failed: {e}"
+msgstr "L'arresto di {u} è fallito: {e}"
+
+msgid "Starting {u} failed: {e}"
+msgstr "L'avvio di {u} è fallito: {e}"
+
+msgid "Failed to write the config: {e}"
+msgstr "Impossibile scrivere la configurazione: {e}"
+
+msgid "Migration failed: {e}"
+msgstr "La migrazione è fallita: {e}"
+
+msgid "scripts partly pushed ({e})"
+msgstr "script inviati parzialmente ({e})"
+
+msgid "Push to the NAS failed: {e}"
+msgstr "L'invio al NAS è fallito: {e}"
+
+msgid "Failed to write the systemd files: {e}"
+msgstr "Impossibile scrivere i file systemd: {e}"
+
+msgid "Restarting {u} failed: {e}"
+msgstr "Il riavvio di {u} è fallito: {e}"
+
+msgid "Disabling {u} failed: {e}"
+msgstr "La disabilitazione di {u} è fallita: {e}"
+
+msgid "Sign-out failed."
+msgstr "La disconnessione è fallita."
+
+msgid "{n} marker(s) removed — "
+msgstr "{n} marcatore/i rimosso/i — "
+
+msgid "Enabling {u} failed: {e}"
+msgstr "L'abilitazione di {u} è fallita: {e}"
+
+msgid "Proton Drive sync (NAS -> Proton, one-way)"
+msgstr "Sincronizzazione Proton Drive (NAS -> Proton, unidirezionale)"
+
+msgid "Triggers the Proton Drive sync once a day"
+msgstr "Attiva la sincronizzazione Proton Drive una volta al giorno"
+
+msgid "❔ undetermined (run in progress?)"
+msgstr "❔ indeterminato (esecuzione in corso?)"
+
+msgid "⏹ interrupted (signal)"
+msgstr "⏹ interrotto (segnale)"
+
+msgid "Schedule installed (timer not enabled)."
+msgstr "Pianificazione installata (timer non abilitato)."
+
+msgid "Timer enabled."
+msgstr "Timer abilitato."
+
+msgid "Timer disabled."
+msgstr "Timer disabilitato."
+
+msgid "Timer paused."
+msgstr "Timer sospeso."
+
+msgid "Timer resumed."
+msgstr "Timer ripreso."
+
+msgid "Service started (see journalctl for the result)."
+msgstr "Servizio avviato (vedi journalctl per il risultato)."
+
+msgid "✅ success"
+msgstr "✅ successo"
+
+msgid "(no run found in the journal)"
+msgstr "(nessuna esecuzione trovata nel registro)"
+
+msgid "(invalid date — expected format YYYY-MM-DD)"
+msgstr "(data non valida — formato previsto AAAA-MM-GG)"
+
+msgid "Schedule installed and timer enabled."
+msgstr "Pianificazione installata e timer abilitato."
+
+msgid "Service not found — install the schedule first."
+msgstr "Servizio non trovato — installa prima la pianificazione."
+
+msgid "❌ failure (code {c})"
+msgstr "❌ errore (codice {c})"
+
+msgid "Failed: {e}"
+msgstr "Fallito: {e}"
+
+msgid "Start failed: {e}"
+msgstr "Avvio fallito: {e}"
+
+msgid "Enabling the timer failed: {e}"
+msgstr "L'abilitazione del timer è fallita: {e}"
 
 msgid "Proton Drive sync — active, session OK"
 msgstr "Sincronizzazione Proton Drive — attiva, sessione OK"
@@ -3356,16 +3348,15 @@ msgstr ""
 msgid "Proton Drive sync — daemons stopped"
 msgstr "Sincronizzazione Proton Drive — servizi fermati"
 
-#, python-brace-format
+msgid "Open the mappings editor"
+msgstr "Apri l'editor delle mappature"
+
+msgid "Quit the indicator"
+msgstr "Esci dall'indicatore"
+
 msgid ""
 "Tray indicator unavailable: {e}\n"
 "Install the packages: python3-gi gir1.2-xapp-1.0"
 msgstr ""
 "Indicatore nella barra non disponibile: {e}\n"
 "Installa i pacchetti: python3-gi gir1.2-xapp-1.0"
-
-msgid "Open the mappings editor"
-msgstr "Apri l'editor delle mappature"
-
-msgid "Quit the indicator"
-msgstr "Esci dall'indicatore"
