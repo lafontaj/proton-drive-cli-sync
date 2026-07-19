@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.14.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.15.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -838,6 +838,26 @@ class RemoteFolderPicker(tk.Toplevel):
         if item and "\x00" not in item:
             self.dest_var.set(item)
             self.destroy()
+
+
+def mapping_remote_path(dest_parent, source):
+    """Chemin distant RÉELLEMENT écrit par un mapping : `dest_parent/<nom de la
+    source>`, exactement comme le calcule le moteur (proton_sync.sync_mapping).
+
+    Cette fonction existe pour les AVERTISSEMENTS. Le champ « Destination » de
+    l'interface est un dossier PARENT : parler de « ce dossier de destination »
+    dans un avertissement de suppression désigne donc le dossier de quelqu'un
+    d'autre tout entier, alors que seul le sous-dossier créé par le mapping est
+    concerné. Surestimer la portée finit par rendre l'avertissement inaudible.
+
+    Retourne None si l'un des deux champs est encore vide (saisie en cours) :
+    l'appelant affiche alors une formulation générique.
+    """
+    dest = (dest_parent or "").strip().rstrip("/")
+    src = (source or "").strip().rstrip("/")
+    if not dest or not src:
+        return None
+    return dest + "/" + os.path.basename(src)
 
 
 class MappingEditor(tk.Tk):
@@ -1919,16 +1939,36 @@ class MappingEditor(tk.Tk):
                     "upload-only."))
             elif is_shared:
                 allow_chk.config(state="normal")
-                shared_note.config(text=_(
-                    "This folder belongs to someone else. If you enable deletion, "
-                    "anything inside THIS destination folder that is missing "
-                    "locally is deleted and sent to the OWNER'S trash."))
+                target = mapping_remote_path(dest_var.get(), src_var.get())
+                # Le chemin est ISOLÉ sur sa propre ligne : noyé dans le
+                # paragraphe, il se coupait en fin de ligne et devenait illisible,
+                # alors que c'est justement l'information qui borne la portée de
+                # l'avertissement.
+                if target:
+                    shared_note.config(text=_(
+                        "This folder belongs to someone else.\n\n{p}\n\n"
+                        "If you enable deletion, anything inside that subfolder "
+                        "that is missing locally is deleted and sent to the "
+                        "OWNER'S trash. The rest of their shared folder is not "
+                        "touched.").format(p=target))
+                else:
+                    shared_note.config(text=_(
+                        "This folder belongs to someone else.\n\n"
+                        "Once you pick a source, deletion will only affect the "
+                        "subfolder named after it, inside this shared folder.\n\n"
+                        "Anything missing locally is deleted from there and sent "
+                        "to the OWNER'S trash. The rest of their shared folder is "
+                        "not touched."))
             else:
                 allow_chk.config(state="normal")
                 shared_note.config(text="")
             toggle_delete()   # (re)synchronise l'état des sous-contrôles
 
         dest_var.trace_add("write", apply_shared_lock)
+        # La note nomme désormais le sous-dossier réel (destination + nom de la
+        # source) : elle doit donc suivre les DEUX champs, pas seulement la
+        # destination.
+        src_var.trace_add("write", apply_shared_lock)
         apply_shared_lock()  # état initial (verrou + sous-contrôles)
 
         # --- Validation et OK ---
@@ -1976,16 +2016,17 @@ class MappingEditor(tk.Tk):
                         dlg,
                         _("This destination is a folder shared with you — it "
                           "belongs to someone else.\n\n"
-                          "With deletion enabled, every file inside THIS folder "
+                          "With deletion enabled, every file inside\n{p}\n"
                           "and its subfolders that is missing from your local "
                           "source will be deleted and sent to the OWNER'S trash — "
-                          "including files other people put there. Only this "
-                          "destination folder is affected, not the rest of the "
-                          "Drive.\n\n"
+                          "including files other people put there. Only that "
+                          "subfolder is affected: neither the rest of the shared "
+                          "folder nor the rest of the Drive.\n\n"
                           "Only enable deletion on a folder you are the sole "
                           "contributor to, as one-way delivery to its owner. Any "
                           "other use is potentially destructive.\n\n"
-                          "Enable deletion on this shared folder?"),
+                          "Enable deletion on this shared folder?"
+                          ).format(p=mapping_remote_path(dest, source) or dest),
                         title=_("Deletion on a shared folder"), kind="warning",
                         ok_text=_("Enable"), cancel_text=_("Cancel")):
                         return
@@ -4158,18 +4199,24 @@ class MappingEditor(tk.Tk):
             shared = [m for m in chosen
                       if str(m.get("dest_parent", "")).rstrip("/").startswith("/shared-with-me")]
             if shared:
-                names_shared = "\n  • ".join(m["dest_parent"] for m in shared)
+                # On liste le sous-dossier RÉELLEMENT vidé, pas le dossier
+                # partagé qui le contient : c'est lui, et lui seul, qui part à
+                # la corbeille du propriétaire.
+                names_shared = "\n  • ".join(
+                    mapping_remote_path(m["dest_parent"], m.get("source", ""))
+                    or m["dest_parent"] for m in shared)
                 if not dlg_confirm(
                     self,
                     _("You asked to empty the remote folder, and {n} of the "
-                      "selected mapping(s) target a folder shared with you:\n  • "
-                      "{names}\n\n"
-                      "These folders belong to someone else. Emptying them sends "
-                      "their whole content — including files other people put "
-                      "there — to the OWNER'S trash.\n\n"
-                      "Empty these shared folders anyway?"
+                      "selected mapping(s) write inside a folder shared with "
+                      "you:\n  • {names}\n\n"
+                      "Those subfolders sit in folders belonging to someone "
+                      "else. Emptying them sends their content — including files "
+                      "other people put there — to the OWNER'S trash. The rest of "
+                      "their shared folders is not touched.\n\n"
+                      "Empty these subfolders anyway?"
                       ).format(n=len(shared), names=names_shared),
-                    title=_("Emptying a shared folder"), kind="warning",
+                    title=_("Emptying inside a shared folder"), kind="warning",
                     ok_text=_("Empty anyway"), cancel_text=_("Cancel")):
                     self.status.set(_("Reset cancelled."))
                     return
