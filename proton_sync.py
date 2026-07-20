@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -662,11 +662,11 @@ def _extract_remote_meta(item):
     return size, mtime, sha1
 
 
-def run_cli(args, json_output=False):
+def run_cli(args, json_output=False, cwd=None):
     cmd = [CLI] + list(args)
     if json_output:
         cmd.append("-j")
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -778,7 +778,7 @@ def _stall_settings():
     return minutes, max_kills
 
 
-def run_cli_watched(args, stall_minutes=None):
+def run_cli_watched(args, stall_minutes=None, cwd=None):
     """Comme run_cli, mais coupe le CLI s'il cesse toute activité.
 
     Retourne un objet compatible avec subprocess.CompletedProcess (returncode,
@@ -795,14 +795,14 @@ def run_cli_watched(args, stall_minutes=None):
         stall_minutes, _max = _stall_settings()
     cmd = [CLI] + list(args)
     if not stall_minutes:
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
         res.stalled = False
         return res
 
     import threading
 
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=True)
+                            text=True, cwd=cwd)
     chunks = {"out": [], "err": []}
 
     def drain(stream, key):
@@ -1265,12 +1265,12 @@ def _upload_one(local_path, remote_parent, skip_thumbnails=False):
     « - X.tiff: ValidationError: Failed to generate thumbnails … ») est renvoyé par
     le CLI dans STDOUT, tandis que STDERR ne donne qu'un compteur générique
     (« 1 item(s) failed to upload »). On garde les DEUX, stdout d'abord."""
-    cli_path = _glob_escape_local_path(local_path)
+    cwd, names = _cli_local_args([local_path])
     cmd = ["filesystem", "upload", "-f", "replace", "-d", "merge"]
     if skip_thumbnails:
         cmd.append("--skip-thumbnails")
-    cmd += [cli_path, remote_parent]
-    res = run_cli_watched(cmd)
+    cmd += names + [remote_parent]
+    res = run_cli_watched(cmd, cwd=cwd)
     parts = [p for p in ((res.stdout or "").strip(), (res.stderr or "").strip()) if p]
     if getattr(res, "stalled", False):
         parts.append(_("upload frozen, stopped by the engine"))
@@ -1307,6 +1307,44 @@ def _sum_sizes(paths):
     return total
 
 
+def _cli_local_args(local_paths):
+    """Prépare les arguments de chemin local pour le CLI : (cwd, [noms]).
+
+    POURQUOI un répertoire de travail plutôt qu'un chemin absolu.
+    Le CLI applique une expansion de motif (glob) sur ses arguments locaux dès
+    qu'ils contiennent { } [ ] * ? — et sa bibliothèque glob **écarte par
+    principe tout composant commençant par un point**. Un chemin comme
+    `…/[.]app/data/.backup/X` échoue donc en « No paths matched »
+    alors que le fichier existe : les crochets font basculer le chemin en mode
+    motif, et `.backup` cesse d'y correspondre. Aucun échappement ne corrige
+    cela (vérifié : échapper le point n'y change rien), et `filesystem upload`
+    n'offre aucune option pour désactiver l'expansion.
+
+    Solution validée en production : lancer le CLI DEPUIS le dossier parent et
+    ne lui passer que les NOMS. Le chemin transmis ne contient alors plus aucun
+    séparateur, donc plus aucun composant caché à faire correspondre. Le nom
+    lui-même reste échappé — un nom à métacaractères passe très bien tant
+    qu'aucun composant caché ne le suit (vérifié : « a[]]b.txt » et
+    « c[[]d.txt » sont acceptés).
+
+    Le répertoire de travail est passé via `subprocess(cwd=…)` : il n'affecte
+    QUE le processus lancé, jamais le répertoire courant du moteur. Un
+    `os.chdir` serait un état global partagé — écarté délibérément.
+
+    Appliqué SYSTÉMATIQUEMENT, pas seulement en présence d'un métacaractère :
+    une branche conditionnelle serait rarement empruntée, donc rarement testée.
+
+    Tous les chemins d'un même appel proviennent du même dossier (upload_batch
+    n'est appelé qu'avec le contenu d'un seul dossier). Par prudence, si ce
+    n'était pas le cas, on retombe sur les chemins absolus échappés.
+    """
+    dirs = {os.path.dirname(p) for p in local_paths}
+    if len(dirs) != 1:
+        return None, [_glob_escape_local_path(p) for p in local_paths]
+    parent = dirs.pop()
+    return parent, [_glob_escape_local_path(os.path.basename(p)) for p in local_paths]
+
+
 def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
     """Retourne True si tout s'est bien passé (y compris si la liste est vide ou en
     dry-run), False en cas d'échec d'upload.
@@ -1324,10 +1362,11 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
         for p in local_paths:
             print(_("    [DRY-RUN] would upload: {p}").format(p=p))
         return True
-    # Échapper les métacaractères glob pour le CLI (sinon les noms à accolades,
-    # crochets, etc. échouent avec « No paths matched »).
-    cli_paths = [_glob_escape_local_path(p) for p in local_paths]
-    cmd = ["filesystem", "upload", "-f", "replace", "-d", "merge"] + cli_paths + [remote_parent]
+    # Chemins locaux : NOMS seuls + répertoire de travail (cf. _cli_local_args).
+    # Les métacaractères du nom restent échappés ; c'est le fait de ne plus
+    # transmettre de séparateur qui neutralise le problème des composants cachés.
+    cwd, names = _cli_local_args(local_paths)
+    cmd = ["filesystem", "upload", "-f", "replace", "-d", "merge"] + names + [remote_parent]
     # Progression (Temps 1) : signaler le lot en cours (nb de fichiers + taille
     # totale) AVANT l'envoi groupé, puis la fin APRÈS. Le GUI affiche un indicateur
     # discret « Envoi en cours — N fichiers, X Go » pendant ce temps.
@@ -1347,7 +1386,7 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False):
         return False
     _emit_progress(state="start", files=len(local_paths), bytes=_sum_sizes(local_paths))
     try:
-        res = run_cli_watched(cmd, stall_minutes=stall_minutes)
+        res = run_cli_watched(cmd, stall_minutes=stall_minutes, cwd=cwd)
     finally:
         _emit_progress(state="done")
     if getattr(res, "stalled", False):
@@ -1720,12 +1759,29 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
                     collision_suffix=collision_suffix)
             if not child_complete:
                 all_children_complete = False
-        else:
+        elif entry.is_file():   # suit les liens : un lien vers un fichier EST un fichier
             info = remote_items.get(entry.name)
             if needs_upload(entry.path, info, verbose=verbose, verify_hash=verify_hash):
                 to_upload.append(entry.path)
             elif verbose:
                 print(_("    ⏭  unchanged: {p}").format(p=entry.path))
+        else:
+            # Ni dossier, ni fichier RÉGULIER : tube nommé, socket, périphérique.
+            # Ces entrées n'ont pas de contenu téléversable — le CLI répond
+            # « Not a regular file or directory » et échoue. L'échec se répétant
+            # à chaque passage, la complétude ne remonte jamais jusqu'à la racine
+            # du mapping, qui reste indéfiniment « non prêt » pour le temps réel
+            # (constaté en production sur le canal de commande d'un lecteur audio).
+            #
+            # Le filtrage était déjà correct pour la SIGNATURE de cache (scandir +
+            # is_file), mais pas ici : les deux vues du même dossier divergeaient
+            # donc, l'entrée étant invisible au cache et présente à l'envoi.
+            #
+            # Note : les liens symboliques ne sont PAS concernés — is_file() les
+            # accepte, et ils restent traités comme des fichiers ordinaires,
+            # comportement historique volontairement conservé.
+            if verbose:
+                print(_("    ⏭  ignored (not a regular file): {p}").format(p=entry.path))
 
     upload_ok = upload_batch(to_upload, remote_folder, dry_run=dry_run, verbose=verbose)
     if not upload_ok:
