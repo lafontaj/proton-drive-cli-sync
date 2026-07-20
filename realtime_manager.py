@@ -24,7 +24,7 @@ Tout est centré sur l'utilisateur courant et son fichier de mappings actif.
 Conçu pour tourner SANS privilèges (session utilisateur). Le linger (sudo) est
 seulement LU et rappelé, jamais modifié ici.
 """
-__version__ = "1.4.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import re
@@ -1051,10 +1051,21 @@ def count_queues(mappings_path):
 
 def _purge_markers(queue_dir):
     """Supprime les marqueurs (add_/del_ + .tmp) d'une file. Retourne le nombre
-    de fichiers retirés. N'efface QUE des marqueurs reconnus, jamais autre chose."""
+    de fichiers retirés. N'efface QUE des marqueurs reconnus, jamais autre chose.
+
+    Le sous-dossier `inflight/` est purgé LUI AUSSI : le consommateur y met de
+    côté les marqueurs qu'il traite, et un arrêt brutal peut en laisser. Sans ce
+    balayage, « Nettoyer les files » laisserait ces marqueurs derrière lui et ils
+    referaient surface au démarrage suivant — un nettoyage qui ne nettoie pas
+    tout est plus trompeur qu'utile. Ils sont comptés dans le total, sans
+    distinction dans le message : pour l'utilisateur, ce sont des marqueurs.
+    """
     removed = 0
     if not os.path.isdir(queue_dir):
         return 0
+    sub = os.path.join(queue_dir, "inflight")
+    if os.path.isdir(sub):
+        removed += _purge_markers(sub)
     try:
         names = os.listdir(queue_dir)
     except OSError:

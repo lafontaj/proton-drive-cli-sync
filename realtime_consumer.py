@@ -24,7 +24,7 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
-__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.4.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -444,6 +444,107 @@ def lock_free(config_path, runner=None):
         return False
 
 
+# ─────────────────────────────────────────────────────────────────────────
+#  Marqueurs « en vol » (inflight/)
+# ─────────────────────────────────────────────────────────────────────────
+INFLIGHT_DIRNAME = "inflight"
+
+
+def _inflight_dir(queue_dir):
+    return os.path.join(queue_dir, INFLIGHT_DIRNAME)
+
+
+def _move_markers_inflight(marker_paths, log=None):
+    """Déplace les marqueurs dans le sous-dossier `inflight/` de LEUR PROPRE file,
+    juste avant de lancer le moteur. Retourne la liste des nouveaux chemins.
+
+    POURQUOI. `write_marker` dédoublonne sur la présence d'un marqueur dans la
+    file : tant que celui qu'on est en train de traiter y reste, un changement
+    survenant PENDANT la synchro ne dépose aucun marqueur, et le nettoyage de fin
+    efface ensuite celui qui l'avait fait écarter — le changement est oublié
+    jusqu'au prochain passage planifié. En sortant les marqueurs de la file avant
+    de lancer le moteur, il n'y a plus rien à dédoublonner : l'événement crée son
+    propre marqueur, qui survit au nettoyage.
+
+    Un même dossier peut porter des marqueurs venant de PLUSIEURS files (locale
+    ET NAS) : chacun est donc déplacé dans le `inflight/` de sa file d'origine.
+
+    `read_markers` ignore ce sous-dossier sans rien changer : il teste
+    `os.path.isfile` sur chaque entrée, et un dossier n'est pas un fichier.
+
+    Un déplacement qui échoue (NAS disparu entre la lecture et le déplacement)
+    n'interrompt RIEN : on journalise et on garde le chemin d'origine. C'est
+    exactement le comportement d'avant ce mécanisme, donc aucune régression — la
+    synchro a bien lieu, seule la fenêtre de dédoublonnage reste ouverte.
+    """
+    moved = []
+    for src in marker_paths:
+        qdir = os.path.dirname(src)
+        dst_dir = _inflight_dir(qdir)
+        dst = os.path.join(dst_dir, os.path.basename(src))
+        try:
+            os.makedirs(dst_dir, exist_ok=True)
+            os.replace(src, dst)
+            moved.append(dst)
+        except OSError as e:
+            if log:
+                log(_("    ⚠  could not set marker aside ({e}) — continuing")
+                    .format(e=e))
+            moved.append(src)
+    return moved
+
+
+def _restore_markers(marker_paths, log=None):
+    """Ramène des marqueurs de `inflight/` vers leur file, pour qu'ils soient
+    relus au prochain cycle.
+
+    INDISPENSABLE : trois des quatre sorties de `process_ready` CONSERVENT les
+    marqueurs (dossier froid, compte changé, échec) en comptant sur `read_markers`
+    pour les retrouver dans la file. Les laisser dans `inflight/` les rendrait
+    invisibles à jamais : le dossier froid ne serait jamais repris, l'échec jamais
+    rejoué. On corrigerait un marqueur avalé de temps en temps en en perdant trois
+    catégories entières.
+    """
+    for src in marker_paths:
+        d = os.path.dirname(src)
+        if os.path.basename(d) != INFLIGHT_DIRNAME:
+            continue  # déjà dans la file (déplacement qui avait échoué)
+        dst = os.path.join(os.path.dirname(d), os.path.basename(src))
+        try:
+            os.replace(src, dst)
+        except OSError as e:
+            if log:
+                log(_("    ⚠  could not put marker back ({e}) — it will be "
+                      "recovered at next startup").format(e=e))
+
+
+def recover_inflight(queue_dirs, log=None):
+    """Ramène dans leur file les marqueurs restés « en vol », au DÉMARRAGE du
+    consommateur. Sert uniquement au cas où le processus est mort brutalement
+    (arrêt machine, SIGKILL) entre le déplacement et la fin du traitement.
+
+    On ramène plutôt qu'on ne supprime : un marqueur ramené à tort ne coûte
+    qu'une synchro inutile, alors que l'oublier coûterait un changement perdu.
+    Même principe que le `startup_catchup` du watcher NAS.
+    """
+    total = 0
+    for qdir in queue_dirs:
+        d = _inflight_dir(qdir)
+        try:
+            names = os.listdir(d)
+        except OSError:
+            continue
+        for name in names:
+            try:
+                os.replace(os.path.join(d, name), os.path.join(qdir, name))
+                total += 1
+            except OSError:
+                pass
+    if total and log:
+        log(_("↩ {n} marker(s) recovered from an interrupted run.").format(n=total))
+    return total
+
+
 def process_ready(state, target_dir, mappings, config_path, log, runner=None):
     """Traite UN dossier mûr : trouve son mapping, lance le moteur, nettoie les
     marqueurs. Robuste : dossier disparu / hors mapping -> marqueurs nettoyés et
@@ -472,6 +573,10 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
 
     flag = _(" [with deletions]") if want_delete else ""
     log(_("  → sync: {p}{f}").format(p=target_dir, f=flag))
+    # Les marqueurs sortent de la file AVANT le lancement : un changement
+    # survenant pendant la synchro dépose alors son propre marqueur au lieu
+    # d'être écarté par le dédoublonnage (cf. _move_markers_inflight).
+    markers = _move_markers_inflight(markers, log=log)
     code, output = run_engine_subpath(mapping, target_dir, config_path,
                                       want_delete=want_delete, runner=runner)
     if code == 0:
@@ -501,6 +606,7 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
         # que le « → sync » optimiste (écrit avant le lancement), ce qui laisse
         # croire à tort à une synchro sur un mapping non amorcé. `mark_cold` remet
         # le compteur de re-vérif à zéro ; on ignore désormais sa valeur de retour.
+        _restore_markers(markers, log=log)
         state.clear(target_dir)
         state.mark_cold(target_dir, time.monotonic())
         log(_("    ⏳ cold folder — deferred to the scheduled pass "
@@ -513,6 +619,7 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
         # (pas de spam), et le cycle remonte l'état « account » (une seule
         # ligne d'attente au journal, icône d'attention dans la barre des
         # tâches). Résolution : Amorcer/Réinitialiser depuis le GUI.
+        _restore_markers(markers, log=log)
         state.clear(target_dir)
         state.mark_cold(target_dir, time.monotonic())
         state.account_flag = True
@@ -521,7 +628,9 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
         return False
     else:
         # Échec : on NE nettoie PAS les marqueurs (ils seront retentés au
-        # prochain cycle). On retire juste l'entrée de debounce pour réobserver.
+        # prochain cycle) — mais il faut les RAMENER dans la file, sinon
+        # `read_markers` ne les verrait plus et le ré-essai n'aurait jamais lieu.
+        _restore_markers(markers, log=log)
         state.clear(target_dir)
         log(_("    ✗ failure (code {c}) — markers kept for retry").format(c=code))
         if output:
@@ -790,6 +899,21 @@ def main():
     NAS_SCRIPTS_CHECK_INTERVAL = 300           # 5 min
     _last_scripts_check = None                 # monotonic du dernier contrôle
     _scripts_stale = False                     # dernier verdict connu (publié au battement)
+
+    # Rapatriement des marqueurs « en vol » restés d'un arrêt brutal (coupure,
+    # SIGKILL) entre leur mise à l'écart et la fin du traitement. La file NAS
+    # n'est ajoutée que si elle est réellement lisible ; si le NAS est absent au
+    # démarrage, ses marqueurs seront rapatriés au prochain lancement, et son
+    # propre startup_catchup couvre l'intervalle.
+    _startup_queues = [LOCAL_QUEUE]
+    try:
+        _nas_q = _nas_queue_for(user)
+        if _nas_q and os.path.isdir(_nas_q):
+            _startup_queues.append(_nas_q)
+    except Exception:
+        pass
+    recover_inflight(_startup_queues, log=log)
+
     while True:
         cfg = load_config()  # relu à chaque cycle -> délai modifiable à chaud
         # Charger les mappings frais à chaque cycle (la vérité reste à jour).
