@@ -15,7 +15,7 @@ L'éditeur de mappings — la fenêtre principale : dossiers à synchroniser, ex
 Le bas de la fenêtre sépare deux types d'action, parce qu'ils n'obéissent pas aux mêmes options :
 
 - **Cache** — *Amorcer le cache* et *Réinitialiser le mapping*. Ce sont **toujours des passages réels**, pilotés par la configuration propre à chaque mapping ; l'option *Test (dry-run)* ne s'y applique **pas**, car le cache ne peut être armé que par une vraie synchronisation. L'encadré a son propre bouton *Arrêter*.
-- **Synchronisation manuelle** — *Lancer la synchro*, avec les options qui n'agissent que sur elle : *Test (dry-run)*, *Propager suppressions*, *Détaillé*, et les options avancées.
+- **Synchronisation manuelle** — *Lancer la synchro*, avec les options qui n'agissent que sur elle : *Test (dry-run)*, *Propager suppressions*, et les options avancées.
 
 La zone de sortie est commune aux deux : c'est pourquoi ses contrôles d'affichage (*Erreurs seules*, *Effacer la sortie*) se trouvent avec la sortie elle-même.
 
@@ -493,7 +493,7 @@ Le watcher ne redépose pas un marqueur strictement identique (même chemin ET m
 
 ### Affichage épuré unifié (amorçage + passage manuel)
 
-Par défaut (« Détaillé » décoché), la sortie GUI n'affiche qu'**un chemin par dossier traité** (plus les messages d'orchestration et les erreurs), en masquant le détail fichier par fichier et les sorties techniques du CLI. « Détaillé » coché rétablit l'affichage brut complet. **Le log disque conserve toujours la sortie complète.** Un message « ✓ Rien à mettre à jour » évite l'écran vide quand tout est déjà synchronisé.
+Par défaut (*Détaillé* décoché), la sortie GUI n'affiche qu'**un chemin par dossier traité** (plus les messages d'orchestration et les erreurs), en masquant le détail fichier par fichier et les sorties techniques du CLI. *Détaillé* coché rétablit l'affichage brut complet. Cette case se trouve dans la barre de la zone de sortie, à côté de *Erreurs seulement*, car c'est un contrôle de **vue** : elle s'applique à tout ce qui s'y affiche — synchro manuelle, amorçage et réinitialisation — et agit sur les lignes à venir, pas sur celles déjà affichées. **Le log disque conserve toujours la sortie complète.** Un message « ✓ Rien à mettre à jour » évite l'écran vide quand tout est déjà synchronisé.
 
 ### Notes d'infrastructure
 

@@ -15,7 +15,7 @@ The mappings editor — the main window: folders to sync, per-mapping exclusions
 The bottom of the window separates two kinds of action, because they do not obey the same options:
 
 - **Cache** — *Prime cache* and *Reset mapping*. These are **always real passes**, driven by each mapping's own settings; the *Test (dry-run)* option does **not** apply to them, because the cache can only be armed by a real sync. The box has its own *Stop* button.
-- **Manual sync** — *Run sync*, together with the options that affect only it: *Test (dry-run)*, *Propagate deletions*, *Verbose*, and the advanced options.
+- **Manual sync** — *Run sync*, together with the options that affect only it: *Test (dry-run)*, *Propagate deletions*, and the advanced options.
 
 The output pane is shared by both, which is why its view controls (*Errors only*, *Clear output*) sit with the output itself.
 
@@ -493,7 +493,7 @@ The watcher does not re-drop a strictly identical marker (same path AND same del
 
 ### Unified streamlined display (priming + manual pass)
 
-By default ("Detailed" unchecked), the GUI output shows only **one path per processed folder** (plus orchestration messages and errors), hiding the file-by-file detail and the CLI's technical output. Checking "Detailed" restores the full raw display. **The disk log always keeps the full output.** A "✓ Nothing to update" message avoids an empty screen when everything is already in sync.
+By default (*Detailed* unchecked), the GUI output shows only **one path per processed folder** (plus orchestration messages and errors), hiding the file-by-file detail and the CLI's technical output. Checking *Detailed* restores the full raw display. It sits in the output pane's toolbar, next to *Errors only*, because it is a **view** control: it applies to everything shown there — manual runs, priming and reset alike — and affects what is displayed from then on, not the lines already shown. **The disk log always keeps the full output.** A "✓ Nothing to update" message avoids an empty screen when everything is already in sync.
 
 ### Infrastructure notes
 
