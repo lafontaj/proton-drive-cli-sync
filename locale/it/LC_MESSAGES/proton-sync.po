@@ -3135,6 +3135,11 @@ msgstr "  🔎 marcatore di autotest confermato (id {i})."
 msgid "    ✗ failure (code {c}) — markers kept for retry"
 msgstr "    ✗ errore (codice {c}) — marcatori conservati per riprovare"
 
+msgid "  ⏳ {p} is still being written — sync postponed ({n} time(s) so far)"
+msgstr ""
+"  ⏳ {p} è ancora in scrittura — sincronizzazione rinviata ({n} volta/e "
+"finora)"
+
 msgid "NAS disabled — local mode only."
 msgstr "NAS disattivato — solo modalità locale."
 

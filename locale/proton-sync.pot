@@ -2473,6 +2473,9 @@ msgstr ""
 msgid "    ✗ failure (code {c}) — markers kept for retry"
 msgstr ""
 
+msgid "  ⏳ {p} is still being written — sync postponed ({n} time(s) so far)"
+msgstr ""
+
 msgid "NAS disabled — local mode only."
 msgstr ""
 
