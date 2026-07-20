@@ -24,7 +24,7 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
-__version__ = "1.4.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -295,6 +295,44 @@ def find_mapping_for_path(path, mappings):
 # ─────────────────────────────────────────────────────────────────────────
 #  État de debounce (daté par première observation, horloge locale)
 # ─────────────────────────────────────────────────────────────────────────
+# Nombre de reports consécutifs avant de commencer à journaliser qu'un dossier
+# ne se stabilise pas. Volontairement PAS un plafond : un dossier qui n'arrête
+# pas de changer ne doit pas être synchronisé de force avec un fichier partiel.
+# Il ne bloque personne (le consommateur passe au suivant) et le passage planifié
+# le rattrape de toute façon.
+STABILITY_LOG_AFTER = 3
+
+
+def _folder_signature(path):
+    """Empreinte du CONTENU immédiat d'un dossier : {nom: (taille, mtime)}.
+
+    NON récursive : un marqueur porte sur le dossier qui contient le fichier
+    touché, donc ce seul niveau suffit. Un fichier en cours d'écriture dans un
+    sous-dossier relève de son propre marqueur, donc de sa propre vérification.
+
+    Retourne None si le dossier n'est pas lisible (NAS reparti, dossier
+    supprimé). Un échec de sonde ne doit JAMAIS bloquer : l'appelant traite
+    None comme « je ne sais pas » et laisse passer, comportement d'avant ce
+    mécanisme.
+
+    On retient taille ET date. Un agent de sauvegarde conserve souvent la date
+    de la source : la pose de cette date définitive en fin de transfert est
+    elle-même un changement détectable — un report de plus, puis la stabilité.
+    """
+    try:
+        sig = {}
+        for entry in os.scandir(path):
+            try:
+                if entry.is_file():
+                    st = entry.stat()
+                    sig[entry.name] = (st.st_size, st.st_mtime)
+            except OSError:
+                continue      # fichier disparu entre-temps : simplement absent
+        return sig
+    except OSError:
+        return None
+
+
 class DebounceState:
     """Suit, pour chaque dossier touché, l'instant de PREMIÈRE observation et le
     nombre de marqueurs en attente. Un dossier est « mûr » quand il est calme
@@ -327,10 +365,17 @@ class DebounceState:
         (un passage 'avec delete' fait aussi les ajouts, donc il englobe tout)."""
         e = self.pending.get(target_dir)
         if e is None:
+            # PREMIER relevé de l'empreinte, pris ICI et non à maturité : les
+            # deux mesures se retrouvent ainsi séparées par la fenêtre de
+            # debounce, gratuitement. Prendre les deux à maturité coûterait un
+            # cycle de latence sur TOUTES les synchros, y compris celles qui
+            # n'en ont aucun besoin.
             self.pending[target_dir] = {
                 "first_seen": now, "last_seen": now,
                 "markers": {marker_path},
                 "want_delete": bool(want_delete),
+                "sig": _folder_signature(target_dir),
+                "defers": 0,
             }
             return True
         # want_delete est "collant" : une fois vrai, il le reste (fusion).
@@ -349,6 +394,55 @@ class DebounceState:
             if now - e["last_seen"] >= debounce_seconds:
                 ready.append(target_dir)
         return ready
+
+    def is_settled(self, target_dir, now):
+        """Le contenu du dossier a-t-il cessé de changer ?
+
+        Compare l'empreinte relevée à l'apparition du dossier dans la file avec
+        celle d'aujourd'hui. Identiques -> on peut lancer. Différentes -> le
+        dossier est encore en train d'être écrit : on mémorise la NOUVELLE
+        empreinte, on repousse `last_seen` (le dossier repart pour une fenêtre
+        de debounce, ce qui espace naturellement la mesure suivante) et on rend
+        False.
+
+        POURQUOI. Un agent externe qui dépose d'abord un petit fichier puis un
+        gros arme le debounce sur le petit : le moteur partait pendant que le
+        gros s'écrivait encore, et téléversait une version tronquée. Mesuré en
+        production : envoi lancé 12 minutes avant la fin réelle de l'écriture
+        d'un fichier de 2 Gio, puis renvoi complet une fois le vrai contenu
+        détecté — 11 minutes de transfert entièrement perdues.
+
+        Augmenter le debounce ne corrige rien (la fenêtre d'écriture dépasse
+        largement toute valeur raisonnable) et une quarantaine par âge non plus
+        (l'agent conserve la date d'origine, le fichier paraît donc ancien alors
+        qu'il grossit encore).
+
+        LIMITE ASSUMÉE : une taille stable sur une fenêtre de debounce n'est pas
+        une PREUVE que l'écriture est finie — un transfert qui bafouille plus
+        longtemps que la fenêtre passerait pour terminé. C'est une heuristique,
+        et elle reste très supérieure à l'état antérieur, qui partait sans
+        aucune vérification. Le filet de `upload_batch` (relecture du distant et
+        ré-essai des manquants) subsiste par-dessus.
+
+        Empreinte illisible (NAS reparti, dossier supprimé) -> on ne bloque
+        PAS : on rend True et la suite du traitement gère l'absence.
+        """
+        e = self.pending.get(target_dir)
+        if e is None:
+            return True
+        now_sig = _folder_signature(target_dir)
+        if now_sig is None or e.get("sig") is None:
+            return True          # sonde impossible : on ne bloque jamais dessus
+        if now_sig == e["sig"]:
+            return True
+        e["sig"] = now_sig
+        e["last_seen"] = now     # repart pour une fenêtre de debounce
+        e["defers"] = e.get("defers", 0) + 1
+        return False
+
+    def defers_for(self, target_dir):
+        e = self.pending.get(target_dir)
+        return e.get("defers", 0) if e else 0
 
     def markers_for(self, target_dir):
         e = self.pending.get(target_dir)
@@ -705,6 +799,15 @@ def run_once(state, queue_dirs, mappings, config_path, debounce_seconds, now,
         # relance pas le moteur (il ressortirait froid) avant la prochaine
         # re-vérification. La planification le consolidera ; ensuite il passera.
         if state.is_cold_recent(target_dir, now, COLD_RECHECK_SECONDS):
+            continue
+        # Le dossier change-t-il encore ? Si oui on le laisse mûrir davantage :
+        # ses marqueurs sont CONSERVÉS et il ne bloque personne — la boucle
+        # passe simplement au dossier suivant, comme pour un dossier « froid ».
+        if not state.is_settled(target_dir, now):
+            n = state.defers_for(target_dir)
+            if n == STABILITY_LOG_AFTER or (n > STABILITY_LOG_AFTER and n % 10 == 0):
+                log(_("  ⏳ {p} is still being written — sync postponed "
+                      "({n} time(s) so far)").format(p=target_dir, n=n))
             continue
         if process_ready(state, target_dir, mappings, config_path, log,
                          runner=runner):
