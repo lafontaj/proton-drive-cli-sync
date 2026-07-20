@@ -3028,6 +3028,9 @@ msgstr "    (pasta órfã: {n} — tamanho não medido, listagem falhou)"
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (pasta órfã: {n} — ~{c} elemento(s) remoto(s))"
 
+msgid "    ⏭  ignored (not a regular file): {p}"
+msgstr "    ⏭  ignorado (não é um ficheiro regular): {p}"
+
 msgid ", including {n} PERMANENT"
 msgstr ", incluindo {n} PERMANENTES"
 

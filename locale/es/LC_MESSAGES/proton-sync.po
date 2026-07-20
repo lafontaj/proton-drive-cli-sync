@@ -3034,6 +3034,9 @@ msgstr "    (carpeta huérfana: {n} — tamaño no medido, listado fallido)"
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (carpeta huérfana: {n} — ~{c} elemento(s) remoto(s))"
 
+msgid "    ⏭  ignored (not a regular file): {p}"
+msgstr "    ⏭  ignorado (no es un archivo regular): {p}"
+
 msgid ", including {n} PERMANENT"
 msgstr ", incluidas {n} PERMANENTES"
 

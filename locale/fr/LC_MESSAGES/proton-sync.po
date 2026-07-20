@@ -3039,6 +3039,9 @@ msgstr "    (dossier orphelin : {n} — taille non mesurée, listage en échec)"
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (dossier orphelin : {n} — ~{c} élément(s) distant(s))"
 
+msgid "    ⏭  ignored (not a regular file): {p}"
+msgstr "    ⏭  ignoré (pas un fichier régulier) : {p}"
+
 msgid ", including {n} PERMANENT"
 msgstr ", dont {n} en DÉFINITIF"
 

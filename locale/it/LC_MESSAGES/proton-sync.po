@@ -3042,6 +3042,9 @@ msgstr ""
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (cartella orfana: {n} — ~{c} elemento/i remoto/i)"
 
+msgid "    ⏭  ignored (not a regular file): {p}"
+msgstr "    ⏭  ignorato (non è un file regolare): {p}"
+
 msgid ", including {n} PERMANENT"
 msgstr ", incluse {n} PERMANENTI"
 

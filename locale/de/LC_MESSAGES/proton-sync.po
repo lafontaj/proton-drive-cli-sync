@@ -3065,6 +3065,9 @@ msgstr ""
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (verwaister Ordner: {n} — ~{c} Remote-Element(e))"
 
+msgid "    ⏭  ignored (not a regular file): {p}"
+msgstr "    ⏭  übersprungen (keine reguläre Datei): {p}"
+
 msgid ", including {n} PERMANENT"
 msgstr ", davon {n} ENDGÜLTIG"
 
