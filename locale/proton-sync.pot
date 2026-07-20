@@ -2393,9 +2393,6 @@ msgstr ""
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr ""
 
-msgid "    ⏭  ignored (not a regular file): {p}"
-msgstr ""
-
 msgid ", including {n} PERMANENT"
 msgstr ""
 
@@ -2423,6 +2420,9 @@ msgid "Real-time daemon started (user {u})."
 msgstr ""
 
 msgid "  Engine: {p}"
+msgstr ""
+
+msgid "↩ {n} marker(s) recovered from an interrupted run."
 msgstr ""
 
 msgid "  ⊘ folder vanished, skipped: {p}"
@@ -2490,6 +2490,13 @@ msgid ""
 msgstr ""
 
 msgid "  ⚠ self-test reply write failed: {e}"
+msgstr ""
+
+msgid "    ⚠  could not set marker aside ({e}) — continuing"
+msgstr ""
+
+msgid ""
+"    ⚠  could not put marker back ({e}) — it will be recovered at next startup"
 msgstr ""
 
 msgid "Local real-time watcher (Proton Drive) — writes markers"

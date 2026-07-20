@@ -3028,9 +3028,6 @@ msgstr "    (pasta órfã: {n} — tamanho não medido, listagem falhou)"
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (pasta órfã: {n} — ~{c} elemento(s) remoto(s))"
 
-msgid "    ⏭  ignored (not a regular file): {p}"
-msgstr "    ⏭  ignorado (não é um ficheiro regular): {p}"
-
 msgid ", including {n} PERMANENT"
 msgstr ", incluindo {n} PERMANENTES"
 
@@ -3061,6 +3058,9 @@ msgstr "Serviço em tempo real iniciado (utilizador {u})."
 
 msgid "  Engine: {p}"
 msgstr "  Motor: {p}"
+
+msgid "↩ {n} marker(s) recovered from an interrupted run."
+msgstr "↩ {n} marcador(es) recuperado(s) após uma execução interrompida."
 
 msgid "  ⊘ folder vanished, skipped: {p}"
 msgstr "  ⊘ pasta desaparecida, saltada: {p}"
@@ -3144,6 +3144,15 @@ msgstr ""
 
 msgid "  ⚠ self-test reply write failed: {e}"
 msgstr "  ⚠ falha ao escrever a resposta de autoteste: {e}"
+
+msgid "    ⚠  could not set marker aside ({e}) — continuing"
+msgstr "    ⚠  não foi possível pôr o marcador de lado ({e}) — a continuar"
+
+msgid ""
+"    ⚠  could not put marker back ({e}) — it will be recovered at next startup"
+msgstr ""
+"    ⚠  não foi possível repor o marcador na fila ({e}) — será recuperado no "
+"próximo arranque"
 
 msgid "Local real-time watcher (Proton Drive) — writes markers"
 msgstr "Observador local em tempo real (Proton Drive) — escreve marcadores"

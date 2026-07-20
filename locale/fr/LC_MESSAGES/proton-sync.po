@@ -3039,9 +3039,6 @@ msgstr "    (dossier orphelin : {n} — taille non mesurée, listage en échec)"
 msgid "    (orphan folder: {n} — ~{c} remote element(s))"
 msgstr "    (dossier orphelin : {n} — ~{c} élément(s) distant(s))"
 
-msgid "    ⏭  ignored (not a regular file): {p}"
-msgstr "    ⏭  ignoré (pas un fichier régulier) : {p}"
-
 msgid ", including {n} PERMANENT"
 msgstr ", dont {n} en DÉFINITIF"
 
@@ -3072,6 +3069,9 @@ msgstr "Démon temps réel démarré (utilisateur {u})."
 
 msgid "  Engine: {p}"
 msgstr "  Moteur : {p}"
+
+msgid "↩ {n} marker(s) recovered from an interrupted run."
+msgstr "↩ {n} marqueur(s) récupéré(s) après un arrêt interrompu."
 
 msgid "  ⊘ folder vanished, skipped: {p}"
 msgstr "  ⊘ dossier disparu, sauté : {p}"
@@ -3155,6 +3155,15 @@ msgstr ""
 
 msgid "  ⚠ self-test reply write failed: {e}"
 msgstr "  ⚠ échec d'écriture de la réponse self-test : {e}"
+
+msgid "    ⚠  could not set marker aside ({e}) — continuing"
+msgstr "    ⚠  impossible de mettre le marqueur de côté ({e}) — on poursuit"
+
+msgid ""
+"    ⚠  could not put marker back ({e}) — it will be recovered at next startup"
+msgstr ""
+"    ⚠  impossible de remettre le marqueur dans la file ({e}) — il sera "
+"récupéré au prochain démarrage"
 
 msgid "Local real-time watcher (Proton Drive) — writes markers"
 msgstr "Watcher temps réel local (Proton Drive) — dépose des marqueurs"
