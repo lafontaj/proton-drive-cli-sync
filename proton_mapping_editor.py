@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.15.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.16.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -459,13 +459,17 @@ OPTION_HELP = {
         "daily use."
     ),
     "verbose": _(
-        "Detailed mode (-v)\n\n"
+        "Detailed mode\n\n"
         "Shows the RAW output of the engine: every file examined (unchanged, "
         "uploaded, renamed…), cache skips (“cache valid”), and transfer "
         "summaries — instead of the condensed view (one line per folder as "
         "it is scanned, plus status/error lines only).\n\n"
+        "This is a VIEW control: it applies to everything shown here — manual "
+        "runs, priming and reset alike.\n\n"
         "Useful to see exactly what happens inside a folder (e.g. to check "
-        "why a file failed), but the output is much longer.\n\n"
+        "why a file failed), but the output is much longer. Changing it "
+        "affects what is displayed from then on, not the lines already "
+        "shown.\n\n"
         "TIP: combine with “❗ Errors only” to see just the problems within "
         "a detailed run, without scrolling through everything."
     ),
@@ -1260,13 +1264,17 @@ class MappingEditor(tk.Tk):
         opts.grid(row=0, column=1, sticky="ne")
         self._add_option_grid(opts, 0, 0, _("Test (dry-run)"), self.opt_dry_run, "dry-run")
         self._add_option_grid(opts, 1, 0, _("Propagate deletions"), self.opt_delete, "delete")
-        self._add_option_grid(opts, 2, 0, _("Verbose"), self.opt_verbose, "verbose")
+        # « Détaillée » n'est PAS ici : c'est un contrôle de VUE, qui s'applique
+        # aussi bien à la synchro manuelle qu'à l'amorçage et à la
+        # réinitialisation. Sa place est dans la barre de la zone de sortie, à
+        # côté de « Erreurs seulement ». La laisser parmi les options de synchro
+        # manuelle laissait croire qu'elle ne concernait que ce bouton.
         self._adv_visible = False
         self._adv_toggle = ttk.Button(opts, text=_("Advanced options ▾"),
                                       command=self._toggle_advanced, width=20)
         # columnspan=2 : le bouton (large) ne force PAS la largeur de la colonne 0,
         # pour que les « ? » restent alignés juste après les cases.
-        self._adv_toggle.grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 0))
+        self._adv_toggle.grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 0))
         self._adv_widgets = self._add_option_grid(
             opts, 4, 0, _("SHA1 check"), self.opt_verify_hash, "verify-hash",
             return_widgets=True)
@@ -1345,9 +1353,15 @@ class MappingEditor(tk.Tk):
         # plutôt que sous « Synchronisation manuelle ».
         out_toolbar = ttk.Frame(out_frame)
         out_toolbar.pack(side="top", fill="x", pady=(0, 3))
+        # Ordre voulu : du plus large au plus restrictif — « Détaillée » ouvre le
+        # flux, « Erreurs seulement » le referme sur les problèmes.
+        ttk.Checkbutton(out_toolbar, text=_("Verbose"),
+                        variable=self.opt_verbose).pack(side="left", padx=(2, 4))
+        ttk.Button(out_toolbar, text="?", width=2,
+                   command=lambda: self._show_help("verbose")).pack(side="left")
         ttk.Checkbutton(out_toolbar, text=_("❗ Errors only"),
                         variable=self.opt_errors_only,
-                        command=self._reapply_output_filter).pack(side="left", padx=(2, 16))
+                        command=self._reapply_output_filter).pack(side="left", padx=(12, 16))
         ttk.Button(out_toolbar, text=_("🧹 Clear output"),
                    command=self.on_clear_output).pack(side="left", padx=2)
         self.output = scrolledtext.ScrolledText(out_frame, height=10, wrap="none",
