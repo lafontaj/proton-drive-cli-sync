@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.17.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.17.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -107,6 +107,31 @@ DLG_KINDS = {
     "error":    {"accent": "#d2294b", "glyph": "✕",  "title": _("Error")},
     "success":  {"accent": "#1a9e57", "glyph": "✓",  "title": _("Success")},
 }
+
+
+def _safe_grab(win):
+    """Pose le grab modal en s'assurant que la fenêtre est AFFICHABLE. Sur
+    certains gestionnaires de fenêtres, grab_set() sur une fenêtre pas encore
+    mappée lève « grab failed: window not viewable ». On force le mappage
+    (update_idletasks) puis on tente le grab ; en cas d'échec, on retente
+    brièvement via after() jusqu'à ce que la fenêtre soit affichable (ou qu'elle
+    disparaisse). StyledDialog/RemoteFolderPicker n'en ont pas besoin (ils font
+    déjà withdraw→deiconify→grab) ; ceci couvre les dialogues qui posaient le
+    grab juste après transient(), avant tout cycle d'événements. Non bloquant."""
+    try:
+        win.update_idletasks()
+    except tk.TclError:
+        return
+
+    def _try(n=0):
+        try:
+            if not win.winfo_exists():
+                return
+            win.grab_set()
+        except tk.TclError:
+            if n < 20:
+                win.after(50, lambda: _try(n + 1))
+    _try()
 
 
 class StyledDialog(tk.Toplevel):
@@ -1837,7 +1862,7 @@ class MappingEditor(tk.Tk):
         dlg.geometry("680x560")
         dlg.minsize(620, 520)
         dlg.transient(self)
-        dlg.grab_set()
+        _safe_grab(dlg)
 
         result = {"value": None}
 
@@ -2774,7 +2799,7 @@ class MappingEditor(tk.Tk):
         dlg.geometry("580x520")
         dlg.minsize(520, 460)
         dlg.transient(self)
-        dlg.grab_set()
+        _safe_grab(dlg)
 
         result = {"value": None}
 
@@ -4761,7 +4786,7 @@ class ScheduleDialog(tk.Toplevel):
         self.geometry(f"{_w}x{_h}")
         self.minsize(min(620, _w), min(640, _h))
         self.transient(parent)
-        self.grab_set()
+        _safe_grab(self)
 
         self._build()
         self._refresh()
@@ -5075,7 +5100,7 @@ class PlanificationJournalDialog(tk.Toplevel):
         self.geometry(f"{_w}x{_h}")
         self.minsize(min(700, _w), min(480, _h))
         self.transient(parent)
-        self.grab_set()
+        _safe_grab(self)
         self._build()
         self._load_last_run()  # vue par défaut : dernière exécution
 
@@ -5188,7 +5213,7 @@ class ProtonLoginDialog(tk.Toplevel):
         self.geometry("640x360")
         self.minsize(520, 300)
         self.transient(parent)
-        self.grab_set()
+        _safe_grab(self)
         self.protocol("WM_DELETE_WINDOW", self._close)
         self._build()
         self._start_login()
@@ -5347,7 +5372,7 @@ class RealtimeDialog(tk.Toplevel):
         self.geometry(f"{w}x{h}+{x}+{y}")
         self.minsize(900, 540)
         self.transient(parent)
-        self.grab_set()
+        _safe_grab(self)
 
         self._alive = True
         self._auto_after = None
