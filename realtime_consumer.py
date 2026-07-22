@@ -24,7 +24,7 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
-__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.5.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -176,6 +176,16 @@ def read_markers(queue_dirs, selftest_log=None):
         except OSError:
             continue  # file absente (ex. NAS non monté) : on saute, sans échouer
         for name in names:
+            # Ignorer les fichiers temporaires d'écriture atomique : le watcher
+            # (local ET NAS) écrit « <nom>.tmp » puis os.replace vers le nom
+            # final — l'os.replace n'est pas instantané via NFS. Lu à mi-écriture,
+            # un « .tmp » donnait un JSON partiel → repli « chemin brut » → cible
+            # fantaisiste → nettoyage : le consommateur pouvait SUPPRIMER le .tmp
+            # avant le os.replace du watcher, qui échouait alors et perdait le
+            # marqueur jusqu'au filet hebdomadaire. (_count_markers, côté GUI,
+            # excluait déjà les .tmp ; read_markers ne le faisait pas.)
+            if name.endswith(".tmp"):
+                continue
             mpath = os.path.join(qdir, name)
             if not os.path.isfile(mpath):
                 continue
@@ -1076,12 +1086,18 @@ def main():
         # les lignes de synchro — plutôt qu'après coup. Ne signale rien si on ne
         # sortait pas d'une attente (cycle normal).
         def _announce_resume(_wr=waiting_reason):
+            # Annonce de reprise SEULEMENT pour les attentes dont l'obtention du
+            # verrou + auth SUFFIT à conclure la reprise (trousseau/verrou). Le cas
+            # « account » est volontairement EXCLU : auth+verrou sont orthogonaux
+            # au changement de compte, donc les avoir ne prouve PAS que le compte
+            # est réglé — le moteur va re-refuser en code 4 tant que l'utilisateur
+            # n'a pas ré-amorcé. Annoncer « Account matter resolved » ici était
+            # faux ET répété à chaque cycle. La vraie résolution est confirmée par
+            # le « ✓ Pass finished » quand le passage aboutit enfin (status done).
             if _wr == "locked":
                 log(_("🔓 Session opened — starting the pass."))
             elif _wr == "busy":
                 log(_("🔓 Lock released — starting the pass."))
-            elif _wr == "account":
-                log(_("🔓 Account matter resolved — starting the pass."))
 
         status = run_once(state, queue_dirs, mappings, args.config,
                           cfg["debounce_seconds"], time.monotonic(), log,

@@ -12,7 +12,7 @@ contente de LIRE l'état du linger et de rappeler la commande à l'utilisateur.
 Tout est centré sur l'utilisateur courant : chaque GUI gère la planification
 de son propre utilisateur (sessions et homes séparés).
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.0.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import re
@@ -79,11 +79,16 @@ Type=exec
 Environment=PROTON_DRIVE_CLI={appconfig.cli_env_value(DEFAULT_CLI) if _HAS_CONFIG else DEFAULT_CLI}
 {exec_line}
 
-# L'auth échouée (trousseau verrouillé) renvoie le code 2 : on le déclare comme
-# succès pour que systemd ne marque pas le service "failed" ET ne le relance PAS
-# inutilement (sans session ouverte, relancer ne sert à rien ; le temps réel
-# prendra le relais dès la session ouverte).
-SuccessExitStatus=0 2
+# Deux codes de sortie du moteur sont des NON-échecs du point de vue systemd,
+# déclarés ici pour éviter à la fois le marquage "failed" ET une relance inutile :
+#   - code 2 : auth échouée (trousseau verrouillé, session non ouverte) — relancer
+#     ne sert à rien ; le temps réel prend le relais dès la session ouverte ;
+#   - code 4 : compte Proton changé (le cache appartient à l'ancien compte, rien
+#     touché). Le moteur REFUSERA à chaque tentative tant que l'utilisateur n'a pas
+#     ré-amorcé depuis le GUI : relancer toutes les 2 min, 6× par heure, chaque
+#     nuit, ne ferait que polluer le journal et refaire la sonde d'auth + 2 appels
+#     CLI pour rien. L'état est déjà signalé par le consommateur et le GUI.
+SuccessExitStatus=0 2 4
 
 # Collision de verrou : si le consommateur temps réel tient le flock au moment du
 # déclenchement, le moteur sort en échec (code 1). On relance alors le passage

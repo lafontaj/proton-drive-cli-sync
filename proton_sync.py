@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.6.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.6.4"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -48,15 +48,6 @@ try:
 except ImportError:
     def _(s):
         return s
-
-# Détection du type de source (nfs/local) pour le garde-fou de suppression.
-# Le moteur cherche mount_check.py dans son propre dossier.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-try:
-    import mount_check
-    _HAS_MOUNT_CHECK = True
-except ImportError:
-    _HAS_MOUNT_CHECK = False
 
 # Détection du type de source (nfs/local) pour le garde-fou de suppression.
 # Le moteur cherche mount_check.py (et config.py) dans son propre dossier.
@@ -619,9 +610,19 @@ def _local_signature(local_dir, remote_folder, excl_fp=None):
     files = []
     try:
         for entry in os.scandir(local_dir):
-            if entry.is_file(follow_symlinks=False):
+            # is_file() SUIVANT les liens (follow_symlinks=True), pour coïncider
+            # EXACTEMENT avec la vue de la boucle d'envoi de sync_folder (elle
+            # aussi en is_file() qui suit). Un lien vers un fichier EST un fichier
+            # pour l'envoi ; il doit donc figurer dans la signature, sinon un
+            # changement de sa cible ne modifie pas l'empreinte du dossier → cache
+            # « frais » → le changement n'est JAMAIS resynchronisé. On stat la
+            # CIBLE (follow) pour capter sa taille/date, afin qu'une modification
+            # de la cible périme bien l'empreinte. Un lien cassé, un lien vers un
+            # dossier, un tube/socket → is_file() False → écartés, exactement
+            # comme à l'envoi. Les deux vues du dossier restent alignées.
+            if entry.is_file():
                 try:
-                    st = entry.stat(follow_symlinks=False)
+                    st = entry.stat()
                     files.append([entry.name, st.st_size, st.st_mtime])
                 except OSError:
                     return None  # erreur de lecture -> empreinte invalide
@@ -724,7 +725,7 @@ def _stall_write(data):
 
 def _stall_record(remote_parent):
     """Mémorise une coupure de plus sur cette destination. Le moteur étant un
-    processus NEUF à chaque passage, ce compteur ne peut vivre qu'sur disque."""
+    processus NEUF à chaque passage, ce compteur ne peut vivre que sur disque."""
     data = _stall_read()
     data[remote_parent] = int(data.get(remote_parent, 0)) + 1
     _stall_write(data)
@@ -1529,10 +1530,15 @@ def delete_orphans(local_dir, remote_folder, remote_items, local_names,
     (Proton gère la récursion via trash/delete sur le dossier).
 
     `delete_mode` : "trash" (corbeille) ou "permanent" (définitif).
-    Retourne le nombre d'éléments supprimés (ou qui le seraient en dry-run).
+    Retourne (n_supprimés, n_échecs) — n_supprimés compte aussi les éléments qui
+    SERAIENT supprimés en dry-run. n_échecs > 0 signifie qu'au moins un orphelin
+    est TOUJOURS présent sur Proton : l'appelant ne doit alors PAS marquer le
+    dossier comme réconcilié (delete_synced), sinon l'orphelin ne serait plus
+    jamais re-détecté tant que le contenu local ne change pas.
     """
     permanent = (delete_mode == "permanent")
     n_deleted = 0
+    n_failed = 0
     for name, info in remote_items.items():
         if name in local_names:
             continue  # existe encore localement -> on garde
@@ -1550,10 +1556,14 @@ def delete_orphans(local_dir, remote_folder, remote_items, local_names,
                         n=name, c=n_sub))
             if remote_trash(remote_path, permanent=permanent, dry_run=dry_run):
                 n_deleted += 1
+            else:
+                n_failed += 1
         else:
             if remote_trash(remote_path, permanent=permanent, dry_run=dry_run):
                 n_deleted += 1
-    return n_deleted
+            else:
+                n_failed += 1
+    return n_deleted, n_failed
 
 
 def _delete_guard_ok(source_path, source_kind, verbose=False):
@@ -1788,14 +1798,23 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
         had_failure = True
 
     # --- Propagation des suppressions (si activée pour ce mapping) ---
-    deleted_something = False
     if delete:
-        n = delete_orphans(local_dir, remote_folder, remote_items, local_names,
-                           delete_mode=delete_mode, dry_run=dry_run, verbose=verbose)
-        deleted_something = bool(n)
+        _n_del, n_del_failed = delete_orphans(
+            local_dir, remote_folder, remote_items, local_names,
+            delete_mode=delete_mode, dry_run=dry_run, verbose=verbose)
+        if n_del_failed:
+            # Au moins un orphelin distant n'a PAS pu être supprimé (erreur CLI
+            # transitoire, réseau…). Sans ce garde, le dossier serait quand même
+            # marqué delete_synced=True et sauté par le cache à tous les passages
+            # --delete suivants : l'orphelin resterait sur Proton tant que le
+            # contenu local ne change pas. On traite donc l'échec de suppression
+            # comme un échec du dossier : pas de mise en cache, le dossier sera
+            # entièrement revérifié (et la suppression retentée) au prochain
+            # passage. remote_trash a déjà journalisé chaque échec précisément.
+            had_failure = True
 
     # --- Mise à jour du cache ---
-    # Hors dry-run et si pas d'échec d'upload :
+    # Hors dry-run et si pas d'échec (upload OU suppression d'orphelin) :
     #   - en mode --delete, ce dossier vient d'être réconcilié côté distant
     #     (orphelins traités) -> on le marque delete_synced=True. Au prochain
     #     passage --delete, s'il n'a pas changé, il sera sauté (rapide).

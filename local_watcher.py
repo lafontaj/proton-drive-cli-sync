@@ -30,7 +30,7 @@ La PARTIE LOGIQUE (marker_for_event, classify, ...) est pure et testable sans
 pyinotify. La PARTIE BRANCHEMENT (WatchManager, boucle d'événements) nécessite
 pyinotify et de vrais dossiers — testée sur la machine locale.
 """
-__version__ = "1.1.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.1.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -269,6 +269,38 @@ def _diff_targets(new_targets, watched, isdir=os.path.isdir):
     return new_by_dir, added, removed
 
 
+# Types de systèmes de fichiers considérés « réseau » (aligné sur mount_check).
+_NETWORK_FS_TYPES = {"nfs", "nfs4", "cifs", "smb3", "smbfs"}
+
+
+def _mount_is_network(path):
+    """Vrai si `path` est encore porté par un système de fichiers RÉSEAU, décidé
+    UNIQUEMENT à partir de /proc/mounts — un fichier texte du noyau qui NE BLOQUE
+    JAMAIS. On ne fait aucun stat / os.scandir / realpath sur le chemin lui-même :
+    c'est tout l'intérêt ici, car sur un montage NFS `hard` effondré, toucher au
+    montage FIGE le processus (piège NFS documenté). Si /proc/mounts est illisible
+    (cas improbable), on renvoie True pour ne pas neutraliser à tort le garde-fou
+    existant (on reste au plus près de l'ancien comportement en cas de doute)."""
+    try:
+        best_fs = None
+        best_len = -1
+        np = os.path.normpath(path)
+        with open("/proc/mounts", "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                point = parts[1].replace("\\040", " ")
+                fstype = parts[2]
+                p = point.rstrip("/") or "/"
+                if np == p or np.startswith(p + "/") or p == "/":
+                    if len(p) > best_len:
+                        best_fs, best_len = fstype, len(p)
+        return best_fs in _NETWORK_FS_TYPES
+    except OSError:
+        return True
+
+
 def run_watcher(config_path, log=None, rescan_interval=30, fast_interval=3,
                 fast_window=120):
     """Lance la surveillance inotify des dossiers locaux ET NAS (via les montages
@@ -355,12 +387,19 @@ def run_watcher(config_path, log=None, rescan_interval=30, fast_interval=3,
             #     on IGNORE le delete (fail-safe : ne pas propager une fausse
             #     suppression de masse).
             if want_delete and _kind_for_dir(best_dir) == "nfs":
-                if _HAS_MOUNT_CHECK:
-                    info = mount_check.detect_source_kind(best_dir)
-                    healthy = (info.get("kind") == "nfs" and info.get("readable"))
-                    if not healthy:
-                        log(_("  ⊘ DELETE ignored (NAS mount unhealthy): {p}").format(p=path))
-                        return
+                # Santé du montage évaluée SANS toucher au montage : lecture de
+                # /proc/mounts seule (via _mount_is_network). L'ancien appel
+                # detect_source_kind(best_dir) faisait un os.scandir sur la racine
+                # NFS, qui FIGE le watcher sur un montage `hard` effondré (le piège
+                # NFS documenté — c'était le seul endroit où il restait ouvert). Si
+                # la racine n'est plus portée par un système de fichiers réseau
+                # (repli sur le disque local = NAS déconnecté), on IGNORE le delete :
+                # fail-safe contre une fausse suppression de masse. (Un montage
+                # présent mais serveur muet ne génère pas d'événement delete inotify,
+                # donc n'atteint pas ce garde-fou.)
+                if not _mount_is_network(best_dir):
+                    log(_("  ⊘ DELETE ignored (NAS mount unhealthy): {p}").format(p=path))
+                    return
 
             try:
                 write_marker(LOCAL_QUEUE, target_dir, want_delete)
@@ -447,7 +486,15 @@ def run_watcher(config_path, log=None, rescan_interval=30, fast_interval=3,
                 notifier.process_events()
 
             now = time.monotonic()
-            fast = _missing_sources(mappings) and (now - started) < fast_window
+            # Ordre des opérandes IMPORTANT (court-circuit du `and`) : le test de
+            # fenêtre temporelle (comparaison d'entiers, gratuite) vient EN
+            # PREMIER. Placé après, _missing_sources() — qui lit /proc/mounts et
+            # sonde chaque source via mount_check — était évalué à CHAQUE tour de
+            # boucle (~1 s) pendant toute la vie du démon, y compris longtemps
+            # après la fenêtre de démarrage, et pouvait bloquer sur un montage NFS
+            # effondré. Avec cet ordre, passé fast_window, le premier terme est
+            # False et _missing_sources n'est plus jamais appelé.
+            fast = (now - started) < fast_window and bool(_missing_sources(mappings))
             interval = fast_interval if fast else rescan_interval
             if now - last_rescan >= interval:
                 last_rescan = now

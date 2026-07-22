@@ -17,13 +17,19 @@ Différences avec le watcher local (couche 3) :
 - Rattrapage au démarrage : un marqueur par mapping racine, SANS suppression
   (delete=false), car inotify ne voit pas l'existant et le démarrage est un
   moment d'incertitude (les suppressions manquées sont laissées au filet hebdo).
-- Rechargement à chaud : surveille les copies de mappings et repose ses watches
-  quand elles changent.
+- Rechargement à chaud (chantier M2, 21 juillet 2026) : un ré-scan périodique
+  (rescan_interval, défaut 30 s) relit les copies de mappings de config/ et
+  re-pose / retire les watches quand un mapping est AJOUTÉ / MODIFIÉ / RETIRÉ
+  côté desktop (push du GUI) — SANS redémarrer le service. Modèle calqué sur le
+  ré-scan de local_watcher. ATTENTION : remplacer le CODE de CE script sur le
+  NAS exige toujours, lui, un « sudo systemctl restart proton-nas-watch.service »
+  (règle d'or : un process Python garde son ancien code en mémoire) — c'est une
+  chose DISTINCTE du rechargement à chaud des mappings.
 
-La logique pure (sélection des cibles, aiguillage, rattrapage) est testable sans
-pyinotify. Le branchement pyinotify est testé sur le NAS.
+La logique pure (sélection des cibles, aiguillage, rattrapage, diff des watches)
+est testable sans pyinotify. Le branchement pyinotify est testé sur le NAS.
 """
-__version__ = "1.0.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.1.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -227,6 +233,25 @@ def build_targets(users_mappings, path_maps=None):
     return targets
 
 
+def _diff_watch_targets(new_targets, watched, isdir=os.path.isdir):
+    """Réconciliation PURE (sans effet de bord, donc testable) entre l'ensemble
+    de dossiers déjà surveillés (`watched`) et les nouvelles cibles.
+
+    Calquée sur local_watcher._diff_targets. Retourne (new_by_dir, added, removed) :
+      • new_by_dir = index watch_dir -> [targets] reconstruit ;
+      • added   = dossiers PRÉSENTS (isdir) dans new_targets mais pas surveillés ;
+      • removed = dossiers surveillés mais absents des new_targets présents
+                  (montage tombé, dossier supprimé, ou mapping retiré côté desktop).
+    """
+    new_by_dir = {}
+    for t in new_targets:
+        new_by_dir.setdefault(t["watch_dir"], []).append(t)
+    present = set(d for d in new_by_dir if isdir(d))
+    added = present - set(watched)
+    removed = set(watched) - present
+    return new_by_dir, added, removed
+
+
 # ─────────────────────────────────────────────────────────────────────────
 #  Aiguillage : à quel(s) utilisateur(s) appartient un chemin ?
 # ─────────────────────────────────────────────────────────────────────────
@@ -391,8 +416,16 @@ def load_all_targets(config_dir=CONFIG_DIR, log=None):
 
 
 def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
-                do_catchup=True):
-    """Lance la surveillance inotify côté NAS. Bloquant."""
+                do_catchup=True, rescan_interval=30):
+    """Lance la surveillance inotify côté NAS. Bloquant.
+
+    Rechargement à chaud (chantier M2) : toutes les `rescan_interval` secondes,
+    les copies de mappings de config/ sont relues et les watches réconciliées —
+    un mapping AJOUTÉ / MODIFIÉ / RETIRÉ côté desktop (push du GUI) est pris en
+    compte SANS redémarrer le service, exactement comme le fait local_watcher.
+    (Le remplacement du CODE de ce script, lui, exige toujours un
+    « sudo systemctl restart proton-nas-watch.service » — règle d'or.)
+    """
     import pyinotify
 
     if log is None:
@@ -464,6 +497,8 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
                 return
             is_delete = bool(event.mask & (pyinotify.IN_DELETE | pyinotify.IN_MOVED_FROM))
             is_dir = bool(event.mask & pyinotify.IN_ISDIR)
+            # `targets`/`path_maps` sont mutés EN PLACE par le ré-scan (voir
+            # _rescan) : le Handler voit donc toujours l'état à jour sans rebinding.
             emit_marker(event.pathname, is_delete, is_dir, targets,
                         queue_dir=queue_dir, log=log, path_maps=path_maps)
 
@@ -486,15 +521,20 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
     handler = Handler()
     notifier = pyinotify.Notifier(wm, handler)
 
-    # Poser les watches récursifs sur chaque dossier surveillé (dédupliqués).
-    watched_dirs = sorted({t["watch_dir"] for t in targets})
-    for wd in watched_dirs:
+    # Ensemble des dossiers RÉELLEMENT sous surveillance pour les MAPPINGS. Suivi
+    # à part (le ré-scan n'y ajoute/retire que des dossiers de mappings) pour ne
+    # JAMAIS toucher aux watches TEMPORAIRES du self-test posés sur wm.
+    watched = set()
+    for wd in sorted({t["watch_dir"] for t in targets}):
         if not os.path.isdir(wd):
             log(_("   ⚠ folder missing, not watched: {p}").format(p=wd))
             continue
         wm.add_watch(wd, mask, rec=True, auto_add=True)
+        watched.add(wd)
 
     log(_("Watching. (Ctrl+C to stop.)"))
+    log(_("  ↻ Hot-reload: mappings re-scanned every {s}s "
+          "(no restart needed for mapping changes).").format(s=rescan_interval))
 
     # Démarrer le thread self-test (traite les demandes déposées par le desktop
     # dans NAS_BASE/selftest/). Isolé, tolérant : s'il échoue, le watcher continue.
@@ -534,9 +574,71 @@ def run_watcher(config_dir=CONFIG_DIR, queue_dir=QUEUE_DIR, log=None,
         except Exception:
             pass   # jamais bloquer le watcher pour le self-test
 
+    def _rescan():
+        """Relit config/, réconcilie les watches des MAPPINGS et met à jour l'état
+        partagé EN PLACE (le Handler pointe sur les mêmes objets `targets`/
+        `path_maps`). Dépose un marqueur de rattrapage (SANS suppression) pour
+        chaque cible NOUVELLEMENT surveillée — inotify ne voit pas l'existant.
+        Tolérant : toute erreur est journalisée sans casser la boucle."""
+        try:
+            new_targets, new_path_maps = load_all_targets(config_dir, log=None)
+        except Exception as e:
+            log(_("  ⚠ re-scan failed ({e}) — keeping current watches.").format(e=e))
+            return
+        _new_by_dir, added, removed = _diff_watch_targets(
+            new_targets, watched, os.path.isdir)
+        # Mettre à jour l'état partagé EN PLACE AVANT de toucher aux watches
+        # (le Handler s'en sert à chaque événement). Fait même si added/removed
+        # sont vides : une TABLE de correspondance a pu changer sans changer
+        # l'ensemble des dossiers, et le contenu d'un mapping aussi.
+        targets[:] = new_targets
+        path_maps.clear()
+        path_maps.update(new_path_maps)
+        for d in sorted(added):
+            try:
+                wm.add_watch(d, mask, rec=True, auto_add=True)
+                watched.add(d)
+                log(_("  ➕ target added (live): {d}").format(d=d))
+            except Exception as e:
+                log(_("  ⚠ cannot watch {d}: {e}").format(d=d, e=e))
+        for d in sorted(removed):
+            try:
+                wd = wm.get_wd(d)
+                if wd is not None:
+                    wm.rm_watch(wd, rec=True, quiet=True)
+            except Exception:
+                pass
+            watched.discard(d)
+            log(_("  ➖ target removed (mount down or mapping deleted): {d}").format(d=d))
+        # Rattrapage des cibles NOUVELLEMENT surveillées (inotify ne voit pas
+        # l'existant). SANS suppression, comme startup_catchup. Restreint aux
+        # cibles dont le watch_dir vient d'être ajouté.
+        if added:
+            fresh = [t for t in new_targets if t["watch_dir"] in added]
+            try:
+                startup_catchup(fresh, queue_dir, log=log)
+            except Exception as e:
+                log(_("  ⚠ live catch-up failed ({e})").format(e=e))
+
+    # Boucle NON bloquante (remplace notifier.loop()) : événements inotify +
+    # ré-scan périodique de config/ pour le rechargement à chaud des mappings.
+    last_rescan = time.monotonic()
     try:
-        notifier.loop()
+        while True:
+            if notifier.check_events(timeout=1000):   # timeout en ms
+                notifier.read_events()
+                notifier.process_events()
+            now = time.monotonic()
+            if now - last_rescan >= rescan_interval:
+                last_rescan = now
+                _rescan()
+    except KeyboardInterrupt:
+        pass
     finally:
+        try:
+            notifier.stop()
+        except Exception:
+            pass
         if _st_stop is not None:
             _st_stop.set()
 
@@ -549,14 +651,17 @@ def _check_watch_capacity(targets, log):
             limit = int(f.read().strip())
     except (OSError, ValueError):
         return
-    # Estimation grossière : compter les dossiers sous chaque watch_dir.
+    # Estimation : une watch par DOSSIER (rec=True surveille chaque dossier de
+    # l'arbre, racine comprise). On compte donc chaque dossier visité par os.walk
+    # (racine incluse) — l'ancienne version sommait len(dirs), qui EXCLUT la
+    # racine de chaque cible (sous-comptage d'une watch par mapping).
     total = 0
     for wd in {t["watch_dir"] for t in targets}:
         if not os.path.isdir(wd):
             continue
         try:
-            for _root, dirs, _files in os.walk(wd):
-                total += len(dirs)
+            for _root, _dirs, _files in os.walk(wd):
+                total += 1
         except OSError:
             pass
     if total > limit * 0.8:
@@ -577,9 +682,13 @@ def main():
                         help=f"Dossier des files par utilisateur (défaut {QUEUE_DIR})")
     parser.add_argument("--no-catchup", action="store_true",
                         help="Ne pas déposer de marqueurs de rattrapage au démarrage")
+    parser.add_argument("--rescan-interval", type=int, default=30,
+                        help="Secondes entre deux relectures de config/ pour le "
+                             "rechargement à chaud des mappings (défaut 30)")
     args = parser.parse_args()
     run_watcher(config_dir=args.config_dir, queue_dir=args.queue_dir,
-                do_catchup=not args.no_catchup)
+                do_catchup=not args.no_catchup,
+                rescan_interval=args.rescan_interval)
 
 
 if __name__ == "__main__":
