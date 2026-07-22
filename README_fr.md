@@ -429,7 +429,7 @@ Règle transversale : **tout dépend d'abord de l'extension minuscule** (sinon m
 - OK : **garde-fou d'exclusion en temps réel** — `sync_subpath` teste la cible ET ses ancêtres (tag stable `[subpath-excluded]`), le consommateur affiche « 🚫 exclu » ; validé en prod (`logs`, `__pycache__`, `.Trash-1000/info`)
 - OK : **cache conscient des exclusions** — l'empreinte du jeu d'exclusions entre dans la signature : un changement d'exclusions force la réconciliation au prochain `--delete` (nettoyage automatique des orphelins nouvellement exclus, ex. `.dtrash`, `thumbnails-digikam.db`)
 - OK : **panneau « Journal des passages »** — dernière exécution par frontière de démarrage (fiable après reboot), sélecteur de date, résumé succès/échec ; validé (la collision du 1er juillet y est visible)
-- OK : **internationalisation FR/EN complète** — GUI, moteur, démons, descriptions systemd ; sélecteur « 🌍 Language… », catalogue gettext (379 messages), tag stable et marqueurs multilingues pour les détections ; validée en prod sur les deux langues
+- OK : **internationalisation FR/EN complète** — GUI, moteur, démons, descriptions systemd ; sélecteur « 🌍 Language… », catalogue gettext (729 messages), tag stable et marqueurs multilingues pour les détections ; validée en prod sur les deux langues
 - À FAIRE (optionnel) : décider d'activer ou non `--delete` dans la planification (voir Option A / Option B ci-dessous)
 - À FAIRE (optionnel) : vérification `--verify-hash` périodique à planifier (équivalent /IS mensuel)
 - À FAIRE (optionnel) : nettoyer les `.caltrash` déjà uploadés avant l'ajout des exclusions

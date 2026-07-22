@@ -429,7 +429,7 @@ Cross-cutting rule: **everything depends first on a lowercase extension** (other
 - OK: **real-time exclusion guard** — `sync_subpath` tests the target AND its ancestors (stable tag `[subpath-excluded]`), the consumer shows "🚫 excluded"; validated in production (`logs`, `__pycache__`, `.Trash-1000/info`)
 - OK: **exclusion-aware cache** — the exclusion set fingerprint enters the signature: an exclusion change forces reconciliation at the next `--delete` (automatic cleanup of newly excluded orphans, e.g. `.dtrash`, `thumbnails-digikam.db`)
 - OK: **"Run history" panel** — last run isolated by start boundary (reliable after a reboot), date picker, success/failure summary; validated (the July 1st collision is visible there)
-- OK: **complete FR/EN internationalization** — GUI, engine, daemons, systemd descriptions; "🌍 Language…" selector, gettext catalog (379 messages), stable tag and multilingual markers for detections; validated in production in both languages
+- OK: **complete FR/EN internationalization** — GUI, engine, daemons, systemd descriptions; "🌍 Language…" selector, gettext catalog (729 messages), stable tag and multilingual markers for detections; validated in production in both languages
 - TO DO (optional): decide whether to enable `--delete` in the schedule (see Option A / Option B below)
 - TO DO (optional): schedule a periodic `--verify-hash` check (monthly /IS equivalent)
 - TO DO (optional): clean up `.caltrash` files uploaded before the exclusions were added
