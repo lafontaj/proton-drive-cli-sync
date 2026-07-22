@@ -3764,3 +3764,6 @@ msgid "OK: {l} ↔ {n} match and the real-time chain works end to end."
 msgstr ""
 "OK : {l} ↔ {n} correspondent et la chaîne temps réel fonctionne de bout en "
 "bout."
+
+msgid "The NAS mount point cannot be empty when a NAS is enabled."
+msgstr "Le point de montage NAS ne peut pas être vide quand un NAS est activé."

@@ -3058,3 +3058,6 @@ msgstr ""
 #, python-brace-format
 msgid "OK: {l} ↔ {n} match and the real-time chain works end to end."
 msgstr ""
+
+msgid "The NAS mount point cannot be empty when a NAS is enabled."
+msgstr ""

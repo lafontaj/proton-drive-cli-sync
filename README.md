@@ -741,10 +741,6 @@ The project's main files:
 
 ### Planned work (next step)
 
-- **Real-time markers: a folder can be synced while a file is still being written.** A phone backup that drops a small file first and a large one after arms the debounce on the small one; the engine starts while the large file is still uploading. Raising the debounce does not fix it (the write window is far longer than any reasonable value), and neither does an age-based quarantine: the backup app preserves the source timestamp, so the file looks old while it is still growing. Two options remain — add `IN_MODIFY` to the watcher mask, or check that file sizes have stopped changing before starting a pass.
-- **Real-time markers: a marker arriving during a running pass can be swallowed.** Markers are deduplicated per folder while they sit in the queue; one that arrives while that folder is being synced is dropped, and the marker that caused it to be dropped is then cleaned up on success — so the change is forgotten until the next scheduled pass. It only bites when the pass succeeds. Options: move markers out of the queue before starting the engine, or only clean up markers older than the start of the pass.
-- **Scheduled pass and real-time consumer compete for the lock.** When the consumer holds the lock, the scheduled service exits with a failure and is not re-run, so a whole nightly pass can be skipped. Options: `Restart=on-failure` on the scheduled unit, or a blocking lock acquisition with a timeout in scheduled mode.
-- **Quieter real-time journal.** When the graphical session is closed, the consumer restarts the engine every cycle and fails on a locked keyring each time. It should test the keyring once per cycle and log a single waiting line. Related: the real-time window's form column wastes width while the journal pane truncates long paths.
 - **Regenerate the PDFs** (`build_pdf.py`) now that the documentation has changed; revisit the symbol substitution map.
 
 ### Longer-term ideas
