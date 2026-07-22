@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.16.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.17.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -101,11 +101,11 @@ DLG_TEXT = "#1f1b2e"
 DLG_MUTED = "#555577"
 # Accent par type de message (la bande supérieure + le pictogramme).
 DLG_KINDS = {
-    "info":     {"accent": "#6d4aff", "glyph": "i",  "title": "Information"},
-    "question": {"accent": "#6d4aff", "glyph": "?",  "title": "Confirmation"},
-    "warning":  {"accent": "#e8a200", "glyph": "!",  "title": "Avertissement"},
-    "error":    {"accent": "#d2294b", "glyph": "✕",  "title": "Erreur"},
-    "success":  {"accent": "#1a9e57", "glyph": "✓",  "title": "Succès"},
+    "info":     {"accent": "#6d4aff", "glyph": "i",  "title": _("Information")},
+    "question": {"accent": "#6d4aff", "glyph": "?",  "title": _("Confirmation")},
+    "warning":  {"accent": "#e8a200", "glyph": "!",  "title": _("Warning")},
+    "error":    {"accent": "#d2294b", "glyph": "✕",  "title": _("Error")},
+    "success":  {"accent": "#1a9e57", "glyph": "✓",  "title": _("Success")},
 }
 
 
@@ -211,7 +211,15 @@ class StyledDialog(tk.Toplevel):
                     self.clipboard_clear()
                     self.clipboard_append(_c)
                     copy_btn.configure(text=_("Copied ✓"))
-                    self.after(1500, lambda: copy_btn.configure(text=_("Copy")))
+                    # Le rétablissement différé peut arriver APRÈS la fermeture du
+                    # dialogue (copie puis OK en < 1,5 s) : un after n'est pas
+                    # annulé à la destruction du widget -> on garde contre TclError.
+                    def _reset_copy():
+                        try:
+                            copy_btn.configure(text=_("Copy"))
+                        except tk.TclError:
+                            pass
+                    self.after(1500, _reset_copy)
                 except Exception:
                     pass
             copy_btn = tk.Button(cmd_frame, text=_("Copy"), command=copy_cmd,
@@ -375,11 +383,11 @@ def pick_open_file(parent=None, title=_("Open a mappings file"),
                 "--filename", initialdir.rstrip("/") + "/"]
         if json_only:
             args += ["--file-filter", "JSON | *.json",
-                     "--file-filter", "Tous les fichiers | *"]
+                     "--file-filter", _("All files") + " | *"]
         return _zenity_run(args)
     # Repli Tk
-    filetypes = [("JSON", "*.json"), ("Tous les fichiers", "*.*")] if json_only \
-        else [("Tous les fichiers", "*.*")]
+    filetypes = [("JSON", "*.json"), (_("All files"), "*.*")] if json_only \
+        else [(_("All files"), "*.*")]
     return filedialog.askopenfilename(title=title, filetypes=filetypes,
                                       initialdir=initialdir) or None
 
@@ -393,11 +401,23 @@ def pick_save_file(parent=None, title=_("Save the mappings file"),
         args = ["--file-selection", "--save", "--confirm-overwrite",
                 "--title", title, "--filename", start,
                 "--file-filter", "JSON | *.json",
-                "--file-filter", "Tous les fichiers | *"]
+                "--file-filter", _("All files") + " | *"]
         path = _zenity_run(args)
-        # S'assurer de l'extension .json si l'utilisateur ne l'a pas mise
+        # S'assurer de l'extension .json si l'utilisateur ne l'a pas mise. B6 :
+        # zenity a bien --confirm-overwrite, mais il confirme le nom SAISI. Si on
+        # ajoute « .json » APRÈS coup, un « X.json » déjà présent pouvait être
+        # écrasé sans confirmation quand l'utilisateur tapait « X ». On reconfirme
+        # donc explicitement quand cet ajout d'extension vise un fichier existant.
         if path and not path.lower().endswith(".json"):
             path += ".json"
+            if os.path.exists(path):
+                if not dlg_confirm(
+                        parent,
+                        _("The file “{f}” already exists. Replace it?").format(
+                            f=os.path.basename(path)),
+                        title=_("Confirm"), kind="warning",
+                        ok_text=_("Replace"), cancel_text=_("Cancel")):
+                    return None
         return path
     return filedialog.asksaveasfilename(
         title=title, defaultextension=".json",
@@ -418,7 +438,7 @@ def pick_move_target(parent=None, title=None, initialdir=None):
         args = ["--file-selection", "--save",   # --save autorise un nom nouveau…
                 "--title", title, "--filename", start,          # …SANS confirm-overwrite
                 "--file-filter", "JSON | *.json",
-                "--file-filter", "Tous les fichiers | *"]
+                "--file-filter", _("All files") + " | *"]
         path = _zenity_run(args)
         if path and not path.lower().endswith(".json"):
             path += ".json"
@@ -832,14 +852,14 @@ class RemoteFolderPicker(tk.Toplevel):
 
     def _on_select(self, _e):
         item = self.tree.focus()
-        ok = bool(item) and "\x00" not in item
+        ok = bool(item) and "\x01" not in item
         self.choose_btn.config(state="normal" if ok else "disabled")
         if ok:
             self.status_var.set(item)
 
     def _choose(self):
         item = self.tree.focus()
-        if item and "\x00" not in item:
+        if item and "\x01" not in item:
             self.dest_var.set(item)
             self.destroy()
 
@@ -1042,7 +1062,10 @@ class MappingEditor(tk.Tk):
                 status, version = _ENGINE.cli_version_status()
                 shared = bool(_ENGINE.cli_supports_shared_delete())
             except Exception:
-                status, version, shared = "unknown", None, False
+                # shared=None = INDÉTERMINÉ (et non False) : on ne mémorise jamais
+                # un échec de sonde (règle du projet). Le poll ne figera donc pas
+                # False ; la prochaine consultation re-sondera.
+                status, version, shared = "unknown", None, None
             self._cli_probe_q.put((status, version, shared))
         if not _HAS_ENGINE:
             self._cli_shared_delete = False
@@ -1057,7 +1080,11 @@ class MappingEditor(tk.Tk):
         except queue.Empty:
             self.after(150, self._poll_cli_version_probe)
             return
-        self._cli_shared_delete = shared
+        # Ne mémoriser QUE si la sonde a abouti : None = échec transitoire
+        # (trousseau momentanément verrouillé, réseau) -> laisser inconnu pour
+        # re-sonder plus tard, jamais figer False pour toute la session.
+        if shared is not None:
+            self._cli_shared_delete = shared
         self._announce_cli_version(status, version)
 
     def _shared_delete_capability(self):
@@ -1071,7 +1098,11 @@ class MappingEditor(tk.Tk):
                 self._cli_shared_delete = bool(
                     _HAS_ENGINE and _ENGINE.cli_supports_shared_delete())
             except Exception:
-                self._cli_shared_delete = False
+                # Échec de sonde : NE PAS mémoriser (on reste None pour re-sonder
+                # au prochain appel). On renvoie False pour CE geste seulement —
+                # repli conservateur (verrou « ajout seul » maintenu) — sans figer
+                # l'état de la session.
+                return False
         return self._cli_shared_delete
 
     def _announce_cli_version(self, status, version):
@@ -1638,6 +1669,17 @@ class MappingEditor(tk.Tk):
 
     # ---------- Actions fichier ----------
     def on_open(self):
+        # B3 : ouvrir un autre fichier remplace le contenu en mémoire — ne pas
+        # écraser en silence des modifications non enregistrées (comme le font
+        # déjà on_close et on_move_mapping).
+        if self.dirty:
+            if not dlg_confirm(
+                    self,
+                    _("Some changes have not been saved. Open another file "
+                      "without saving?"),
+                    title=_("Unsaved changes"), kind="warning",
+                    ok_text=_("Continue"), cancel_text=_("Cancel")):
+                return
         path = pick_open_file(self, title=_("Open a mappings file"),
                               initialdir=APP_DIR, json_only=True)
         if path:
@@ -1661,10 +1703,10 @@ class MappingEditor(tk.Tk):
                     "patterns": list(ex.get("patterns", []) or []),
                 }
             else:
-                raise ValueError("Le fichier doit contenir une liste ou un objet.")
+                raise ValueError(_("The file must contain a list or an object."))
             for entry in mappings:
                 if "type" not in entry or "source" not in entry or "dest_parent" not in entry:
-                    raise ValueError("Chaque entrée doit avoir : type, source, dest_parent.")
+                    raise ValueError(_("Each entry must have: type, source, dest_parent."))
             self.mappings = mappings
             self.global_exclusions = global_ex
             self.config_path = path
@@ -1707,8 +1749,20 @@ class MappingEditor(tk.Tk):
             else:
                 out = self.mappings  # format liste simple
 
-            with open(path, "w", encoding="utf-8") as f:
+            # Écriture ATOMIQUE (tmp + os.replace), comme partout ailleurs dans
+            # le projet (cache, déplacement de mapping, .desktop, push NAS). Le
+            # fichier de mappings est lu en concurrence par le moteur (timer
+            # planifié), le consommateur temps réel (chaque cycle) et le watcher
+            # local (ré-scan) : une écriture directe « w » exposait un JSON
+            # tronqué en cas de crash/disque plein — et perdait l'original, déjà
+            # vidé par l'ouverture en « w ». os.replace est atomique : les lecteurs
+            # voient soit l'ancien fichier, soit le nouveau, jamais un état partiel.
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(out, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
             self.config_path = path
             self._set_dirty(False)
             self.status.set(_("Saved: {p}").format(p=path))
@@ -1731,24 +1785,28 @@ class MappingEditor(tk.Tk):
             try:
                 ok, msg = realtime_manager.push_mappings_to_nas(path)
             except Exception as e:
-                ok, msg = False, f"push NAS impossible : {e}"
+                ok, msg = False, _("NAS push failed: {e}").format(e=e)
             # Mise à jour de la barre d'état sur le thread Tk ; pas de modale pour
             # ne pas interrompre le flux d'enregistrement. La dérive (fenêtre
             # Temps réel) reflète l'état réel.
             self.after(0, lambda: self.status.set(
-                f"Enregistré et poussé vers le NAS : {base}" if ok
-                else f"Enregistré : {base}  —  {msg}"))
+                _("Saved and pushed to the NAS: {base}").format(base=base) if ok
+                else _("Saved: {base}  —  {msg}").format(base=base, msg=msg)))
         threading.Thread(target=work, daemon=True).start()
 
     def on_close(self):
-        if self.sync_process and self.sync_process.poll() is None:
+        # Recueillir TOUTES les confirmations AVANT d'agir : sinon, se raviser à
+        # la 2e question (modifs non enregistrées) laissait la fenêtre ouverte
+        # mais la synchro DÉJÀ tuée pour rien. On tue donc la synchro seulement
+        # une fois toutes les confirmations obtenues.
+        sync_running = bool(self.sync_process and self.sync_process.poll() is None)
+        if sync_running:
             if not dlg_confirm(
                 self,
                 _("A sync is currently running. Quitting will interrupt it. Continue?"),
                 title=_("Sync in progress"), kind="warning",
                 ok_text=_("Quit"), cancel_text=_("Cancel")):
                 return
-            self.on_stop_sync()
         if self.dirty:
             if not dlg_confirm(
                 self,
@@ -1756,6 +1814,8 @@ class MappingEditor(tk.Tk):
                 title=_("Unsaved changes"), kind="warning",
                 ok_text=_("Quit without saving"), cancel_text=_("Cancel")):
                 return
+        if sync_running:
+            self.on_stop_sync()
         self.destroy()
 
     # ---------- Actions mapping ----------
@@ -1907,20 +1967,30 @@ class MappingEditor(tk.Tk):
                 # Avertir si le choix actuel contredit la détection
                 if srckind_var.get() != detected:
                     warn_lbl.config(
-                        text=f"⚠ Tu as choisi « {srckind_var.get()} » mais la source "
-                             f"est détectée « {detected} ». Vérifie avant d'enregistrer.")
+                        text=_("⚠ You chose “{a}” but the source is detected as "
+                               "“{b}”. Check before saving.").format(
+                                   a=srckind_var.get(), b=detected))
             elif detected == "missing":
                 warn_lbl.config(
-                    text="⚠ Source actuellement introuvable ou inaccessible — "
-                         "impossible de détecter le type. Si c'est un montage NAS "
-                         "non monté, monte-le d'abord.")
+                    text=_("⚠ Source currently missing or unreachable — could not "
+                           "detect the type. If it is an unmounted NAS share, "
+                           "mount it first."))
 
-        def toggle_delete():
+        def toggle_delete(probe=True):
             state = "normal" if allow_var.get() else "disabled"
             for w in (rb_trash, rb_perm, rb_nfs, rb_local):
                 w.config(state=state)
             if allow_var.get():
-                detect_and_show()
+                # probe=False : appel venu d'une TRACE de frappe
+                # (apply_shared_lock suit dest_var/src_var à chaque caractère).
+                # detect_and_show() sonde le montage (mount_check ->
+                # os.path.exists) sur le fil principal : la déclencher à chaque
+                # frappe recréait le spam désamorcé plus haut, et pouvait GELER
+                # l'interface sur un montage NFS effondré. La détection reste
+                # déclenchée par les gestes EXPLICITES : case cochée, Parcourir,
+                # FocusOut du champ Source, changement manuel du type.
+                if probe:
+                    detect_and_show()
             else:
                 detect_lbl.config(text="")
                 warn_lbl.config(text="")
@@ -1953,7 +2023,15 @@ class MappingEditor(tk.Tk):
                     "upload-only."))
             elif is_shared:
                 allow_chk.config(state="normal")
-                target = mapping_remote_path(dest_var.get(), src_var.get())
+                # Aperçu du chemin distant SEULEMENT si la source est un chemin
+                # absolu : basename() d'une saisie relative/fantaisiste renverrait
+                # la chaîne entière, et l'aperçu afficherait du charabia avec
+                # l'autorité d'un vrai chemin. isabs est un test purement textuel
+                # (aucune sonde disque), sûr à la frappe. Source non absolue ->
+                # message générique existant (branche « if target » ci-dessous).
+                src_now = src_var.get().strip()
+                target = (mapping_remote_path(dest_var.get(), src_now)
+                          if os.path.isabs(src_now) else "")
                 # Le chemin est ISOLÉ sur sa propre ligne : noyé dans le
                 # paragraphe, il se coupait en fin de ligne et devenait illisible,
                 # alors que c'est justement l'information qui borne la portée de
@@ -1976,7 +2054,7 @@ class MappingEditor(tk.Tk):
             else:
                 allow_chk.config(state="normal")
                 shared_note.config(text="")
-            toggle_delete()   # (re)synchronise l'état des sous-contrôles
+            toggle_delete(probe=False)   # (re)synchronise l'état des sous-contrôles, SANS sonde de montage
 
         dest_var.trace_add("write", apply_shared_lock)
         # La note nomme désormais le sous-dossier réel (destination + nom de la
@@ -1990,10 +2068,42 @@ class MappingEditor(tk.Tk):
             source = src_var.get().strip()
             dest = dest_var.get().strip()
             if not source:
-                dlg_warning(dlg, "Indique une source.", title=_("Missing source"))
+                dlg_warning(dlg, _("Enter a source."), title=_("Missing source"))
+                return
+            # Une source non ABSOLUE n'est jamais légitime : le moteur compare des
+            # chemins normalisés absolus, les watchers posent leurs watches dessus,
+            # et l'aperçu/avertissements en dérivent le chemin distant. Accepter
+            # « jjk... » créait un mapping fantaisiste (constaté en prod). On ne
+            # teste PAS l'existence : une source NAS non montée au moment de
+            # l'édition reste un cas légitime (le moteur la saute proprement).
+            if not os.path.isabs(source):
+                dlg_warning(
+                    dlg,
+                    _("The source must be an ABSOLUTE path (starting with “/”).\n"
+                      "Use “Browse…” or fix the path you typed."),
+                    title=_("Invalid source"))
                 return
             if not dest:
-                dlg_warning(dlg, "Indique une destination.", title=_("Missing destination"))
+                dlg_warning(dlg, _("Enter a destination."), title=_("Missing destination"))
+                return
+            # La destination doit vivre sous une racine INSCRIPTIBLE de Proton
+            # Drive : « /my-files » ou « /shared-with-me ». Les autres racines de
+            # premier niveau (Photos, Devices) sont des espaces spéciaux non
+            # visés par ce projet, et toute autre saisie (chemin relatif,
+            # charabia) produirait un mapping fantaisiste — même famille que la
+            # validation de source ci-dessus. Comparaison à FRONTIÈRE de segment
+            # (« /my-filesX » ne passe pas). Test purement textuel, la validité
+            # réelle du dossier reste tranchée par « Parcourir Proton… » et par
+            # le moteur.
+            _d = dest.rstrip("/") or "/"
+            if not any(_d == r or _d.startswith(r + "/")
+                       for r in ("/my-files", "/shared-with-me")):
+                dlg_warning(
+                    dlg,
+                    _("The destination must be a Proton Drive folder under\n"
+                      "“/my-files” or “/shared-with-me”.\n"
+                      "Use “Browse Proton…” to pick it."),
+                    title=_("Invalid destination"))
                 return
             new_m = {"type": m_type, "source": source, "dest_parent": dest}
             # Conserver les exclusions existantes si on édite
@@ -2005,8 +2115,8 @@ class MappingEditor(tk.Tk):
                 if chosen_kind not in ("nfs", "local"):
                     dlg_warning(
                         dlg,
-                        "Tu as autorisé la suppression : confirme le type de source "
-                        "(NFS ou local) avant d'enregistrer.",
+                        _("You enabled deletion: confirm the source type "
+                          "(NFS or local) before saving."),
                         title=_("Source type required"))
                     return
                 # Avertissement fort pour le mode définitif
@@ -2152,11 +2262,28 @@ class MappingEditor(tk.Tk):
         updated = self._mapping_dialog(old["type"], mapping=old)
         if updated is None:
             return
+        # Re-résoudre la POSITION du mapping par identité d'objet : pendant que le
+        # dialogue tournait (wait_window), une boîte imbriquée a pu consommer le
+        # grab et rendre la fenêtre principale cliquable — l'utilisateur a pu y
+        # supprimer/déplacer une ligne, périmant `idx`. Écrire self.mappings[idx]
+        # sur un index périmé écraserait le mauvais mapping (ou lèverait
+        # IndexError). Si l'objet `old` n'est plus dans la liste (supprimé/déplacé),
+        # on abandonne l'édition sans rien toucher : la liste reflète déjà le geste
+        # de l'utilisateur.
+        try:
+            idx = next(i for i, _m in enumerate(self.mappings) if _m is old)
+        except StopIteration:
+            return
         new_mirror = bool(updated.get("allow_delete"))
 
         # --- Changement de vocation sur un mapping DÉJÀ amorcé ---
         if was_primed and (new_mirror != old_mirror):
             if new_mirror:
+                # M15 : cette bascule invalide le cache d'amorçage sur disque —
+                # refuser si un passage tourne (il réécrirait le cache et
+                # ressusciterait l'amorçage). Contrôle AVANT la confirmation.
+                if self._pass_running_warn():
+                    return
                 # additif -> miroir : l'amorçage doit être refait.
                 if not dlg_confirm(
                     self,
@@ -2304,6 +2431,11 @@ class MappingEditor(tk.Tk):
         if not self.config_path:
             dlg_info(self, _("Save the current mappings file first."),
                      title=_("Move mapping"))
+            return
+        # M15 : le déplacement mute le cache sur disque (il déplace le sous-arbre
+        # d'amorçage) — refuser si un passage tourne, sinon le moteur en cours
+        # réécrirait le cache et le déplacement serait perdu en silence.
+        if self._pass_running_warn():
             return
         # Le transfert est ATOMIQUE : il enregistrera le fichier source (sans le
         # mapping) juste après avoir écrit la destination et déplacé le cache. Si
@@ -2917,6 +3049,20 @@ class MappingEditor(tk.Tk):
     def _launcher_desktop_path(self):
         return os.path.join(self._desktop_dir(), self._LAUNCHER_NAME)
 
+    @staticmethod
+    def _desktop_exec_quote(arg):
+        """Quote un argument pour la ligne Exec d'un .desktop selon la spec
+        Desktop Entry : guillemets doubles si l'argument contient un caractère
+        réservé, avec échappement de " ` $ \\ . Sans quoi un chemin de mappings
+        contenant une espace produisait un lanceur au 3e argument tronqué
+        (« /home/x/Mes » au lieu de « /home/x/Mes documents/m.json »), et faussait
+        la détection de cible de _launcher_existing_target."""
+        if arg and all(c not in ' \t\n"\'\\`$<>~|&;()*?#' for c in arg):
+            return arg
+        esc = (arg.replace('\\', '\\\\').replace('"', '\\"')
+                  .replace('`', '\\`').replace('$', '\\$'))
+        return '"' + esc + '"'
+
     def _launcher_content(self, target_path=None):
         """Contenu du .desktop. `target_path` : fichier de mappings à ouvrir
         (Exec avec argument), ou None (éditeur vide). Catégorie Network
@@ -2924,9 +3070,10 @@ class MappingEditor(tk.Tk):
         remonte la fenêtre existante plutôt que d'en ouvrir une seconde."""
         editor = os.path.join(APP_DIR, "proton_mapping_editor.py")
         icon = os.path.join(APP_DIR, "icone.png")
-        exec_line = f"{sys.executable} {editor}"
+        q = self._desktop_exec_quote
+        exec_line = f"{q(sys.executable)} {q(editor)}"
         if target_path:
-            exec_line += f" {target_path}"
+            exec_line += f" {q(target_path)}"
         return (
             "[Desktop Entry]\n"
             "Type=Application\n"
@@ -2973,7 +3120,15 @@ class MappingEditor(tk.Tk):
                 with open(p, encoding="utf-8") as f:
                     for line in f:
                         if line.startswith("Exec="):
-                            return len(line[5:].split()) >= 3
+                            # shlex.split gère les guillemets doubles (cf.
+                            # _desktop_exec_quote) : un chemin à espaces reste UN
+                            # seul token. python + éditeur = 2 tokens ; un 3e =
+                            # cible « mapping courant ». split() naïf recomptait
+                            # faux dès qu'un chemin contenait une espace.
+                            try:
+                                return len(shlex.split(line[5:].strip())) >= 3
+                            except ValueError:
+                                return len(line[5:].split()) >= 3
             except OSError:
                 continue
         return False
@@ -3566,23 +3721,43 @@ class MappingEditor(tk.Tk):
             # On redémarre donc silencieusement uniquement quand l'identité change.
             identity_changed = bool(
                 _HAS_CONFIG and _HAS_REALTIME
-                and old_ident != (ident_var.get() or "").strip())
+                # account_name() peut valoir None (identité jamais définie) : le
+                # normaliser en "" pour ne pas déclencher un redémarrage parasite
+                # des démons quand l'identité était None ET le champ vide
+                # (None != "" était vrai à tort).
+                and (old_ident or "") != (ident_var.get() or "").strip())
+            # restart_daemons() renvoie (ok, message) et NE LÈVE PAS en cas
+            # d'échec (systemctl en erreur -> ok=False). L'ancien code posait
+            # restarted=True sans regarder ok : le GUI annonçait « démons
+            # redémarrés » même en échec, alors que le consommateur continuait avec
+            # l'ANCIENNE identité NAS (billets déposés sous l'ancien nom). On teste
+            # donc ok, et en cas d'échec on affiche le message localisé renvoyé par
+            # realtime_manager (aucune chaîne neuve à traduire).
             restarted = False
+            restart_msg = ""
             if identity_changed:
                 try:
-                    realtime_manager.restart_daemons()
-                    restarted = True
-                except Exception:
+                    _ok_r, restart_msg = realtime_manager.restart_daemons()
+                    restarted = bool(_ok_r)
+                except Exception as _e:
                     restarted = False
+                    restart_msg = str(_e)
 
             dlg.destroy()
             if restarted:
-                msg = _("Configuration saved.\n\nThe background daemons were "
-                        "restarted to apply the new NAS identity.")
+                dlg_info(self, _("Configuration saved.\n\nThe background daemons "
+                        "were restarted to apply the new NAS identity."),
+                        title=_("Configuration"))
+            elif identity_changed:
+                # Identité changée mais redémarrage ÉCHOUÉ : ne pas prétendre au
+                # succès. Le message localisé de realtime_manager dit ce qui a
+                # échoué ; les démons tournent encore avec l'ancienne identité.
+                dlg_error(self, restart_msg or _("Configuration"),
+                          title=_("Configuration"))
             else:
-                msg = _("Configuration saved.\n\nChanges apply automatically "
-                        "(the window uses them at its next launch).")
-            dlg_info(self, msg, title=_("Configuration"))
+                dlg_info(self, _("Configuration saved.\n\nChanges apply "
+                        "automatically (the window uses them at its next launch)."),
+                        title=_("Configuration"))
 
         ttk.Button(btns, text=_("Cancel"),
                    command=dlg.destroy).pack(side="right", padx=4)
@@ -3684,7 +3859,7 @@ class MappingEditor(tk.Tk):
         self.clipboard_clear()
         self.clipboard_append(cmd)
         self.status.set(_("Command copied to the clipboard."))
-        self._append_output("[Commande copiée]\n" + cmd + "\n\n")
+        self._append_output(_("[Command copied]") + "\n" + cmd + "\n\n")
 
     def on_clear_output(self):
         self._drain_output_queue()
@@ -3838,15 +4013,18 @@ class MappingEditor(tk.Tk):
              émises par le moteur, un dossier par ligne dans l'ordre du balayage) +
              lignes d'erreur. Le détail (fichiers, JSON, uploads…) est masqué. Le
              GUI ne DEVINE plus le dossier — le moteur l'annonce."""
+        # Compteur de dossiers balayés (alimente « Rien à mettre à jour » si zéro
+        # dossier n'a été vu). Compté EN PREMIER, avant tout return anticipé —
+        # sinon le mode « Erreurs seules » (qui sort tout de suite) laissait le
+        # compteur à 0 et affichait « Rien à mettre à jour » alors que des dossiers
+        # avaient bel et bien été envoyés.
+        if line.lstrip().startswith("📂"):
+            self._folders_shown = getattr(self, "_folders_shown", 0) + 1
         if self.opt_errors_only.get():
             stripped = line.strip()
             if self._is_error_line(stripped):
                 self._append_output(line if line.endswith("\n") else line + "\n")
             return
-        if line.lstrip().startswith("📂"):
-            # Compteur de dossiers balayés (sert au message « rien à synchroniser »
-            # si zéro dossier n'a été vu). Compté quel que soit le mode d'affichage.
-            self._folders_shown = getattr(self, "_folders_shown", 0) + 1
         if self.opt_verbose.get():
             self._append_output(line)
             return
@@ -3997,8 +4175,12 @@ class MappingEditor(tk.Tk):
                     if "[auth-failed]" in line:
                         self._auth_failed_seen = True
                     self._feed_output(line)      # affichage (brut ou épuré)
-                    logf.write(line)             # log disque : toujours complet
-                    logf.flush()
+                    # @@PROGRESS = protocole interne (barre de progression), traité
+                    # à part via _handle_progress_line : jamais au log (sinon
+                    # rejoué à l'écran au re-filtrage, cf. docstring _feed_output).
+                    if not line.startswith("@@PROGRESS"):
+                        logf.write(line)         # log disque : sortie complète
+                        logf.flush()
                 self.sync_process.wait()
             code = self.sync_process.returncode
             # Mode épuré : si aucun dossier n'a été affiché, l'écran serait vide ->
@@ -4027,9 +4209,16 @@ class MappingEditor(tk.Tk):
     def on_stop_sync(self):
         # Casser une éventuelle attente de verrou (amorçage/reset patients).
         self._stop_requested = True
-        if self.sync_process and self.sync_process.poll() is None:
-            self.sync_process.terminate()
-            self._append_output("\n=== Interruption demandée (terminate) ===\n")
+        # Capturer la référence AVANT de la tester : le finally d'un thread de
+        # synchro peut poser self.sync_process = None entre le test et le
+        # terminate() -> AttributeError. On travaille sur la copie locale.
+        proc = self.sync_process
+        if proc and proc.poll() is None:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            self._append_output("\n" + _("=== Interruption requested (terminate) ===") + "\n")
             self.status.set(_("Sync interrupted."))
 
     def _lock_is_busy(self, env=None):
@@ -4048,6 +4237,21 @@ class MappingEditor(tk.Tk):
             return r.returncode != 0
         except Exception:
             return False
+
+    def _pass_running_warn(self):
+        """M15 : True (et prévient) si un passage moteur tient le verrou. Les
+        opérations qui MUTENT directement le cache sur disque (invalidation de
+        l'amorçage lors d'un passage additif→miroir, déplacement d'un mapping)
+        ne doivent pas s'exécuter pendant un passage : le moteur garde son cache
+        EN MÉMOIRE et le réécrit intégralement à ses checkpoints, ce qui
+        écraserait silencieusement la mutation du GUI (le sous-arbre « invalidé »
+        ressusciterait). On prévient et on refuse ; l'utilisateur relance une fois
+        le passage terminé. Réutilise la sonde non destructive --check-lock."""
+        if self._lock_is_busy():
+            dlg_warning(self, _("A sync is already running."),
+                        title=_("Sync in progress"))
+            return True
+        return False
 
     # ---------- Amorçage du cache (passage complet ciblé, --delete corbeille) ----------
     def _cache_complete_count(self):
@@ -4319,6 +4523,10 @@ class MappingEditor(tk.Tk):
 
         if not _HAS_REALTIME:
             self._append_output(_("[realtime_manager.py missing — cannot orchestrate daemons]") + "\n")
+        # Drapeau du filet de sécurité (voir le finally) : True tant que le
+        # consommateur/timer sont arrêtés SANS avoir été redémarrés. Défini
+        # AVANT le try pour être toujours lisible dans le finally.
+        daemons_stopped = False
         try:
             # 1) Vérifier la session Proton AVANT tout (inutile de lancer si le
             #    token va lâcher).
@@ -4342,6 +4550,7 @@ class MappingEditor(tk.Tk):
                 #    conservés, traités dès le retour du consommateur).
                 self._append_output(_("⏸ Stopping the consumer (watcher kept running)…") + "\n")
                 realtime_manager.stop_consumer()
+                daemons_stopped = True
                 self._append_output(_("⏸ Pausing the scheduled timer…") + "\n")
                 if _HAS_SCHEDULE:
                     try:
@@ -4369,7 +4578,12 @@ class MappingEditor(tk.Tk):
             while self._lock_is_busy(env):
                 if getattr(self, "_stop_requested", False):
                     self._append_output(_("⏹ Cancelled while waiting for the lock.") + "\n")
-                    self.after(0, lambda: self.status.set(_("Priming cancelled.")))
+                    # B10 : différencier le message selon l'opération. Ce chemin
+                    # est partagé par l'amorçage ET la réinitialisation ; afficher
+                    # « Priming cancelled » après l'annulation d'un RESET était
+                    # trompeur. Les deux msgid existent déjà au catalogue.
+                    cancel_msg = _("Reset cancelled.") if is_reset else _("Priming cancelled.")
+                    self.after(0, lambda m=cancel_msg: self.status.set(m))
                     return
                 if not waited:
                     self._append_output(_("⏳ Waiting for the lock to be released "
@@ -4397,7 +4611,9 @@ class MappingEditor(tk.Tk):
                     if "[auth-failed]" in line:
                         self._auth_failed_seen = True
                     self._feed_output(line)          # affichage (brut ou épuré)
-                    logf.write(line); logf.flush()   # log disque : toujours complet
+                    # @@PROGRESS non écrit au log (protocole interne, cf. B9/site 1).
+                    if not line.startswith("@@PROGRESS"):
+                        logf.write(line); logf.flush()   # log disque : sortie complète
                     # Extraire un chemin pour la barre de progression (dossier courant).
                     self._prime_current = self._extract_path(line) or self._prime_current
                 self.sync_process.wait()
@@ -4421,6 +4637,7 @@ class MappingEditor(tk.Tk):
                         self._append_output(_("▶ Scheduled timer restored.") + "\n")
                     except Exception:
                         pass
+                daemons_stopped = False   # redémarrage normal effectué
                 ready, total = realtime_manager.mappings_ready_count(self.config_path)
                 self._append_output(_("✓ {r}/{t} mapping(s) now ready for real-time.").format(r=ready, t=total) + "\n\n")
                 if is_reset:
@@ -4442,6 +4659,25 @@ class MappingEditor(tk.Tk):
                 self._append_output("\n=== " + _("Priming error: {e}").format(e=e) + " ===\n")
                 self.after(0, lambda: self.status.set(_("Priming error: {e}").format(e=e)))
         finally:
+            # FILET DE SÉCURITÉ : si le consommateur/timer ont été arrêtés mais
+            # que le redémarrage normal (étape 4) n'a pas eu lieu — annulation
+            # pendant l'attente du verrou (return), ou exception en cours de
+            # route —, on les redémarre ICI. Sans ce filet, un simple clic sur
+            # Arrêter pendant « Waiting for the lock… » laissait le temps réel
+            # ET le passage nocturne arrêtés indéfiniment, en silence — pour un
+            # logiciel de sauvegarde, c'est pire que l'erreur affichée.
+            if _HAS_REALTIME and daemons_stopped:
+                try:
+                    self._append_output(_("▶ Restarting the consumer…") + "\n")
+                    realtime_manager.start_consumer()
+                    if _HAS_SCHEDULE:
+                        try:
+                            schedule_manager.resume_timer()
+                            self._append_output(_("▶ Scheduled timer restored.") + "\n")
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
             self.sync_process = None
             self._prime_running = False
             self.after(0, lambda: self.prime_button.configure(state="normal"))
@@ -4514,8 +4750,16 @@ class ScheduleDialog(tk.Toplevel):
         self.parent = parent
         self.mappings_path = mappings_path
         self.title(_("Sync schedule"))
-        self.geometry("660x680")
-        self.minsize(620, 640)
+        # Dimensionnement résolution-conscient : la taille voulue (660x680)
+        # dépasse un écran 1024x600 (l'autre poste). On plafonne à ~90 % de la
+        # hauteur / ~95 % de la largeur de l'écran, et on abaisse la minsize en
+        # conséquence pour que la fenêtre ne puisse JAMAIS exiger plus grand que
+        # l'écran. Le bouton Fermer est packé côté bas EN PREMIER (voir _build) :
+        # il reste ancré et atteignable même si le contenu est comprimé.
+        _sw, _sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        _w, _h = min(660, int(_sw * 0.95)), min(680, int(_sh * 0.90))
+        self.geometry(f"{_w}x{_h}")
+        self.minsize(min(620, _w), min(640, _h))
         self.transient(parent)
         self.grab_set()
 
@@ -4556,7 +4800,7 @@ class ScheduleDialog(tk.Toplevel):
         self.freq_combo.bind("<<ComboboxSelected>>", lambda e: self._update_freq_state())
 
         ttk.Label(frow, text=_("   Day: ")).pack(side="left")
-        self.day_var = tk.StringVar(value="Dimanche")
+        self.day_var = tk.StringVar(value=_("Sunday"))
         self.day_combo = ttk.Combobox(frow, textvariable=self.day_var,
                                        values=[lab for lab, _tok in self.DOW],
                                        state="disabled", width=11)
@@ -4691,7 +4935,7 @@ class ScheduleDialog(tk.Toplevel):
         for lab, tok in self.DOW:
             if tok == token:
                 return lab
-        return "Dimanche"
+        return _("Sunday")
 
     def _build_calendar(self):
         """Construit la valeur OnCalendar à partir des trois contrôles."""
@@ -4823,8 +5067,13 @@ class PlanificationJournalDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent = parent
         self.title(_("Schedule run history"))
-        self.geometry("900x620")
-        self.minsize(700, 480)
+        # Plafonnement résolution-conscient (cf. ScheduleDialog) : 900x620
+        # débordait en 1024x600. Bouton Fermer packé côté bas en premier -> reste
+        # visible même si la hauteur est plafonnée.
+        _sw, _sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        _w, _h = min(900, int(_sw * 0.95)), min(620, int(_sh * 0.90))
+        self.geometry(f"{_w}x{_h}")
+        self.minsize(min(700, _w), min(480, _h))
         self.transient(parent)
         self.grab_set()
         self._build()
@@ -5773,7 +6022,7 @@ class RealtimeDialog(tk.Toplevel):
 
     def on_clean(self):
         q = realtime_manager.count_queues(self.mappings_path)
-        nas_part = f"{q['nas']}" if q["nas_reachable"] else "NAS injoignable"
+        nas_part = f"{q['nas']}" if q["nas_reachable"] else _("NAS unreachable")
         if not dlg_confirm(
                 self,
                 _("Clear the pending markers?\n\n"
@@ -5892,8 +6141,20 @@ def main():
     # (systray icône + menu « Ouvrir », CLI, lanceur .desktop).
     srv = _try_become_primary()
     if srv is None:
-        _signal_existing()
-        return
+        # Une instance primaire tient le nom : lui demander de remonter, puis sortir.
+        if _signal_existing():
+            return
+        # Échec de la connexion : l'instance primaire est probablement en train de
+        # mourir (elle tient encore le nom mais ne répond plus). On retente de
+        # devenir primaire quelques fois avant d'abandonner, pour qu'un clic sur le
+        # lanceur juste après une fermeture ne produise PAS « rien du tout ».
+        for _ in range(10):
+            time.sleep(0.2)
+            srv = _try_become_primary()
+            if srv is not None:
+                break
+        if srv is None:
+            return   # une autre instance a bel et bien repris le nom -> on sort
     app = MappingEditor(config_path)
     app._singleton_srv = srv                     # garder la référence vivante
     _start_singleton_listener(app, srv)
