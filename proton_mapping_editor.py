@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.17.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.17.6"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -132,6 +132,46 @@ def _safe_grab(win):
             if n < 20:
                 win.after(50, lambda: _try(n + 1))
     _try()
+
+
+def install_ui_pump(widget, interval=50):
+    """Canal fil-secondaire → fil PRINCIPAL pour les mises à jour d'interface.
+
+    Les threads appellent widget._ui(fn) pour faire exécuter un callable SANS
+    argument sur le fil principal : fn est enfilé dans une queue.Queue (sûr
+    depuis n'importe quel fil), qu'un scrutateur after() draine et exécute côté
+    principal — chaque fn gardé par winfo_exists + try/except. Remplace les
+    appels « after » émis depuis un thread : after() n'est pas officiellement
+    thread-safe. Généralise le motif file+scrutateur déjà en place pour la sonde
+    CLI et pour _pump_output. Le scrutateur cesse de se reprogrammer dès que la
+    fenêtre disparaît (aucune boucle after() orpheline)."""
+    q = queue.Queue()
+    widget._ui_q = q
+    widget._ui = q.put                        # widget._ui(fn) enfile fn (sûr tout fil)
+
+    def _pump():
+        try:
+            if not widget.winfo_exists():
+                return                        # fenêtre détruite : plus de reprogrammation
+        except tk.TclError:
+            return
+        while True:
+            try:
+                fn = q.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                fn()
+            except tk.TclError:
+                pass                          # fenêtre en cours de destruction : sans gravité
+            except Exception:
+                import traceback as _tb
+                _tb.print_exc()               # un vrai bug reste visible sans tuer le scrutateur
+        try:
+            widget.after(interval, _pump)
+        except tk.TclError:
+            pass
+    widget.after(interval, _pump)
 
 
 class StyledDialog(tk.Toplevel):
@@ -710,6 +750,7 @@ class RemoteFolderPicker(tk.Toplevel):
 
     def __init__(self, parent, app, dest_var):
         super().__init__(parent)
+        install_ui_pump(self)                # canal fil-secondaire → fil principal
         self.withdraw()                      # anti-saut (même principe que StyledDialog)
         self.app = app
         self.dest_var = dest_var
@@ -849,7 +890,7 @@ class RemoteFolderPicker(tk.Toplevel):
                 self._cache[path] = entries
                 self._fill(item, entries)
             try:
-                self.after(0, apply)
+                self._ui(apply)
             except tk.TclError:
                 pass                          # fenêtre fermée entre-temps
         threading.Thread(target=work, daemon=True).start()
@@ -912,6 +953,7 @@ def mapping_remote_path(dest_parent, source):
 class MappingEditor(tk.Tk):
     def __init__(self, config_path=None):
         super().__init__()
+        install_ui_pump(self)                # canal fil-secondaire → fil principal
         self.title(APP_TITLE)
         self.geometry("1060x700")
         self.minsize(880, 580)
@@ -960,6 +1002,23 @@ class MappingEditor(tk.Tk):
         # sement (❌ ⚠ ⛔ / « échec »/« failed »). Utile pour vérifier vite ce qui a
         # coincé sans dérouler tout le journal. Re-décochable à tout moment.
         self.opt_errors_only = tk.BooleanVar(value=False)
+
+        # Miroirs Python simples des DEUX cases d'AFFICHAGE (Détaillé / Erreurs
+        # seules), tenus à jour sur le FIL PRINCIPAL via une trace. _render_line
+        # (appelé depuis le fil LECTEUR de la sortie) et la fin de
+        # _run_sync_thread (fil lecteur aussi) lisent ces attributs au lieu
+        # d'appeler Variable.get() hors du fil principal : Tk n'est pas
+        # thread-safe, alors qu'un attribut Python se lit sans risque depuis
+        # n'importe quel fil. La trace ne s'exécute que là où la Var est écrite
+        # (les cases, sur le fil principal), donc le miroir reste juste.
+        self._verbose_flag = bool(self.opt_verbose.get())
+        self._errors_only_flag = bool(self.opt_errors_only.get())
+        self.opt_verbose.trace_add(
+            "write",
+            lambda *a: setattr(self, "_verbose_flag", bool(self.opt_verbose.get())))
+        self.opt_errors_only.trace_add(
+            "write",
+            lambda *a: setattr(self, "_errors_only_flag", bool(self.opt_errors_only.get())))
 
         self._build_ui()
 
@@ -1220,7 +1279,7 @@ class MappingEditor(tk.Tk):
                     self.status.set(_("Proton session unavailable (expired token "
                         "or locked keyring) — open “⚙ Configuration…” to sign in."))
                     self._auth_error_in_status = True
-            self.after(0, apply)
+            self._ui(apply)
         threading.Thread(target=work, daemon=True).start()
 
     # ---------- UI ----------
@@ -1814,7 +1873,7 @@ class MappingEditor(tk.Tk):
             # Mise à jour de la barre d'état sur le thread Tk ; pas de modale pour
             # ne pas interrompre le flux d'enregistrement. La dérive (fenêtre
             # Temps réel) reflète l'état réel.
-            self.after(0, lambda: self.status.set(
+            self._ui(lambda: self.status.set(
                 _("Saved and pushed to the NAS: {base}").format(base=base) if ok
                 else _("Saved: {base}  —  {msg}").format(base=base, msg=msg)))
         threading.Thread(target=work, daemon=True).start()
@@ -3000,7 +3059,7 @@ class MappingEditor(tk.Tk):
                         self.status.set(_("Proton session unavailable (expired token "
                             "or locked keyring) — open “⚙ Configuration…” to sign in."))
                         self._auth_error_in_status = True
-            self.after(0, apply)
+            self._ui(apply)
         threading.Thread(target=work, daemon=True).start()
 
     def _tray_running(self):
@@ -3290,7 +3349,7 @@ class MappingEditor(tk.Tk):
                             acct_label.config(foreground="#d2294b")
                         self._set_auth_state(ok)   # témoin du bas, en même temps
                     try:
-                        dlg.after(0, apply_state)
+                        self._ui(apply_state)
                     except tk.TclError:
                         pass   # dialogue fermé entre-temps
                 threading.Thread(target=work, daemon=True).start()
@@ -3479,7 +3538,7 @@ class MappingEditor(tk.Tk):
                                 except Exception:
                                     pass
                         try:
-                            dlg.after(0, apply)
+                            self._ui(apply)
                         except Exception:
                             pass
                     import threading as _th
@@ -3665,59 +3724,14 @@ class MappingEditor(tk.Tk):
                 _cur_rb.configure(state="disabled")
                 launcher_target_var.set("none")
 
-        def apply():
+        def _finish(old_ident):
+            # Continuation d'apply() APRÈS la décision de migration NAS. Séparée
+            # pour que les renommages NFS de la migration puissent tourner dans un
+            # worker sans figer le GUI : appelée soit directement (pas de
+            # migration), soit depuis le callback self._ui une fois la migration
+            # faite. N'exécute que des écritures LOCALES + un éventuel redémarrage
+            # des démons (systemctl), rien de bloquant sur NFS.
             if _HAS_CONFIG:
-                ok, reason = appconfig.validate_collision_suffix(suffix_var.get())
-                if not ok:
-                    dlg_error(dlg, reason, title=_("Configuration"))
-                    dlg.grab_set()
-                    return
-            if _HAS_I18N:
-                i18n.write_language_setting(lang_var.get())
-            if _HAS_CONFIG:
-                appconfig.set_proton_cli_path((cli_var.get() or "").strip() or None)
-            if _HAS_CONFIG:
-                appconfig.set_nas_enabled(nas_var.get())
-                appconfig.set_nas_mount_path(mount_var.get())
-                # Table de correspondance des chemins de données (lignes non vides).
-                pairs = [{"local": e["local_var"].get().strip(),
-                          "nas": e["nas_var"].get().strip()}
-                         for e in pm_rows
-                         if e["local_var"].get().strip() and e["nas_var"].get().strip()]
-                appconfig.set_nas_path_map(pairs)
-                # MIGRATION C : si l'identité change et que l'ancienne existe
-                # sur le NAS, proposer le renommage (file + copie de mappings,
-                # billets préservés). Refusée ou non applicable -> le réglage
-                # change quand même ; l'ancien reste sur le NAS (le watcher le
-                # signalera comme orphelin s'il contient des billets).
-                old_ident = appconfig.account_name()
-                new_ident = (ident_var.get() or "").strip()
-                if (_HAS_REALTIME and old_ident and new_ident
-                        and old_ident != new_ident
-                        and nas_var.get()
-                        and realtime_manager.nas_reachable()
-                        and (os.path.isdir(os.path.join(
-                                realtime_manager.NAS_QUEUE_DIR, old_ident))
-                             or os.path.exists(os.path.join(
-                                realtime_manager.NAS_CONFIG_DIR,
-                                f"mappings-{old_ident}.json")))):
-                    if dlg_confirm(dlg,
-                            _("The identity “{a}” exists on the NAS (marker "
-                              "queue and/or mappings copy).\n\nMigrate it to "
-                              "“{b}”? Everything is simply renamed — pending "
-                              "markers and continuity are preserved.").format(
-                              a=old_ident, b=new_ident),
-                            title=_("NAS identity"),
-                            ok_text=_("Migrate"),
-                            cancel_text=_("Do not migrate")):
-                        mok, mmsg = realtime_manager.migrate_nas_identity(
-                            old_ident, new_ident)
-                        (dlg_info if mok else dlg_error)(dlg, mmsg,
-                                                         title=_("NAS identity"))
-                        if not mok:
-                            dlg.grab_set()
-                            return       # réglage inchangé : re-choisir
-                    dlg.grab_set()
                 appconfig.set_account_name(ident_var.get())
                 appconfig.set_rename_ext_enabled(rename_var.get())
                 appconfig.set_rename_ext_collision_suffix(suffix_var.get())
@@ -3784,9 +3798,100 @@ class MappingEditor(tk.Tk):
                         "automatically (the window uses them at its next launch)."),
                         title=_("Configuration"))
 
+        def _after_migrate(mok, mmsg, old_ident):
+            # Reprise après la migration NAS asynchrone (sur le fil principal, via
+            # self._ui). Réactive OK, affiche le verdict, reprend le grab, puis
+            # poursuit la continuation — sauf si la migration a échoué (réglage
+            # inchangé : l'utilisateur re-choisit).
+            if not dlg.winfo_exists():
+                return
+            try:
+                ok_btn.configure(state="normal")
+            except tk.TclError:
+                pass
+            (dlg_info if mok else dlg_error)(dlg, mmsg, title=_("NAS identity"))
+            dlg.grab_set()
+            if not mok:
+                return       # réglage inchangé : re-choisir
+            _finish(old_ident)
+
+        def apply():
+            old_ident = None
+            if _HAS_CONFIG:
+                ok, reason = appconfig.validate_collision_suffix(suffix_var.get())
+                if not ok:
+                    dlg_error(dlg, reason, title=_("Configuration"))
+                    dlg.grab_set()
+                    return
+                # Un point de montage NAS vide est rejeté EN SILENCE par
+                # config.set_nas_mount_path (retour False, ancienne valeur
+                # conservée). On le surface AVANT toute écriture — comme la
+                # validation du suffixe — sinon l'utilisateur croit avoir vidé le
+                # champ alors que rien n'a changé. Uniquement pertinent quand un
+                # NAS est activé (sinon le champ est grisé et sa valeur ignorée).
+                if nas_var.get() and not mount_var.get().strip():
+                    dlg_error(dlg, _("The NAS mount point cannot be empty when a "
+                                     "NAS is enabled."), title=_("Configuration"))
+                    dlg.grab_set()
+                    return
+            if _HAS_I18N:
+                i18n.write_language_setting(lang_var.get())
+            if _HAS_CONFIG:
+                appconfig.set_proton_cli_path((cli_var.get() or "").strip() or None)
+                appconfig.set_nas_enabled(nas_var.get())
+                appconfig.set_nas_mount_path(mount_var.get())
+                # Table de correspondance des chemins de données (lignes non vides).
+                pairs = [{"local": e["local_var"].get().strip(),
+                          "nas": e["nas_var"].get().strip()}
+                         for e in pm_rows
+                         if e["local_var"].get().strip() and e["nas_var"].get().strip()]
+                appconfig.set_nas_path_map(pairs)
+                # MIGRATION C : si l'identité change et que l'ancienne existe sur le
+                # NAS, proposer le renommage (file + copie de mappings, billets
+                # préservés). Les renommages NFS partent dans un WORKER pour ne pas
+                # figer le GUI (la sonde nas_reachable ci-dessous borne déjà le
+                # serveur muet ; le worker couvre l'I/O qui bloque après une sonde
+                # réussie). La continuation reprend dans _after_migrate. Refusée ou
+                # non applicable -> le réglage change quand même ; l'ancien reste sur
+                # le NAS (le watcher le signalera comme orphelin s'il a des billets).
+                old_ident = appconfig.account_name()
+                new_ident = (ident_var.get() or "").strip()
+                if (_HAS_REALTIME and old_ident and new_ident
+                        and old_ident != new_ident
+                        and nas_var.get()
+                        and realtime_manager.nas_reachable()
+                        and (os.path.isdir(os.path.join(
+                                realtime_manager.NAS_QUEUE_DIR, old_ident))
+                             or os.path.exists(os.path.join(
+                                realtime_manager.NAS_CONFIG_DIR,
+                                f"mappings-{old_ident}.json")))):
+                    if dlg_confirm(dlg,
+                            _("The identity “{a}” exists on the NAS (marker "
+                              "queue and/or mappings copy).\n\nMigrate it to "
+                              "“{b}”? Everything is simply renamed — pending "
+                              "markers and continuity are preserved.").format(
+                              a=old_ident, b=new_ident),
+                            title=_("NAS identity"),
+                            ok_text=_("Migrate"),
+                            cancel_text=_("Do not migrate")):
+                        try:
+                            ok_btn.configure(state="disabled")
+                        except tk.TclError:
+                            pass
+
+                        def work(_old=old_ident, _new=new_ident):
+                            mok, mmsg = realtime_manager.migrate_nas_identity(
+                                _old, _new)
+                            self._ui(lambda: _after_migrate(mok, mmsg, _old))
+                        threading.Thread(target=work, daemon=True).start()
+                        return    # la suite reprend dans _after_migrate
+                    dlg.grab_set()
+            _finish(old_ident)
+
         ttk.Button(btns, text=_("Cancel"),
                    command=dlg.destroy).pack(side="right", padx=4)
-        ttk.Button(btns, text=_("OK"), command=apply).pack(side="right")
+        ok_btn = ttk.Button(btns, text=_("OK"), command=apply)
+        ok_btn.pack(side="right")
 
         # Dimensionnement résolution-conscient : largeur = contenu + scrollbar ;
         # hauteur plafonnée à ~90 % de l'écran (au-delà, le contenu défile), pour
@@ -4007,9 +4112,9 @@ class MappingEditor(tk.Tk):
             except Exception:
                 size_txt = "?"
             txt = _("Uploading — {n} file(s), {size}").format(n=files, size=size_txt)
-            self.after(0, lambda: self._show_progress(txt))
+            self._ui(lambda: self._show_progress(txt))
         elif state == "done":
-            self.after(0, self._hide_progress)
+            self._ui(self._hide_progress)
 
     def _show_progress(self, text):
         """Affiche l'indicateur d'envoi discret (texte seul, pas de barre animée)."""
@@ -4045,12 +4150,12 @@ class MappingEditor(tk.Tk):
         # avaient bel et bien été envoyés.
         if line.lstrip().startswith("📂"):
             self._folders_shown = getattr(self, "_folders_shown", 0) + 1
-        if self.opt_errors_only.get():
+        if self._errors_only_flag:
             stripped = line.strip()
             if self._is_error_line(stripped):
                 self._append_output(line if line.endswith("\n") else line + "\n")
             return
-        if self.opt_verbose.get():
+        if self._verbose_flag:
             self._append_output(line)
             return
         stripped = line.strip()
@@ -4193,7 +4298,7 @@ class MappingEditor(tk.Tk):
                 self._auth_failed_seen = False
                 for line in self.sync_process.stdout:
                     if "[account-changed]" in line and "→" not in line:
-                        self.after(0, lambda: self.status.set(
+                        self._ui(lambda: self.status.set(
                             _("Proton account changed — prime the cache (or "
                               "reset the mappings) to rebuild on the new "
                               "account.")))
@@ -4210,26 +4315,26 @@ class MappingEditor(tk.Tk):
             code = self.sync_process.returncode
             # Mode épuré : si aucun dossier n'a été affiché, l'écran serait vide ->
             # message explicite pour ne pas laisser croire à un plantage.
-            if not self.opt_verbose.get() and getattr(self, "_folders_shown", 0) == 0 and code == 0:
+            if not self._verbose_flag and getattr(self, "_folders_shown", 0) == 0 and code == 0:
                 self._append_output(_("  ✓ Nothing to update — everything is already in sync.") + "\n")
             self._append_output("\n" + _("=== Finished (code {c}) — log: {p} ===").format(c=code, p=log_path) + "\n\n")
-            self.after(0, self._hide_progress)   # filet : masquer la barre si un « done » a été manqué
-            self.after(0, lambda: self.status.set(_("Sync finished (code {c}).").format(c=code)))
+            self._ui(self._hide_progress)   # filet : masquer la barre si un « done » a été manqué
+            self._ui(lambda: self.status.set(_("Sync finished (code {c}).").format(c=code)))
             # Un vrai passage fait autorité sur l'état d'auth : s'il a rapporté un
             # échec d'authentification, l'indicateur doit le refléter (plus fiable
             # que la sonde de démarrage, qui peut donner un faux positif si le CLI
             # Proton a un token en cache).
             if getattr(self, "_auth_failed_seen", False):
-                self.after(0, self._mark_auth_disconnected)
+                self._ui(self._mark_auth_disconnected)
             else:
-                self.after(0, self._mark_auth_connected)
+                self._ui(self._mark_auth_connected)
         except Exception as e:
             self._append_output("\n" + _("=== Launch error: {e} ===").format(e=e) + "\n\n")
-            self.after(0, lambda: self.status.set(_("Error: {e}").format(e=e)))
+            self._ui(lambda: self.status.set(_("Error: {e}").format(e=e)))
         finally:
             self.sync_process = None
-            self.after(0, lambda: self.run_button.configure(state="normal"))
-            self.after(0, lambda: self.stop_button.configure(state="disabled"))
+            self._ui(lambda: self.run_button.configure(state="normal"))
+            self._ui(lambda: self.stop_button.configure(state="disabled"))
 
     def on_stop_sync(self):
         # Casser une éventuelle attente de verrou (amorçage/reset patients).
@@ -4566,7 +4671,7 @@ class MappingEditor(tk.Tk):
                 if not ok:   # False OU None (pas conclu) -> on ne lance pas
                     self._append_output(_("❌ Proton session unavailable — sign in "
                         "first (button “Sign in to Proton”), then prime again.") + "\n")
-                    self.after(0, lambda: self.status.set(abort_status))
+                    self._ui(lambda: self.status.set(abort_status))
                     return
                 self._append_output(_("   ✓ session OK") + "\n")
                 # 2) Arrêter SEULEMENT le consommateur (éviter la collision de
@@ -4608,7 +4713,7 @@ class MappingEditor(tk.Tk):
                     # « Priming cancelled » après l'annulation d'un RESET était
                     # trompeur. Les deux msgid existent déjà au catalogue.
                     cancel_msg = _("Reset cancelled.") if is_reset else _("Priming cancelled.")
-                    self.after(0, lambda m=cancel_msg: self.status.set(m))
+                    self._ui(lambda m=cancel_msg: self.status.set(m))
                     return
                 if not waited:
                     self._append_output(_("⏳ Waiting for the lock to be released "
@@ -4629,7 +4734,7 @@ class MappingEditor(tk.Tk):
                     text=True, bufsize=1)
                 for line in self.sync_process.stdout:
                     if "[account-changed]" in line and "→" not in line:
-                        self.after(0, lambda: self.status.set(
+                        self._ui(lambda: self.status.set(
                             _("Proton account changed — prime the cache (or "
                               "reset the mappings) to rebuild on the new "
                               "account.")))
@@ -4648,9 +4753,9 @@ class MappingEditor(tk.Tk):
             else:
                 self._append_output("\n=== " + _("Priming finished (code {c})").format(c=code) + " ===\n")
             if getattr(self, "_auth_failed_seen", False):
-                self.after(0, self._mark_auth_disconnected)
+                self._ui(self._mark_auth_disconnected)
             else:
-                self.after(0, self._mark_auth_connected)
+                self._ui(self._mark_auth_connected)
 
             # 4) Redémarrer le consommateur et le timer.
             if _HAS_REALTIME:
@@ -4666,23 +4771,23 @@ class MappingEditor(tk.Tk):
                 ready, total = realtime_manager.mappings_ready_count(self.config_path)
                 self._append_output(_("✓ {r}/{t} mapping(s) now ready for real-time.").format(r=ready, t=total) + "\n\n")
                 if is_reset:
-                    self.after(0, lambda: self.status.set(
+                    self._ui(lambda: self.status.set(
                         _("Reset done — {r}/{t} mapping(s) ready for real-time.").format(r=ready, t=total)))
                 else:
-                    self.after(0, lambda: self.status.set(
+                    self._ui(lambda: self.status.set(
                         _("Priming done — {r}/{t} mapping(s) ready for real-time.").format(r=ready, t=total)))
             else:
                 if is_reset:
-                    self.after(0, lambda: self.status.set(_("Reset finished (code {c}).").format(c=code)))
+                    self._ui(lambda: self.status.set(_("Reset finished (code {c}).").format(c=code)))
                 else:
-                    self.after(0, lambda: self.status.set(_("Priming finished (code {c}).").format(c=code)))
+                    self._ui(lambda: self.status.set(_("Priming finished (code {c}).").format(c=code)))
         except Exception as e:
             if is_reset:
                 self._append_output("\n=== " + _("Reset error: {e}").format(e=e) + " ===\n")
-                self.after(0, lambda: self.status.set(_("Reset error: {e}").format(e=e)))
+                self._ui(lambda: self.status.set(_("Reset error: {e}").format(e=e)))
             else:
                 self._append_output("\n=== " + _("Priming error: {e}").format(e=e) + " ===\n")
-                self.after(0, lambda: self.status.set(_("Priming error: {e}").format(e=e)))
+                self._ui(lambda: self.status.set(_("Priming error: {e}").format(e=e)))
         finally:
             # FILET DE SÉCURITÉ : si le consommateur/timer ont été arrêtés mais
             # que le redémarrage normal (étape 4) n'a pas eu lieu — annulation
@@ -4705,10 +4810,10 @@ class MappingEditor(tk.Tk):
                     pass
             self.sync_process = None
             self._prime_running = False
-            self.after(0, lambda: self.prime_button.configure(state="normal"))
-            self.after(0, lambda: self.reset_button.configure(state="normal"))
-            self.after(0, lambda: self.run_button.configure(state="normal"))
-            self.after(0, lambda: self.cache_stop_button.configure(state="disabled"))
+            self._ui(lambda: self.prime_button.configure(state="normal"))
+            self._ui(lambda: self.reset_button.configure(state="normal"))
+            self._ui(lambda: self.run_button.configure(state="normal"))
+            self._ui(lambda: self.cache_stop_button.configure(state="disabled"))
             # Rafraîchir la colonne « Prêt » IMMÉDIATEMENT à la fin du passage.
             # Sans ça, _prime_tick (1,5 s) vient de s'arrêter et seul le tick lent
             # (30 s) finirait par mettre à jour l'affichage -> le crochet ✅
@@ -4718,7 +4823,7 @@ class MappingEditor(tk.Tk):
             def _final_state_refresh():
                 self._cache_memo = None
                 self._refresh_state_column()
-            self.after(0, _final_state_refresh)
+            self._ui(_final_state_refresh)
             # Filet : la toute dernière écriture atomique du cache par le moteur
             # peut arriver un instant après ce finally. Un second rafraîchissement
             # ~1,2 s plus tard rattrape ce décalage sans attendre le tick lent.
@@ -5090,6 +5195,7 @@ class PlanificationJournalDialog(tk.Toplevel):
 
     def __init__(self, parent):
         super().__init__(parent)
+        install_ui_pump(self)                # canal fil-secondaire → fil principal
         self.parent = parent
         self.title(_("Schedule run history"))
         # Plafonnement résolution-conscient (cf. ScheduleDialog) : 900x620
@@ -5167,7 +5273,7 @@ class PlanificationJournalDialog(tk.Toplevel):
 
         def work():
             _ok, text = schedule_manager.journal_last_run()
-            self.after(0, lambda: self._set_log(text))
+            self._ui(lambda: self._set_log(text))
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -5187,7 +5293,7 @@ class PlanificationJournalDialog(tk.Toplevel):
 
         def work():
             _ok, text = schedule_manager.journal_for_date(date_str)
-            self.after(0, lambda: self._set_log(text))
+            self._ui(lambda: self._set_log(text))
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -5204,6 +5310,7 @@ class ProtonLoginDialog(tk.Toplevel):
 
     def __init__(self, parent, on_done=None):
         super().__init__(parent)
+        install_ui_pump(self)                # canal fil-secondaire → fil principal
         self.parent = parent
         self.on_done = on_done
         self._proc = None
@@ -5295,11 +5402,11 @@ class ProtonLoginDialog(tk.Toplevel):
             for line in proc.stdout:
                 if not self._alive:
                     break
-                self.after(0, lambda l=line: self._append(l))
+                self._ui(lambda l=line: self._append(l))
         except Exception:
             pass
         code = proc.wait()
-        self.after(0, lambda c=code: self._finished(c))
+        self._ui(lambda c=code: self._finished(c))
 
     def _finished(self, code):
         if not self.winfo_exists():
@@ -5350,6 +5457,7 @@ class RealtimeDialog(tk.Toplevel):
 
     def __init__(self, parent, mappings_path):
         super().__init__(parent)
+        install_ui_pump(self)                # canal fil-secondaire → fil principal
         self.parent = parent
         self.mappings_path = mappings_path
         # Titre basé sur le fichier RÉELLEMENT surveillé par les services (celui
@@ -5489,8 +5597,9 @@ class RealtimeDialog(tk.Toplevel):
             self.drift_label.pack(anchor="w", pady=(0, 4))
             self.pushed_var = tk.StringVar(value="")
             ttk.Label(v, textvariable=self.pushed_var, foreground=self.C_MUTED).pack(anchor="w")
-            ttk.Button(v, text=_("⬆ Push mappings to the NAS"),
-                       command=self.on_push).pack(anchor="w", pady=(6, 0))
+            self.push_btn = ttk.Button(v, text=_("⬆ Push mappings to the NAS"),
+                                       command=self.on_push)
+            self.push_btn.pack(anchor="w", pady=(6, 0))
             ttk.Label(v, text=_("The NAS watcher reads this copy to watch the NAS sources; "
                               "the push also happens automatically on every save."),
                       foreground=self.C_MUTED, wraplength=WL, justify="left").pack(anchor="w", pady=(4, 0))
@@ -5543,8 +5652,9 @@ class RealtimeDialog(tk.Toplevel):
         q.pack(side="top", fill="x", padx=10, pady=6)
         self.queue_var = tk.StringVar(value="")
         ttk.Label(q, textvariable=self.queue_var, font=("monospace", 9)).pack(anchor="w")
-        ttk.Button(q, text=_("🧹 Clear the queues"),
-                   command=self.on_clean).pack(anchor="w", pady=(6, 0))
+        self.clean_btn = ttk.Button(q, text=_("🧹 Clear the queues"),
+                                    command=self.on_clean)
+        self.clean_btn.pack(anchor="w", pady=(6, 0))
         ttk.Label(q, text=_("Clears the pending markers (local + NAS). Useful for a fresh "
                           "start; changes not yet processed will be forgotten."),
                   foreground=self.C_MUTED, wraplength=WL, justify="left").pack(anchor="w", pady=(4, 0))
@@ -5676,7 +5786,7 @@ class RealtimeDialog(tk.Toplevel):
             for line in proc.stdout:
                 if not self._alive:
                     break
-                self.after(0, lambda l=line: self._append_event(l))
+                self._ui(lambda l=line: self._append_event(l))
         except Exception:
             pass
 
@@ -5753,8 +5863,25 @@ class RealtimeDialog(tk.Toplevel):
 
     # ---------- Rafraîchissement ----------
     def _refresh(self):
-        """Relevé synchrone immédiat (utilisé après une action de l'utilisateur)."""
-        self._apply_status(realtime_manager.status(self.mappings_path))
+        """Relevé immédiat après une action, NON bloquant : le status() (systemctl
+        + NFS) part dans un worker et est appliqué sur le fil Tk via self._ui —
+        comme le _tick périodique. La sonde TCP borne déjà le cas « serveur muet » ;
+        ceci couvre le cas « serveur qui répond mais dont l'I/O NFS se bloque »,
+        qui figerait sinon l'interface."""
+        def work():
+            try:
+                st = realtime_manager.status(self.mappings_path)
+            except Exception:
+                st = None
+            if self._alive:
+                self._ui(lambda: self._apply_refresh(st))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _apply_refresh(self, st):
+        if not self._alive or not self.winfo_exists():
+            return
+        if st is not None:
+            self._apply_status(st)
 
     # ---------- Rafraîchissement automatique (non bloquant) ----------
     REFRESH_MS = 3000  # cadence du rafraîchissement périodique
@@ -5775,7 +5902,7 @@ class RealtimeDialog(tk.Toplevel):
             except Exception:
                 st = None
             if self._alive:
-                self.after(0, lambda: self._after_tick(st))
+                self._ui(lambda: self._after_tick(st))
         threading.Thread(target=work, daemon=True).start()
 
     def _after_tick(self, st):
@@ -6041,12 +6168,57 @@ class RealtimeDialog(tk.Toplevel):
                 title=_("Push to the NAS"), kind="question",
                 ok_text=_("Push"), cancel_text=_("Cancel")):
                 return
-        ok, msg = realtime_manager.push_mappings_to_nas(push_path)
+        # Écriture NFS dans un worker : ne fige jamais le GUI si le montage est
+        # effondré. Bouton « Pousser » désactivé le temps de la réponse.
+        try:
+            self.push_btn.configure(state="disabled")
+        except tk.TclError:
+            pass
+
+        def work():
+            ok, msg = realtime_manager.push_mappings_to_nas(push_path)
+            self._ui(lambda: self._after_push(ok, msg))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _after_push(self, ok, msg):
+        if not self.winfo_exists():
+            return
+        try:
+            self.push_btn.configure(state="normal")
+        except tk.TclError:
+            pass
         (dlg_success if ok else dlg_error)(self, msg, title=_("Push to the NAS"))
         self._refresh()
 
     def on_clean(self):
-        q = realtime_manager.count_queues(self.mappings_path)
+        # Le décompte (count_queues, NFS) part dans un worker : le dialogue de
+        # confirmation s'affiche ensuite, sans jamais figer le GUI si le montage
+        # est effondré. Bouton désactivé de bout en bout de l'opération.
+        try:
+            self.clean_btn.configure(state="disabled")
+        except tk.TclError:
+            pass
+
+        def work_count():
+            try:
+                q = realtime_manager.count_queues(self.mappings_path)
+            except Exception:
+                q = None
+            self._ui(lambda: self._after_count(q))
+        threading.Thread(target=work_count, daemon=True).start()
+
+    def _clean_reenable(self):
+        try:
+            self.clean_btn.configure(state="normal")
+        except tk.TclError:
+            pass
+
+    def _after_count(self, q):
+        if not self.winfo_exists():
+            return
+        if q is None:
+            self._clean_reenable()
+            return
         nas_part = f"{q['nas']}" if q["nas_reachable"] else _("NAS unreachable")
         if not dlg_confirm(
                 self,
@@ -6056,8 +6228,18 @@ class RealtimeDialog(tk.Toplevel):
                 "sync remains the safety net).").format(n=q["local"], u=q["user"], p=nas_part),
                 title=_("Clear the queues?"), kind="warning",
                 ok_text=_("Clear"), cancel_text=_("Cancel")):
+            self._clean_reenable()
             return
-        ok, msg = realtime_manager.clean_queues(self.mappings_path)
+
+        def work_clean():
+            ok, msg = realtime_manager.clean_queues(self.mappings_path)
+            self._ui(lambda: self._after_clean(ok, msg))
+        threading.Thread(target=work_clean, daemon=True).start()
+
+    def _after_clean(self, ok, msg):
+        if not self.winfo_exists():
+            return
+        self._clean_reenable()
         (dlg_info if ok else dlg_error)(self, msg, title=_("Queues"))
         self._refresh()
 
