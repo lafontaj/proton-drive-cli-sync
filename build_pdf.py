@@ -3,7 +3,36 @@
 Réglages validés : corps 13 pt, interligne 1.5, DejaVu Sans ; emoji remplacés
 par des équivalents imprimables (pastilles colorées, glyphes couverts).
 Usage : python3 build_pdf.py SOURCE.md SORTIE.pdf [TITRE]"""
-__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+#
+# 1.6.0 — les tableaux redeviennent coupables par un saut de page.
+#
+# Même défaut que celui traité en 1.5.0 pour les blocs de code, mais sur un
+# tableau — et sans que la taille soit en cause : un tableau de CINQ lignes a
+# vidé une page, sous deux titres restés seuls en haut. « page-break-inside:
+# avoid » est absolu : dès que l'élément ne tient pas dans la place restante,
+# il bascule entier, quelle que soit sa hauteur. Constaté le 7 septembre 2026,
+# page 15 du guide de l'hôte, sous « Incus / Choisir la branche ».
+#
+# POURQUOI PAS DE SEUIL ICI, contrairement à 1.5.0. Pour un bloc de code la
+# mesure est exacte — chasse fixe, largeur connue, LARGEUR_MAX déjà calibré —
+# et le calcul est vérifiable. Pour un tableau, rien de tel : la largeur des
+# colonnes dépend du contenu, la police est proportionnelle, l'enroulement des
+# cellules est imprévisible. Le seuil serait fondé sur une estimation, et ce
+# fichier a déjà montré ce que coûte une décision prise sur une mesure
+# approximative. Un comportement simple et prévisible vaut mieux qu'un
+# mécanisme subtil bâti sur une approximation.
+#
+# CE QU'ON PERD, et c'est assumé : les PETITS tableaux redeviennent coupables.
+# Un tableau de trois lignes coupé après la deuxième est plus disgracieux qu'un
+# tableau de dix coupé au milieu, qui reste lisible. C'est la contrepartie du
+# choix, écrite ici pour qui voudrait remettre la règle — la remettre
+# ramènerait les pages blanches.
+#
+# LA CAUSE DU TITRE ORPHELIN N'EST TOUJOURS PAS CORRIGÉE :
+# « page-break-after: avoid » est mal appliqué par le moteur WebKit de
+# wkhtmltopdf. Retirer « avoid » des tableaux MASQUE le symptôme, en faisant
+# remonter du contenu derrière les titres ; cela ne le répare pas.
 #
 # 1.5.0 — un bloc de code plus haut qu'une demi-page ne repousse plus la page.
 #
@@ -286,8 +315,11 @@ pre {{ background: #f2f2f2; padding: 10px; border-radius: 4px;
    laisserait une page blanche derrière lui. */
 pre.long {{ page-break-inside: auto; }}
 pre code {{ background: none; padding: 0; }}
-table {{ border-collapse: collapse; width: 100%; font-size: 11.5pt;
-         page-break-inside: avoid; }}
+/* 1.6.0 — pas de « page-break-inside: avoid » ici : il faisait basculer un
+   tableau entier, même petit, dès qu'il ne tenait pas dans la place restante,
+   et laissait une page blanche derrière lui. Contrepartie assumée : un petit
+   tableau peut désormais être coupé. Voir le journal en tête. */
+table {{ border-collapse: collapse; width: 100%; font-size: 11.5pt; }}
 del {{ color: #777; }}
 th, td {{ border: 1px solid #999; padding: 5px 8px; text-align: left; }}
 th {{ background: #e8e8e8; }}
