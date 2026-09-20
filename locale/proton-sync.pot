@@ -162,17 +162,7 @@ msgstr ""
 msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
 msgstr ""
 
-msgid "would delete PERMANENTLY"
-msgstr ""
-
 msgid "would move to trash"
-msgstr ""
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr ""
-
-msgid "permanently deleted"
 msgstr ""
 
 msgid "sent to trash"
@@ -384,10 +374,6 @@ msgstr ""
 
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
-msgstr ""
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
 msgstr ""
 
 msgid ""
@@ -3241,4 +3227,38 @@ msgid ""
 "\n"
 "TIP: run “Test (dry-run)” first to see what would be deleted, without "
 "erasing anything."
+msgstr ""
+
+msgid "Permanent deletion unavailable"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{n} mapping(s) are set to PERMANENT deletion:\n"
+"\n"
+"{list}\n"
+"\n"
+"The Proton CLI no longer allows deleting permanently in a reliable way: it "
+"requires going through the trash, where only the name identifies an item — "
+"so the wrong file could be erased whenever a namesake is there.\n"
+"\n"
+"These mappings now delete to the TRASH instead, which stays reversible. "
+"Their setting is kept; switch them to trash mode to make that explicit."
+msgstr ""
+
+msgid ""
+"This mapping is set to permanent deletion, which the Proton CLI no longer "
+"allows reliably: it deletes to the trash instead. Pick trash mode to make "
+"that explicit."
+msgstr ""
+
+#, python-brace-format
+msgid "    ❌ trash of {p} failed: {e}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the Proton CLI no "
+"longer allows reliably — they will delete to the TRASH instead. Set them to "
+"trash mode to silence this."
 msgstr ""

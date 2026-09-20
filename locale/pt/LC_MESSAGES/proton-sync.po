@@ -182,18 +182,8 @@ msgstr ""
 "    ❌ {n} ficheiro(s) continuam a falhar (consulte o registo de falhas: "
 "{log})."
 
-msgid "would delete PERMANENTLY"
-msgstr "eliminaria PERMANENTEMENTE"
-
 msgid "would move to trash"
 msgstr "moveria para a reciclagem"
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr "    ❌ {a} de {p} falhou: {e}"
-
-msgid "permanently deleted"
-msgstr "eliminado permanentemente"
 
 msgid "sent to trash"
 msgstr "enviado para a reciclagem"
@@ -428,10 +418,6 @@ msgstr "   ⟳ Restrito a {n} mapeamento(s) selecionado(s) (de {t})."
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
 msgstr "   ⚠  Modo ELIMINAÇÃO ativo — {n} mapeamento(s) com allow_delete"
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
-msgstr ", incluindo {n} PERMANENTES"
 
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
@@ -3996,3 +3982,54 @@ msgstr ""
 "\n"
 "DICA: execute primeiro «Teste (dry-run)» para ver o que seria eliminado, sem "
 "apagar nada."
+
+msgid "Permanent deletion unavailable"
+msgstr "Eliminação permanente indisponível"
+
+#, python-brace-format
+msgid ""
+"{n} mapping(s) are set to PERMANENT deletion:\n"
+"\n"
+"{list}\n"
+"\n"
+"The Proton CLI no longer allows deleting permanently in a reliable way: it "
+"requires going through the trash, where only the name identifies an item — "
+"so the wrong file could be erased whenever a namesake is there.\n"
+"\n"
+"These mappings now delete to the TRASH instead, which stays reversible. "
+"Their setting is kept; switch them to trash mode to make that explicit."
+msgstr ""
+"{n} mapeamento(s) estão definidos para eliminação PERMANENTE:\n"
+"\n"
+"{list}\n"
+"\n"
+"A CLI do Proton já não permite eliminar permanentemente de forma fiável: "
+"exige passar pela reciclagem, onde apenas o nome identifica um item — pelo "
+"que o ficheiro errado poderia ser apagado assim que exista um homónimo.\n"
+"\n"
+"Estes mapeamentos eliminam agora para a RECICLAGEM, que continua reversível. "
+"A sua definição é mantida; mude-os para modo reciclagem para o tornar "
+"explícito."
+
+msgid ""
+"This mapping is set to permanent deletion, which the Proton CLI no longer "
+"allows reliably: it deletes to the trash instead. Pick trash mode to make "
+"that explicit."
+msgstr ""
+"Este mapeamento está definido para eliminação permanente, o que a CLI do "
+"Proton já não permite de forma fiável: elimina para a reciclagem. Escolha o "
+"modo reciclagem para o tornar explícito."
+
+#, python-brace-format
+msgid "    ❌ trash of {p} failed: {e}"
+msgstr "    ❌ Falha ao enviar {p} para a reciclagem: {e}"
+
+#, python-brace-format
+msgid ""
+"   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the Proton CLI no "
+"longer allows reliably — they will delete to the TRASH instead. Set them to "
+"trash mode to silence this."
+msgstr ""
+"   ⚠  {n} mapeamento(s) estão em eliminação PERMANENTE, o que a CLI do "
+"Proton já não permite de forma fiável — eliminarão para a RECICLAGEM. Mude-"
+"os para modo reciclagem para silenciar este aviso."

@@ -341,7 +341,7 @@ Ce double niveau est délibéré : le JSON déclare l'intention, la ligne de com
 **Mode de suppression** — défini par mapping via `delete_mode` :
 
 - `"trash"` (défaut) : envoi à la corbeille Proton, récupérable tant qu'elle n'est pas vidée.
-- `"permanent"` : suppression définitive, irréversible. Le mode du mapping fait foi dès que `--delete` est actif (pas de second flag).
+- ~~`"permanent"` : suppression définitive~~ — **n'est plus honoré**. Le CLI Proton ne permet plus de supprimer définitivement de façon fiable : il exige de passer par la corbeille, où **seul le nom identifie un élément** — le mauvais fichier pourrait donc être effacé dès qu'un homonyme s'y trouve (plusieurs `__pycache__` ou `README.md` dans une même arborescence). Un mapping réglé ainsi **supprime désormais vers la corbeille** ; son réglage est conservé et redeviendra effectif si le CLI le permet un jour.
 
 > **Ce réglage ne concerne QUE les fichiers supprimés localement.** Un fichier **modifié**, lui, voit toujours son ancienne version partir à la corbeille, quel que soit le `delete_mode` : c'est le CLI Proton qui l'impose (`--file-conflict-strategy replace` = « mettre à la corbeille le fichier distant, puis envoyer la copie locale »), et aucune de ses stratégies ne supprime définitivement.
 >

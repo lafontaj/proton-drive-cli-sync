@@ -181,18 +181,8 @@ msgstr ""
 "    ❌ {n} archivo(s) siguen fallando (consulte el registro de fallos: "
 "{log})."
 
-msgid "would delete PERMANENTLY"
-msgstr "eliminaría PERMANENTEMENTE"
-
 msgid "would move to trash"
 msgstr "movería a la papelera"
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr "    ❌ {a} de {p} falló: {e}"
-
-msgid "permanently deleted"
-msgstr "eliminado permanentemente"
 
 msgid "sent to trash"
 msgstr "enviado a la papelera"
@@ -428,10 +418,6 @@ msgstr "   ⟳ Restringido a {n} asignación(es) seleccionada(s) (de {t})."
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
 msgstr "   ⚠  Modo ELIMINACIÓN activo — {n} asignación(es) con allow_delete"
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
-msgstr ", incluidas {n} PERMANENTES"
 
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
@@ -4005,3 +3991,55 @@ msgstr ""
 "\n"
 "CONSEJO: ejecute primero «Prueba (dry-run)» para ver lo que se eliminaría, "
 "sin borrar nada."
+
+msgid "Permanent deletion unavailable"
+msgstr "Eliminación permanente no disponible"
+
+#, python-brace-format
+msgid ""
+"{n} mapping(s) are set to PERMANENT deletion:\n"
+"\n"
+"{list}\n"
+"\n"
+"The Proton CLI no longer allows deleting permanently in a reliable way: it "
+"requires going through the trash, where only the name identifies an item — "
+"so the wrong file could be erased whenever a namesake is there.\n"
+"\n"
+"These mappings now delete to the TRASH instead, which stays reversible. "
+"Their setting is kept; switch them to trash mode to make that explicit."
+msgstr ""
+"{n} asignación(es) están configuradas en eliminación PERMANENTE:\n"
+"\n"
+"{list}\n"
+"\n"
+"La CLI de Proton ya no permite eliminar permanentemente de forma fiable: "
+"exige pasar por la papelera, donde solo el nombre identifica un elemento — "
+"por lo que podría borrarse el archivo equivocado en cuanto haya un "
+"homónimo.\n"
+"\n"
+"Estas asignaciones ahora eliminan hacia la PAPELERA, que sigue siendo "
+"reversible. Su ajuste se conserva; páselas a modo papelera para hacerlo "
+"explícito."
+
+msgid ""
+"This mapping is set to permanent deletion, which the Proton CLI no longer "
+"allows reliably: it deletes to the trash instead. Pick trash mode to make "
+"that explicit."
+msgstr ""
+"Esta asignación está configurada en eliminación permanente, lo que la CLI de "
+"Proton ya no permite de forma fiable: elimina hacia la papelera. Elija el "
+"modo papelera para hacerlo explícito."
+
+#, python-brace-format
+msgid "    ❌ trash of {p} failed: {e}"
+msgstr "    ❌ Error al enviar {p} a la papelera: {e}"
+
+#, python-brace-format
+msgid ""
+"   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the Proton CLI no "
+"longer allows reliably — they will delete to the TRASH instead. Set them to "
+"trash mode to silence this."
+msgstr ""
+"   ⚠  {n} asignación(es) están en eliminación PERMANENTE, lo que la CLI de "
+"Proton ya no permite de forma fiable — eliminarán hacia la PAPELERA. Páselas "
+"a modo papelera para silenciar este aviso."

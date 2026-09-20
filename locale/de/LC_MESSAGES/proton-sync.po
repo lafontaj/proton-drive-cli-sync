@@ -184,18 +184,8 @@ msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
 msgstr ""
 "    ❌ {n} Datei(en) weiterhin fehlerhaft (siehe Fehlerprotokoll: {log})."
 
-msgid "would delete PERMANENTLY"
-msgstr "würde ENDGÜLTIG löschen"
-
 msgid "would move to trash"
 msgstr "würde in den Papierkorb verschieben"
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr "    ❌ {a} von {p} fehlgeschlagen: {e}"
-
-msgid "permanently deleted"
-msgstr "endgültig gelöscht"
 
 msgid "sent to trash"
 msgstr "in den Papierkorb verschoben"
@@ -439,10 +429,6 @@ msgstr "   ⟳ Beschränkt auf {n} ausgewählte Zuordnung(en) (von {t})."
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
 msgstr "   ⚠  LÖSCH-Modus aktiv — {n} Zuordnung(en) mit allow_delete"
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
-msgstr ", davon {n} ENDGÜLTIG"
 
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
@@ -4044,3 +4030,55 @@ msgstr ""
 "\n"
 "TIPP: Führen Sie zuerst „Test (Probelauf)“ aus, um zu sehen, was gelöscht "
 "würde, ohne etwas zu löschen."
+
+msgid "Permanent deletion unavailable"
+msgstr "Endgültiges Löschen nicht verfügbar"
+
+#, python-brace-format
+msgid ""
+"{n} mapping(s) are set to PERMANENT deletion:\n"
+"\n"
+"{list}\n"
+"\n"
+"The Proton CLI no longer allows deleting permanently in a reliable way: it "
+"requires going through the trash, where only the name identifies an item — "
+"so the wrong file could be erased whenever a namesake is there.\n"
+"\n"
+"These mappings now delete to the TRASH instead, which stays reversible. "
+"Their setting is kept; switch them to trash mode to make that explicit."
+msgstr ""
+"{n} Mapping(s) sind auf ENDGÜLTIGES Löschen eingestellt:\n"
+"\n"
+"{list}\n"
+"\n"
+"Die Proton-CLI erlaubt kein zuverlässiges endgültiges Löschen mehr: Sie "
+"verlangt den Weg über den Papierkorb, wo ein Element nur durch seinen Namen "
+"bezeichnet wird — die falsche Datei könnte also gelöscht werden, sobald ein "
+"Namensvetter dort liegt.\n"
+"\n"
+"Diese Mappings löschen nun in den PAPIERKORB, was umkehrbar bleibt. Ihre "
+"Einstellung bleibt erhalten; stellen Sie sie auf Papierkorb-Modus, um das "
+"deutlich zu machen."
+
+msgid ""
+"This mapping is set to permanent deletion, which the Proton CLI no longer "
+"allows reliably: it deletes to the trash instead. Pick trash mode to make "
+"that explicit."
+msgstr ""
+"Dieses Mapping ist auf endgültiges Löschen eingestellt, was die Proton-CLI "
+"nicht mehr zuverlässig erlaubt: Es löscht in den Papierkorb. Wählen Sie den "
+"Papierkorb-Modus, um das deutlich zu machen."
+
+#, python-brace-format
+msgid "    ❌ trash of {p} failed: {e}"
+msgstr "    ❌ Verschieben in den Papierkorb von {p} fehlgeschlagen: {e}"
+
+#, python-brace-format
+msgid ""
+"   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the Proton CLI no "
+"longer allows reliably — they will delete to the TRASH instead. Set them to "
+"trash mode to silence this."
+msgstr ""
+"   ⚠  {n} Mapping(s) sind auf ENDGÜLTIGES Löschen eingestellt, was die "
+"Proton-CLI nicht mehr zuverlässig erlaubt — sie löschen in den PAPIERKORB. "
+"Stellen Sie sie auf Papierkorb-Modus, um diesen Hinweis abzustellen."

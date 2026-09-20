@@ -339,7 +339,7 @@ This double level is deliberate: the JSON declares the intent, the command line 
 **Deletion mode** — set per mapping via `delete_mode`:
 
 - `"trash"` (default): sent to the Proton trash, recoverable until you empty it.
-- `"permanent"`: definitive deletion, irreversible. The mapping's mode is authoritative once `--delete` is active (no second flag).
+- ~~`"permanent"`: definitive deletion~~ — **no longer honoured**. The Proton CLI no longer allows deleting permanently in a reliable way: it requires going through the trash, where **only the name identifies an item** — so the wrong file could be erased whenever a namesake is there (several `__pycache__` or `README.md` in one tree). A mapping set this way **now deletes to the trash**; its setting is kept and will take effect again if the CLI ever allows it.
 
 > **This setting only covers files deleted locally.** A **modified** file always sends its previous version to the trash, whatever the `delete_mode`: the Proton CLI imposes it (`--file-conflict-strategy replace` = "trash the remote file, then upload the local copy"), and none of its strategies deletes permanently.
 >

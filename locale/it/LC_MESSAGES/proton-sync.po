@@ -180,18 +180,8 @@ msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
 msgstr ""
 "    ❌ {n} file continuano a fallire (vedi il registro degli errori: {log})."
 
-msgid "would delete PERMANENTLY"
-msgstr "eliminerebbe PERMANENTEMENTE"
-
 msgid "would move to trash"
 msgstr "sposterebbe nel cestino"
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr "    ❌ {a} di {p} fallito: {e}"
-
-msgid "permanently deleted"
-msgstr "eliminato permanentemente"
 
 msgid "sent to trash"
 msgstr "inviato nel cestino"
@@ -429,10 +419,6 @@ msgstr "   ⟳ Limitato a {n} mappatura/e selezionata/e (di {t})."
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
 msgstr "   ⚠  Modalità ELIMINAZIONE attiva — {n} mappatura/e con allow_delete"
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
-msgstr ", incluse {n} PERMANENTI"
 
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
@@ -4022,3 +4008,55 @@ msgstr ""
 "\n"
 "SUGGERIMENTO: eseguite prima «Test (dry-run)» per vedere cosa verrebbe "
 "eliminato, senza cancellare nulla."
+
+msgid "Permanent deletion unavailable"
+msgstr "Eliminazione definitiva non disponibile"
+
+#, python-brace-format
+msgid ""
+"{n} mapping(s) are set to PERMANENT deletion:\n"
+"\n"
+"{list}\n"
+"\n"
+"The Proton CLI no longer allows deleting permanently in a reliable way: it "
+"requires going through the trash, where only the name identifies an item — "
+"so the wrong file could be erased whenever a namesake is there.\n"
+"\n"
+"These mappings now delete to the TRASH instead, which stays reversible. "
+"Their setting is kept; switch them to trash mode to make that explicit."
+msgstr ""
+"{n} mapping sono impostati su eliminazione DEFINITIVA:\n"
+"\n"
+"{list}\n"
+"\n"
+"La CLI di Proton non consente più di eliminare definitivamente in modo "
+"affidabile: esige il passaggio dal cestino, dove solo il nome identifica un "
+"elemento — il file sbagliato potrebbe quindi essere cancellato non appena vi "
+"sia un omonimo.\n"
+"\n"
+"Questi mapping ora eliminano verso il CESTINO, che resta reversibile. La "
+"loro impostazione è conservata; passateli in modalità cestino per renderlo "
+"esplicito."
+
+msgid ""
+"This mapping is set to permanent deletion, which the Proton CLI no longer "
+"allows reliably: it deletes to the trash instead. Pick trash mode to make "
+"that explicit."
+msgstr ""
+"Questo mapping è impostato su eliminazione definitiva, cosa che la CLI di "
+"Proton non consente più in modo affidabile: elimina verso il cestino. "
+"Scegliete la modalità cestino per renderlo esplicito."
+
+#, python-brace-format
+msgid "    ❌ trash of {p} failed: {e}"
+msgstr "    ❌ Spostamento nel cestino di {p} non riuscito: {e}"
+
+#, python-brace-format
+msgid ""
+"   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the Proton CLI no "
+"longer allows reliably — they will delete to the TRASH instead. Set them to "
+"trash mode to silence this."
+msgstr ""
+"   ⚠  {n} mapping sono impostati su eliminazione DEFINITIVA, cosa che la CLI "
+"di Proton non consente più in modo affidabile — elimineranno verso il "
+"CESTINO. Passateli in modalità cestino per silenziare questo avviso."

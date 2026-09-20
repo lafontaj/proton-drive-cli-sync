@@ -174,18 +174,8 @@ msgid "    ❌ {n} file(s) still failing (see the failures log: {log})."
 msgstr ""
 "    ❌ {n} fichier(s) encore en échec (voir le journal d'échecs : {log})."
 
-msgid "would delete PERMANENTLY"
-msgstr "supprimerait DÉFINITIVEMENT"
-
 msgid "would move to trash"
 msgstr "mettrait à la corbeille"
-
-#, python-brace-format
-msgid "    ❌ {a} of {p} failed: {e}"
-msgstr "    ❌ Échec {a} de {p} : {e}"
-
-msgid "permanently deleted"
-msgstr "supprimé définitivement"
 
 msgid "sent to trash"
 msgstr "envoyé à la corbeille"
@@ -421,10 +411,6 @@ msgstr "   ⟳ Restreint à {n} mapping(s) sélectionné(s) (sur {t})."
 #, python-brace-format
 msgid "   ⚠  DELETION mode active — {n} mapping(s) with allow_delete"
 msgstr "   ⚠  Mode SUPPRESSION actif — {n} mapping(s) avec allow_delete"
-
-#, python-brace-format
-msgid ", including {n} PERMANENT"
-msgstr ", dont {n} en DÉFINITIF"
 
 msgid ""
 "   ⚠  mount_check.py missing: ALL deletions will be refused (safety guard)."
@@ -4013,3 +3999,54 @@ msgstr ""
 "\n"
 "ASTUCE : lancez d'abord « Test (dry-run) » pour voir ce qui serait supprimé, "
 "sans rien effacer."
+
+msgid "Permanent deletion unavailable"
+msgstr "Suppression définitive indisponible"
+
+#, python-brace-format
+msgid ""
+"{n} mapping(s) are set to PERMANENT deletion:\n"
+"\n"
+"{list}\n"
+"\n"
+"The Proton CLI no longer allows deleting permanently in a reliable way: it "
+"requires going through the trash, where only the name identifies an item — "
+"so the wrong file could be erased whenever a namesake is there.\n"
+"\n"
+"These mappings now delete to the TRASH instead, which stays reversible. "
+"Their setting is kept; switch them to trash mode to make that explicit."
+msgstr ""
+"{n} mapping(s) sont réglés en suppression DÉFINITIVE :\n"
+"\n"
+"{list}\n"
+"\n"
+"Le CLI Proton ne permet plus de supprimer définitivement de façon fiable : "
+"il exige de passer par la corbeille, où seul le nom identifie un élément — "
+"le mauvais fichier pourrait donc être effacé dès qu'un homonyme s'y trouve.\n"
+"\n"
+"Ces mappings suppriment désormais vers la CORBEILLE, qui reste réversible. "
+"Leur réglage est conservé ; passez-les en mode corbeille pour le rendre "
+"explicite."
+
+msgid ""
+"This mapping is set to permanent deletion, which the Proton CLI no longer "
+"allows reliably: it deletes to the trash instead. Pick trash mode to make "
+"that explicit."
+msgstr ""
+"Ce mapping est réglé en suppression définitive, ce que le CLI Proton ne "
+"permet plus de façon fiable : il supprime vers la corbeille. Choisissez le "
+"mode corbeille pour le rendre explicite."
+
+#, python-brace-format
+msgid "    ❌ trash of {p} failed: {e}"
+msgstr "    ❌ Échec de la mise à la corbeille de {p} : {e}"
+
+#, python-brace-format
+msgid ""
+"   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the Proton CLI no "
+"longer allows reliably — they will delete to the TRASH instead. Set them to "
+"trash mode to silence this."
+msgstr ""
+"   ⚠  {n} mapping(s) sont réglés en suppression DÉFINITIVE, ce que le CLI "
+"Proton ne permet plus de façon fiable — ils supprimeront vers la CORBEILLE. "
+"Passez-les en mode corbeille pour faire taire cet avis."
