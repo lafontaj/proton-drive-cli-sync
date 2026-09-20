@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.23.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.24.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1730,7 +1730,11 @@ class MappingEditor(tk.Tk):
             #   🗑      -> suppression vers corbeille
             #   ⛔      -> suppression définitive
             if m.get("allow_delete"):
-                del_sym = "⛔" if m.get("delete_mode") == "permanent" else "🗑"
+                # ⚠ et non ⛔ pour un mapping resté en « définitif » : le réglage
+                # n'est PLUS honoré (le CLI ne le permet plus de façon fiable),
+                # la suppression se fait vers la corbeille. Garder ⛔ ferait
+                # croire à un comportement qui n'a plus lieu.
+                del_sym = "⚠" if m.get("delete_mode") == "permanent" else "🗑"
             else:
                 del_sym = ""
             # Symbole de révision :
@@ -1912,8 +1916,39 @@ class MappingEditor(tk.Tk):
             self._update_excl_summary()
             self.status.set(_("Loaded: {p} ({n} entries)").format(p=path, n=len(self.mappings)))
             self._warn_revisions_unsupported()
+            self._warn_permanent_delete_unsupported()
         except Exception as e:
             dlg_error(self, str(e), title=_("Load error"))
+
+    def _warn_permanent_delete_unsupported(self):
+        """Avertit UNE FOIS par chargement si des mappings sont encore réglés en
+        suppression DÉFINITIVE — réglage que le CLI ne permet plus d'honorer.
+
+        Le réglage n'est pas migré automatiquement : il reste tel que
+        l'utilisateur l'a écrit. Mais le lui taire laisserait croire que ses
+        suppressions sont définitives alors qu'elles vont à la corbeille.
+        """
+        try:
+            noms = [m.get("source", "?") for m in self.mappings
+                    if m.get("delete_mode") == "permanent"]
+            if not noms:
+                return
+            liste = "\n".join("  • " + n for n in noms[:10])
+            if len(noms) > 10:
+                liste += "\n  " + _("…and {n} more").format(n=len(noms) - 10)
+            dlg_warning(self, _(
+                "{n} mapping(s) are set to PERMANENT deletion:\n\n{list}\n\n"
+                "The Proton CLI no longer allows deleting permanently in a "
+                "reliable way: it requires going through the trash, where only "
+                "the name identifies an item — so the wrong file could be "
+                "erased whenever a namesake is there.\n\n"
+                "These mappings now delete to the TRASH instead, which stays "
+                "reversible. Their setting is kept; switch them to trash mode "
+                "to make that explicit."
+                ).format(n=len(noms), list=liste),
+                title=_("Permanent deletion unavailable"))
+        except Exception:
+            pass
 
     def _warn_revisions_unsupported(self):
         """Avertit UNE FOIS par chargement si des mappings demandent les
@@ -2201,9 +2236,18 @@ class MappingEditor(tk.Tk):
         rb_trash = ttk.Radiobutton(mode_row, text=_("Proton trash (recoverable)"),
                                    variable=mode_var, value="trash")
         rb_trash.pack(side="left", padx=(0, 10))
-        rb_perm = ttk.Radiobutton(mode_row, text=_("Permanent deletion"),
-                                  variable=mode_var, value="permanent")
-        rb_perm.pack(side="left")
+        # Le choix « définitif » N'EST PLUS PROPOSÉ : le CLI Proton ne permet plus
+        # de supprimer définitivement de façon fiable (il faut passer par /trash,
+        # où seul le NOM désigne l'élément — donc ambigu dès qu'un homonyme
+        # existe). On ne l'offre plus, mais on n'efface pas la valeur d'un
+        # mapping déjà réglé ainsi : elle reste dans le fichier, simplement non
+        # honorée, et redeviendra effective si le CLI le permet un jour.
+        if mode_init == "permanent":
+            ttk.Label(mode_row, foreground="#7a5c00", wraplength=560, justify="left",
+                      text=_("This mapping is set to permanent deletion, which the "
+                             "Proton CLI no longer allows reliably: it deletes to the "
+                             "trash instead. Pick trash mode to make that explicit.")
+                      ).pack(side="left", padx=(6, 0))
 
         # Détection du type de source
         detect_lbl = ttk.Label(sub, text="", wraplength=600, foreground="#444466",
@@ -2259,7 +2303,8 @@ class MappingEditor(tk.Tk):
 
         def toggle_delete(probe=True):
             state = "normal" if allow_var.get() else "disabled"
-            for w in (rb_trash, rb_perm, rb_nfs, rb_local):
+            # rb_perm retiré : le choix « définitif » n'est plus proposé.
+            for w in (rb_trash, rb_nfs, rb_local):
                 w.config(state=state)
             if allow_var.get():
                 # probe=False : appel venu d'une TRACE de frappe
