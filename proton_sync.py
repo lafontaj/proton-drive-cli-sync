@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.7.3"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.8.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -1535,19 +1535,39 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False,
 
 
 def remote_trash(remote_path, permanent=False, dry_run=False):
-    """Envoie un élément distant à la corbeille Proton (ou le supprime
-    définitivement si permanent=True). Retourne True si OK."""
-    action = "delete" if permanent else "trash"
+    """Envoie un élément distant à la CORBEILLE Proton. Retourne True si OK.
+
+    `permanent` est CONSERVÉ mais N'EST PLUS HONORÉ — la suppression définitive
+    n'est plus réalisable de façon fiable avec le CLI (voir ci-dessous). Le
+    paramètre reste pour que les mappings réglés en "permanent" continuent de
+    fonctionner (ils suppriment, vers la corbeille) plutôt que d'échouer : une
+    sauvegarde ne s'interrompt pas sur un réglage devenu indisponible.
+
+    POURQUOI (diagnostiqué le 20 septembre, CLI 0.8.0) :
+      `filesystem delete <chemin d'origine>` est désormais REFUSÉ — « You can
+      permanently delete items only from trash. Trash your files first. » Le
+      CLI exige de passer par la section `/trash`, où l'élément n'est plus
+      désigné que par son NOM : `/trash/<nom>`. Or ce nom n'est PAS unique —
+      une arborescence en contient des dizaines d'identiques (__pycache__,
+      README.md…). Testé : deux fichiers homonymes mis à la corbeille, puis
+      deux `delete /trash/doublon.txt` successifs ont réussi l'un après
+      l'autre, SANS qu'on puisse savoir lequel partait en premier.
+      `filesystem trash -j` rend bien l'uid du nœud, mais `delete` ne l'accepte
+      ni seul ni sous `/trash/<uid>`.
+
+      Supprimer par nom reviendrait donc à risquer d'effacer DÉFINITIVEMENT un
+      élément que l'utilisateur avait lui-même mis à la corbeille en comptant
+      le restaurer. Inacceptable sur un logiciel de sauvegarde : on met à la
+      corbeille, qui reste réversible.
+    """
     if dry_run:
-        verbe = _("would delete PERMANENTLY") if permanent else _("would move to trash")
-        print(f"    [DRY-RUN] {verbe} : {remote_path}")
+        print(f"    [DRY-RUN] " + _("would move to trash") + f" : {remote_path}")
         return True
-    res = run_cli(["filesystem", action, remote_path])
+    res = run_cli(["filesystem", "trash", remote_path])
     if res.returncode != 0:
-        print(_("    ❌ {a} of {p} failed: {e}").format(a=action, p=remote_path, e=res.stderr.strip()))
+        print(_("    ❌ trash of {p} failed: {e}").format(p=remote_path, e=res.stderr.strip()))
         return False
-    label = _("permanently deleted") if permanent else _("sent to trash")
-    print(f"    🗑  {label} : {remote_path}")
+    print(f"    🗑  " + _("sent to trash") + f" : {remote_path}")
     return True
 
 
@@ -2543,8 +2563,17 @@ def main():
         # ce cas rien ne sera supprimé, et afficher « mode ELIMINATION actif »
         # serait trompeur et inutilement alarmant.
         if n_del > 0:
-            print(_("   ⚠  DELETION mode active — {n} mapping(s) with allow_delete").format(n=n_del)
-                  + (_(", including {n} PERMANENT").format(n=n_perm) if n_perm else ""))
+            print(_("   ⚠  DELETION mode active — {n} mapping(s) with allow_delete").format(n=n_del))
+            # Mappings encore réglés sur "permanent" : le réglage n'est PLUS
+            # honoré (voir remote_trash). UNE ligne par passage — la cause est
+            # unique (le CLI), pas le mapping. On ne migre pas la valeur : elle
+            # reste telle que l'utilisateur l'a écrite, et redeviendra effective
+            # si le CLI le permet un jour.
+            if n_perm:
+                print(_("   ⚠  {n} mapping(s) are set to PERMANENT deletion, which the "
+                        "Proton CLI no longer allows reliably — they will delete to the "
+                        "TRASH instead. Set them to trash mode to silence this."
+                        ).format(n=n_perm))
             if not _HAS_MOUNT_CHECK:
                 print(_("   ⚠  mount_check.py missing: ALL deletions will be "
                   "refused (safety guard)."))
