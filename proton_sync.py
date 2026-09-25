@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.8.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.9.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -74,6 +74,7 @@ if _HAS_CONFIG:
     CACHE_DIR = appconfig.CACHE_DIR
     FAILURES_LOG = appconfig.FAILURES_LOG
     RENAMED_LOG = appconfig.RENAMED_LOG
+    HEALTH_FILE = appconfig.HEALTH_FILE
 else:
     CLI = os.environ.get(
         "PROTON_DRIVE_CLI",
@@ -93,6 +94,8 @@ else:
     FAILURES_LOG = os.path.expanduser("~/.proton_sync/failures.log")
     # Journal DÉDIÉ des renommages d'extension (majuscule -> minuscule).
     RENAMED_LOG = os.path.expanduser("~/.proton_sync/renamed-extensions.log")
+    # État de santé publié en fin de passage complet (cf. config.py).
+    HEALTH_FILE = os.path.expanduser("~/.proton_sync/health.json")
 
 
 def log_rename(src_path, dst_path):
@@ -1676,6 +1679,107 @@ def _wipe_mapping_remote(mapping, dry_run=False, verbose=False):
     return remote_trash(remote_folder, permanent=False, dry_run=dry_run)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Dossiers LOCAUX illisibles rencontrés pendant CE passage
+# ─────────────────────────────────────────────────────────────────────────────
+# Un dossier que le moteur n'arrive pas à lister (permissions changées à la
+# source, ACL, montage) ne peut pas être analysé : son sous-arbre reste
+# incomplet, la complétude ne remonte plus jusqu'à la racine du mapping, et le
+# temps réel s'y trouve désactivé. Le moteur le DÉTECTAIT déjà et l'écrivait au
+# journal — mais rien ne portait l'information après la fin du passage. Une
+# fenêtre se ferme, un journal défile, et personne ne sait que la sauvegarde
+# d'un sous-arbre ne se fait plus (constaté en production : 14 h avant qu'on
+# s'en aperçoive).
+#
+# On collecte donc ces chemins pour les publier en fin de passage (health.json),
+# à destination de l'interface et de l'indicateur de la barre des tâches.
+#
+# POURQUOI une liste de module et pas une valeur de retour : l'information naît
+# au fond d'une récursion qui ne remonte qu'un booléen de complétude, et
+# l'élargir se propagerait à toute la chaîne d'appel pour un besoin purement
+# d'observation. Le moteur étant un processus NEUF à chaque passage, la liste
+# n'a aucune durée de vie au-delà de lui.
+_UNREADABLE = []
+
+
+def _note_unreadable(local_dir, err):
+    """Journalise ET mémorise un dossier local impossible à lister.
+
+    L'étiquette `[unreadable]` est STABLE (hors traduction), comme
+    `[upload-failed]` ou `[auth-failed]` : l'interface la repère dans le flux
+    pendant un amorçage, et le consommateur temps réel dans la sortie du moteur.
+    C'est le mécanisme déjà en place dans ce projet pour qu'un lecteur machine
+    ne dépende jamais d'un texte traduit.
+
+    DEUX lignes, volontairement : la première ne contient QUE l'étiquette et le
+    chemin, donc un lecteur machine prend tout ce qui suit l'étiquette sans
+    avoir à deviner où le chemin s'arrête dans une phrase traduite (le chemin
+    peut contenir des espaces, des deux-points, n'importe quoi). La seconde
+    porte la raison, pour l'humain, et peut être traduite librement."""
+    print("  ❌ [unreadable] " + local_dir)
+    print("     " + _("Could not read this folder: {e}").format(e=err))
+    if local_dir not in _UNREADABLE:
+        _UNREADABLE.append(local_dir)
+
+
+def _take_unreadable():
+    """Vide et retourne la liste des dossiers illisibles accumulés jusqu'ici.
+
+    Appelée entre deux mappings dans la boucle principale : ce qui a été
+    collecté depuis le dernier appel appartient au mapping qu'on vient de
+    traiter."""
+    found = list(_UNREADABLE)
+    del _UNREADABLE[:]
+    return found
+
+
+def publish_health(per_mapping, full_pass):
+    """Écrit l'état de santé du parc (HEALTH_FILE), à destination de l'interface
+    et de l'indicateur de la barre des tâches.
+
+    per_mapping : liste de (source, complete_ou_None, [dossiers illisibles]).
+                  complete vaut None pour un mapping de type 'file', qui n'a pas
+                  de notion de complétude de sous-arbre.
+    full_pass   : True si CE passage a couvert TOUS les mappings du fichier.
+
+    POURQUOI la distinction. Un passage restreint (--reset-source sur une
+    sélection) n'a aucune vue sur les mappings qu'il n'a pas parcourus :
+    réécrire le fichier entier effacerait ce qu'on sait d'eux. On FUSIONNE donc,
+    en ne remplaçant que les entrées réellement observées. Un passage complet,
+    lui, remplace tout — ce qui élague au passage les mappings supprimés depuis.
+
+    Chaque entrée porte SON horodatage, pas un horodatage global : après un
+    passage restreint, l'interface peut dire de quand date chaque constat.
+
+    Jamais appelée en temps réel (--subpath) ni en dry-run : le premier ne voit
+    qu'un sous-arbre, le second ne doit rien changer sur le disque.
+
+    Best-effort : une panne d'écriture ici ne doit jamais faire échouer une
+    sauvegarde. On journalise et on poursuit."""
+    now = time.time()
+    data = {"version": 1, "mappings": {}}
+    if not full_pass:
+        try:
+            with open(HEALTH_FILE, "r", encoding="utf-8") as f:
+                previous = json.load(f)
+            if isinstance(previous, dict) and isinstance(previous.get("mappings"), dict):
+                data["mappings"] = previous["mappings"]
+        except (OSError, ValueError):
+            pass   # fichier absent ou illisible : on repart de zéro, sans bruit
+    for source, complete, unreadable in per_mapping:
+        data["mappings"][source] = {"ts": now,
+                                    "complete": complete,
+                                    "unreadable": unreadable}
+    try:
+        os.makedirs(os.path.dirname(HEALTH_FILE), exist_ok=True)
+        tmp = HEALTH_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, HEALTH_FILE)   # atomique : jamais de fichier à moitié écrit
+    except OSError as e:
+        print(_("  ⚠  Could not write the health file: {e}").format(e=e))
+
+
 def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_hash=False,
                 conflict_mode="replace",
                 cache=None, ignore_cache=False, exclusions=None,
@@ -1700,7 +1804,7 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
     try:
         entries = list(os.scandir(local_dir))
     except OSError as e:
-        print(_("  ❌ Could not read {p}: {e}").format(p=local_dir, e=e))
+        _note_unreadable(local_dir, e)
         return False   # illisible -> sous-arbre non complet
 
     # Normalisation des extensions MAJUSCULES -> minuscules sur les fichiers directs
@@ -1717,7 +1821,7 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
             try:
                 entries = list(os.scandir(local_dir))
             except OSError as e:
-                print(_("  ❌ Could not read {p}: {e}").format(p=local_dir, e=e))
+                _note_unreadable(local_dir, e)
                 return False
 
     # Ensemble des noms locaux NON exclus (sert à détecter les orphelins distants).
@@ -1927,6 +2031,11 @@ def sync_folder_guarded(mapping, local_dir, remote_parent, dry_run=False, verbos
     (allow_delete), on vérifie d'abord que la source est saine (montage NFS
     vivant pour une source 'nfs', etc.). Si le garde-fou refuse, on désactive la
     suppression pour ce mapping (les uploads continuent) et on journalise.
+
+    Retourne la complétude du sous-arbre (valeur de sync_folder). Elle était
+    JETÉE : la boucle principale n'avait donc aucun moyen de savoir quels
+    mappings étaient réellement prêts pour le temps réel, alors que le moteur
+    venait de le calculer. C'est ce qu'il faut pour publier health.json.
     """
     mapping_delete = delete and bool(mapping.get("allow_delete"))
     mode = mapping.get("delete_mode", "trash")
@@ -1942,12 +2051,12 @@ def sync_folder_guarded(mapping, local_dir, remote_parent, dry_run=False, verbos
             label = _("permanent") if mode == "permanent" else _("to trash")
             print(_("  🗑  Deletion propagation ACTIVE ({l}) for this mapping").format(l=label))
 
-    sync_folder(local_dir, remote_parent, dry_run=dry_run, verbose=verbose,
-                verify_hash=verify_hash,
-                conflict_mode=mapping.get("conflict_mode", "replace"),
-                cache=cache, ignore_cache=ignore_cache,
-                exclusions=exclusions, delete=mapping_delete, delete_mode=mode,
-                rename_ext=rename_ext, collision_suffix=collision_suffix)
+    return sync_folder(local_dir, remote_parent, dry_run=dry_run, verbose=verbose,
+                       verify_hash=verify_hash,
+                       conflict_mode=mapping.get("conflict_mode", "replace"),
+                       cache=cache, ignore_cache=ignore_cache,
+                       exclusions=exclusions, delete=mapping_delete, delete_mode=mode,
+                       rename_ext=rename_ext, collision_suffix=collision_suffix)
 
 
 def sync_file(local_file, remote_parent, dry_run=False, verbose=False, verify_hash=False,
@@ -2098,10 +2207,25 @@ def sync_subpath(mapping, subpath, dry_run=False, verbose=False, verify_hash=Fal
     # SEULEMENT si l'endroit visé est déjà entièrement analysé :
     #   - si le sous-chemin visé EST la racine du mapping (cas typique d'un marqueur
     #     de rattrapage) -> on exige que cette racine soit `subtree_complete` ;
-    #   - sinon -> on exige que le PARENT du sous-chemin soit complet. Ainsi un
-    #     dossier NOUVELLEMENT créé (jamais analysé) dans un mapping déjà complet
-    #     est traité en temps réel (son parent est complet), tandis qu'un dossier
-    #     dans un mapping encore partiellement analysé est différé.
+    #   - sinon -> on accepte SOIT que la CIBLE elle-même soit complète, SOIT que
+    #     son PARENT le soit. Les deux couvrent des cas complémentaires :
+    #       · parent complet -> un dossier NOUVELLEMENT créé (jamais analysé) dans
+    #         un mapping déjà complet est traité en temps réel ;
+    #       · cible complète -> la cible et toute sa descendance ont été parcourues
+    #         sans échec par un passage complet. C'est une preuve PLUS FORTE que
+    #         celle exigée du parent : il n'y a rien d'inconnu à bâtir.
+    #
+    #     POURQUOI il a fallu ajouter le test de la cible. La complétude remonte
+    #     de bas en haut sur TOUS les enfants non exclus : il suffit qu'UN SEUL
+    #     frère de la cible échoue pour que le parent devienne incomplet. On
+    #     refusait alors un dossier parfaitement sain et déjà indexé, parce que
+    #     son voisin était cassé. En production (septembre) un unique dossier
+    #     devenu illisible après une mise à jour logicielle a ainsi gelé le temps
+    #     réel de TOUT son mapping, voisins sains compris, pendant 14 heures.
+    #     Le gel se limite désormais au sous-arbre réellement fautif.
+    #
+    #     Quand la cible EST la racine, `ref` vaut la cible : l'expression se
+    #     réduit au test d'origine — aucun changement de comportement à la racine.
     # Si l'endroit de référence n'est pas complet, on DÉLÈGUE à la planification :
     # sortie en code 3 (« pas encore analysé — différé »), le consommateur CONSERVE
     # le marqueur et réessaiera ; dès qu'un passage complet aura analysé l'arbre, il
@@ -2110,7 +2234,7 @@ def sync_subpath(mapping, subpath, dry_run=False, verbose=False, verify_hash=Fal
         source = os.path.normpath(mapping.get("source", ""))
         target = os.path.normpath(subpath)
         ref = target if target == source else os.path.dirname(target)
-        if not cache.subtree_complete(ref):
+        if not (cache.subtree_complete(target) or cache.subtree_complete(ref)):
             # DEUX situations très différentes, que le consommateur doit pouvoir
             # distinguer — d'où deux tags STABLES (hors traduction) :
             #
@@ -2626,6 +2750,12 @@ def main():
     # ⏳) ; 3) vide optionnellement leur dossier distant (corbeille, sous garde-fou) ;
     # 4) force --delete pour que la reconstruction ressorte un cache ARMÉ
     # (subtree_complete + delete_synced), exactement comme l'amorçage. Idempotent.
+    # Un passage restreint ne voit qu'une partie du parc : health.json sera
+    # FUSIONNÉ plutôt que remplacé (cf. publish_health). DEUX options restreignent
+    # la portée — --only-source (amorçage ciblé) et --reset-source — et l'interface
+    # se sert de la première même quand elle amorce TOUT le parc. Les oublier
+    # ferait effacer, à chaque amorçage d'un seul mapping, ce qu'on sait des autres.
+    full_pass = not (args.reset_source or args.only_source)
     if args.reset_source:
         wanted = {os.path.normpath(s) for s in args.reset_source}
         kept = [m for m in mappings if os.path.normpath(m.get("source", "")) in wanted]
@@ -2653,6 +2783,11 @@ def main():
             if args.wipe_remote and m.get("type") == "folder":
                 _wipe_mapping_remote(m, dry_run=args.dry_run, verbose=args.verbose)
 
+    # État de santé accumulé au fil de la boucle : une entrée par mapping
+    # réellement traité, publiée en une seule écriture à la fin.
+    health = []
+    _take_unreadable()   # repart d'une ardoise propre pour le 1er mapping
+
     for i, m in enumerate(mappings, 1):
         # En-tête par mapping : indique l'entrée en cours (source => destination).
         # Rétabli ici — la boucle normale ne l'affichait plus, contrairement au
@@ -2668,12 +2803,13 @@ def main():
             # sync_folder_guarded applique le garde-fou de montage avant toute
             # suppression. Le mode de suppression (corbeille/définitif) est celui
             # déclaré dans le mapping ('delete_mode') — il fait foi.
-            sync_folder_guarded(m, m["source"], m["dest_parent"],
+            complete = sync_folder_guarded(m, m["source"], m["dest_parent"],
                                 dry_run=args.dry_run, verbose=args.verbose,
                                 verify_hash=args.verify_hash, cache=cache,
                                 ignore_cache=args.ignore_cache, exclusions=eff_ex,
                                 delete=args.delete, rename_ext=effective_rename_ext,
                                 collision_suffix=effective_collision_suffix)
+            health.append((m["source"], bool(complete), _take_unreadable()))
         else:
             sync_file(m["source"], m["dest_parent"], dry_run=args.dry_run, verbose=args.verbose,
                       verify_hash=args.verify_hash,
@@ -2685,6 +2821,24 @@ def main():
         # mappings déjà entièrement traités. L'écriture atomique (tmp+rename)
         # garantit qu'on ne se retrouve jamais avec un cache corrompu.
         cache.save()
+
+    # Publication de l'état de santé : ce que ce passage a constaté, réécrit
+    # même quand tout va bien (une liste vide EST l'information « plus rien
+    # d'illisible »). Jamais en dry-run, qui ne doit rien changer sur le disque.
+    if not args.dry_run:
+        publish_health(health, full_pass)
+        illisibles = sum(len(u) for _s, _c, u in health)
+        if illisibles:
+            # Récapitulatif en fin de passage. Le détail a défilé des milliers de
+            # lignes plus haut ; c'est ici qu'un humain le lira. On borne la
+            # portée : seuls ces dossiers sont concernés, le reste est synchronisé.
+            print("\n" + _("⚠  {n} folder(s) could not be read — their contents are "
+                           "NOT backed up and real-time is disabled for them. "
+                           "The rest of the mappings synced normally.")
+                  .format(n=illisibles))
+            for _s, _c, unreadable in health:
+                for chemin in unreadable:
+                    print("   • " + chemin)
 
     print("\n" + _("Done."))
 

@@ -33,7 +33,7 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
-__version__ = "1.5.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -616,6 +616,23 @@ LOCK_FILE = os.path.join(DATA_DIR, "proton_sync.lock")
 # horodatage + état de session, réécrit à chaque cycle. Fichier trop vieux ou
 # absent = démons arrêtés.
 STATUS_FILE = os.path.join(DATA_DIR, "status.json")
+# État de santé publié par le MOTEUR en fin de passage COMPLET (planifié, manuel,
+# amorçage/réinitialisation) — jamais par un passage temps réel (--subpath), qui
+# ne voit qu'un sous-arbre et n'a aucune vue du parc.
+#
+# Contenu : horodatage du passage, liste des dossiers LOCAUX illisibles
+# rencontrés, et complétude par mapping. Lu par l'interface et par l'indicateur
+# de la barre des tâches, qui n'ont ainsi plus à deviner ce qui s'est passé
+# pendant un passage sans écran.
+#
+# POURQUOI seulement les dossiers illisibles : c'est la seule famille d'échecs
+# qui PERSISTE tant qu'un humain n'agit pas. Les autres (listing distant en
+# échec, envoi refusé, orphelin non supprimé) sont transitoires et déjà retentés
+# au passage suivant ; les signaler userait l'avertissement pour rien.
+#
+# RÉÉCRIT À CHAQUE PASSAGE COMPLET, y compris vide quand tout va bien : c'est ce
+# qui empêche l'état de rester figé sur une panne résolue depuis.
+HEALTH_FILE = os.path.join(DATA_DIR, "health.json")
 
 _LEGACY_CACHE_DIR = os.path.expanduser("~/.proton_sync_cache")
 _LEGACY_BASE_DIR = os.path.expanduser("~/.proton_sync")
