@@ -25,6 +25,34 @@ local_watcher.py nas_watcher.py schedule_manager.py realtime_manager.py \
 proton_mapping_editor.py mount_check.py tray_indicator.py nas_selftest.py"
 
 if [ "$1" = "--pot" ]; then
+    # ── GARDE-FOU ────────────────────────────────────────────────────────────
+    # xgettext régénère le modèle dans l'ordre du CODE SOURCE. Or le modèle de
+    # ce dépôt n'est pas dans cet ordre : il est tenu à jour en AJOUTANT les
+    # nouvelles entrées à la fin, si bien que son ordre est celui de la dernière
+    # vraie extraction, plus les ajouts successifs. Relancer l'extraction déplace
+    # donc presque toutes les entrées : mesuré le 25 septembre 2026, 768
+    # positions sur 770, soit ~1 170 lignes de diff par catalogue — sans qu'une
+    # seule traduction ne change.
+    #
+    # Ce n'est pas seulement du bruit : un diff illisible empêche de repérer la
+    # vraie modification au milieu, qui est précisément ce que la relecture avant
+    # commit doit attraper.
+    #
+    # Pour ajouter des chaînes, préférer l'ajout au modèle existant. La
+    # régénération complète reste possible — elle est parfois légitime, par
+    # exemple après une réorganisation volontaire — mais elle se confirme.
+    echo
+    echo "⚠  --pot régénère le modèle dans l'ordre du code source."
+    echo "   Le modèle de ce dépôt suit un autre ordre : la régénération"
+    echo "   déplacera presque toutes les entrées des cinq catalogues"
+    echo "   (~1 170 lignes de diff chacun) sans changer une traduction."
+    echo
+    printf "   Continuer quand même ? [oui/NON] "
+    read -r reponse
+    case "$reponse" in
+        oui|OUI|Oui) ;;
+        *) echo "   Abandon — le modèle n'a pas été touché."; exit 1 ;;
+    esac
     echo "Extraction du modèle locale/proton-sync.pot..."
     # --no-location : pas de commentaires « #: fichier:ligne ». Ces références
     # se décalent dès qu'on ajoute ou retire une ligne de code, ce qui produisait

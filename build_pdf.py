@@ -3,7 +3,26 @@
 Réglages validés : corps 13 pt, interligne 1.5, DejaVu Sans ; emoji remplacés
 par des équivalents imprimables (pastilles colorées, glyphes couverts).
 Usage : python3 build_pdf.py SOURCE.md SORTIE.pdf [TITRE]"""
-__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+#
+# 1.7.0 — la réparation des emphases mutilait les lignes de cron.
+#
+# Une ligne « 00 04 * * * root /chemin/script » dans un bloc de code sortait
+# imprimée « 00 04 * root » : le filet anti-italique-creux, qui retire « * * »,
+# ne savait pas qu'il traversait du code. Deux astérisques disparus, aucun
+# message — et une ligne de cron recopiée depuis ce PDF aurait planifié la
+# tâche à un tout autre moment. Constaté le 8 septembre 2026 dans le guide de
+# sauvegarde, sur la tâche d'image de la clé d'amorçage.
+#
+# C'est la TROISIÈME régression de ce même filet (voir 1.2.0). Les deux
+# premières venaient de motifs trop larges ; celle-ci vient du champ
+# d'application. Corriger encore le motif n'aurait rien réglé : « * * » EST
+# une emphase creuse en prose et NE L'EST PAS en code — aucune expression
+# régulière ne peut trancher sans savoir où elle se trouve.
+#
+# Correctif : découper d'abord le document en prose et en code — blocs ``` et
+# segments `entre accents graves` —, n'appliquer les filets qu'à la prose.
+# Le code ressort octet pour octet.
 #
 # 1.6.0 — les tableaux redeviennent coupables par un saut de page.
 #
@@ -190,9 +209,25 @@ for k, v in REPL.items():
 #
 # Correctif : le premier ne retire qu'une suite d'exactement quatre
 # astérisques ; le second exige au moins une espace entre les deux.
+#
+# 1.7.0 — et surtout : les deux filets NE TRAVERSENT PLUS LES BLOCS DE CODE.
+# Voir le journal en tête du fichier.
 import re as _re
-text = _re.sub(r"\*{4}", "", text)
-text = _re.sub(r"(?<!\*)\*[ \t]+\*(?!\*)", "", text)
+
+_MOTIFS_EMPHASE = (r"\*{4}", r"(?<!\*)\*[ \t]+\*(?!\*)")
+
+def _reparer_emphases(fragment):
+    for motif in _MOTIFS_EMPHASE:
+        fragment = _re.sub(motif, "", fragment)
+    return fragment
+
+# Découpe le document en alternance « prose / code ». Le motif capture, dans
+# l'ordre, les blocs délimités par ``` et les segments `entre accents graves`.
+# re.split conserve les délimiteurs capturés, donc les morceaux d'indice impair
+# sont exactement le code — qu'on laisse intact.
+_SEPARATEUR = _re.compile(r"(^```[^\n]*\n.*?^```[^\n]*$|`[^`\n]+`)", _re.S | _re.M)
+_morceaux = _SEPARATEUR.split(text)
+text = "".join(m if i % 2 else _reparer_emphases(m) for i, m in enumerate(_morceaux))
 
 # ---------------------------------------------------------------------------
 # Contrôle de largeur des blocs de code.
