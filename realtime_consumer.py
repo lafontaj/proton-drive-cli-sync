@@ -24,7 +24,7 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
-__version__ = "1.5.7"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.6.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -125,6 +125,82 @@ DEFAULT_DEBOUNCE_SECONDS = 30   # délai de calme avant de traiter un dossier
 # toutes les COLD_RECHECK_SECONDS, au cas où une planification l'aurait consolidé
 # entre-temps. Évite des centaines de sondes d'auth pendant l'attente.
 COLD_RECHECK_SECONDS = 1800     # 30 min
+
+# Ancienneté au-delà de laquelle une RACINE de mapping restée froide devient un
+# avertissement visible (barre des tâches). Une racine froide veut dire qu'aucun
+# passage complet ne l'a jamais analysée : le temps réel ne la couvre pas.
+#
+# POURQUOI attendre, et pourquoi deux heures. Une racine peut être froide pour
+# une raison parfaitement normale — un mapping qu'on vient d'ajouter et dont le
+# passage planifié n'a pas encore eu lieu. Avertir tout de suite reviendrait à
+# crier au loup. Deux heures laissent passer sans bruit le cas courant (un gros
+# envoi en cours peut occuper le moteur longtemps) tout en restant très en deçà
+# du délai d'un passage planifié hebdomadaire.
+#
+# Ne s'applique QU'aux racines. Un dossier illisible a une cause certaine et se
+# signale immédiatement ; un sous-dossier froid ordinaire se débloque tout seul
+# dès que son parent est parcouru et ne se signale pas du tout.
+COLD_ALERT_SECONDS = 7200       # 2 h
+
+
+# ─────────────────────────────────────────────────────────────────────────
+#  Dossiers illisibles — lecture de l'état publié par le moteur
+# ─────────────────────────────────────────────────────────────────────────
+HEALTH_FILE = (appconfig.HEALTH_FILE if _HAS_CONFIG
+               else os.path.expanduser("~/.proton-drive-sync/health.json"))
+
+_HEALTH_CACHE = {"mtime": None, "paths": frozenset()}
+
+
+def health_unreadable():
+    """Dossiers illisibles publiés par le dernier passage COMPLET du moteur.
+
+    Relu seulement quand le fichier a changé (comparaison de mtime) : cette
+    fonction est appelée à chaque cycle du démon, il ne faut pas qu'elle relise
+    un fichier inchangé toutes les 30 secondes.
+
+    Tolérant par construction : fichier absent, tronqué ou d'un format futur ->
+    ensemble vide. Un démon de sauvegarde ne s'arrête jamais sur un fichier
+    d'observation."""
+    try:
+        mtime = os.path.getmtime(HEALTH_FILE)
+    except OSError:
+        _HEALTH_CACHE["mtime"] = None
+        _HEALTH_CACHE["paths"] = frozenset()
+        return _HEALTH_CACHE["paths"]
+    if mtime == _HEALTH_CACHE["mtime"]:
+        return _HEALTH_CACHE["paths"]
+    paths = set()
+    try:
+        with open(HEALTH_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for entry in (data.get("mappings") or {}).values():
+            for p in (entry.get("unreadable") or []):
+                if isinstance(p, str):
+                    paths.add(p)
+    except (OSError, ValueError, AttributeError):
+        paths = set()
+    _HEALTH_CACHE["mtime"] = mtime
+    _HEALTH_CACHE["paths"] = frozenset(paths)
+    return _HEALTH_CACHE["paths"]
+
+
+def parse_unreadable(output):
+    """Extrait les chemins des lignes « [unreadable] » émises par le moteur.
+
+    Le moteur écrit l'étiquette et le chemin SEULS sur leur ligne, la raison
+    traduite venant sur la ligne suivante : tout ce qui suit l'étiquette est
+    donc le chemin, quels que soient les espaces ou les deux-points qu'il
+    contient, et quelle que soit la langue."""
+    marque = "[unreadable] "
+    trouves = []
+    for ligne in (output or "").splitlines():
+        i = ligne.find(marque)
+        if i >= 0:
+            chemin = ligne[i + len(marque):].strip()
+            if chemin and chemin not in trouves:
+                trouves.append(chemin)
+    return trouves
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -369,6 +445,25 @@ class DebounceState:
         # heures). On ne réessaie qu'après COLD_RECHECK_SECONDS, au cas où une
         # planification aurait consolidé le dossier entre-temps.
         self.cold = {}
+        # dossier froid -> horodatage monotone de la PREMIÈRE constatation,
+        # JAMAIS rafraîchi tant que le dossier reste froid.
+        #
+        # POURQUOI un second dictionnaire. `self.cold` est réécrit à chaque
+        # re-vérification (c'est un « vu froid pour la dernière fois », qui sert
+        # à espacer les relances) : mesurer une ancienneté dessus donnerait
+        # toujours moins de COLD_RECHECK_SECONDS, et le seuil ne mesurerait rien.
+        # Les deux entrées naissent et disparaissent ensemble.
+        self.cold_since = {}
+        # Racines de mapping constatées froides parce qu'AUCUN passage complet
+        # ne les a jamais analysées ([subpath-cold-root]). Distinct d'un
+        # sous-dossier froid ordinaire, qui se débloque dès que son parent est
+        # parcouru : une racine, elle, n'a pas de parent à attendre.
+        self.cold_roots = set()
+        # Dossiers dont la LECTURE a échoué pendant un passage temps réel
+        # (étiquette [unreadable] du moteur). Cause nommée, donc publiable tout
+        # de suite — sans attendre le prochain passage complet, qui peut être à
+        # une semaine si la planification est hebdomadaire.
+        self.unreadable = set()
 
     def observe(self, target_dir, marker_path, now, want_delete=False):
         """Enregistre un marqueur. IMPORTANT : ne met à jour last_seen que si le
@@ -477,12 +572,79 @@ class DebounceState:
         ts = self.cold.get(target_dir)
         return ts is not None and (now - ts) < recheck_seconds
 
-    def mark_cold(self, target_dir, now):
+    def mark_cold(self, target_dir, now, is_root=False):
         """Marque le dossier froid. Retourne True si c'est une NOUVELLE
-        constatation (pour ne journaliser qu'une fois, pas à chaque re-vérif)."""
+        constatation (pour ne journaliser qu'une fois, pas à chaque re-vérif).
+
+        `is_root` : le moteur a répondu [subpath-cold-root], c'est-à-dire que la
+        CIBLE est la racine d'un mapping jamais analysé entièrement. Aucun
+        parcours parent ne viendra la débloquer — seul un amorçage ou un passage
+        planifié le peut. C'est la seule forme de froid dont on sache nommer la
+        cause, donc la seule qu'on publiera."""
         was_known = target_dir in self.cold
         self.cold[target_dir] = now
+        if not was_known:
+            # Première constatation : c'est CE moment qu'on mesure ensuite.
+            self.cold_since[target_dir] = now
+        if is_root:
+            self.cold_roots.add(target_dir)
+        else:
+            self.cold_roots.discard(target_dir)
         return not was_known
+
+    def note_unreadable(self, paths):
+        """Mémorise des dossiers signalés illisibles par le moteur."""
+        self.unreadable.update(paths)
+
+    def known_unreadable(self):
+        """Tout ce qu'on sait d'illisible : ce que le temps réel a constaté, plus
+        ce que le dernier passage COMPLET a publié.
+
+        Les deux sources sont nécessaires. Le temps réel ne voit que les dossiers
+        qui ont reçu un événement ; le passage complet voit tout le parc mais
+        peut dater d'une semaine si la planification est hebdomadaire."""
+        return self.unreadable | health_unreadable()
+
+    def blocking_unreadable(self, parent_dir):
+        """Un dossier illisible situé SOUS `parent_dir`, ou None.
+
+        Tant qu'il en existe un, `parent_dir` ne peut pas être marqué complet —
+        donc aucun de ses enfants ne sera repris en temps réel. C'est ce qui
+        transforme un dossier cassé en gel de tout le voisinage."""
+        if not parent_dir:
+            return None
+        prefixe = parent_dir.rstrip("/") + "/"
+        for p in sorted(self.known_unreadable()):
+            if p == parent_dir or p.startswith(prefixe):
+                return p
+        return None
+
+    def clear_unreadable(self, target_dir):
+        """Un passage a réussi sur ce dossier : ce qu'on croyait illisible en
+        dessous ne l'est plus. On retire la cible et sa descendance.
+
+        Ne jamais laisser un échec se figer : sans cet oubli, une permission
+        rétablie laisserait l'alerte allumée jusqu'au redémarrage du démon."""
+        prefixe = target_dir.rstrip("/") + "/"
+        for d in [p for p in self.unreadable
+                  if p == target_dir or p.startswith(prefixe)]:
+            self.unreadable.discard(d)
+
+    def alert_paths(self, now, cold_seconds):
+        """Ce qu'il y a à signaler, avec une cause nommée pour chaque entrée.
+
+        Retourne (illisibles, racines_froides). Rien d'autre n'est publié : un
+        dossier froid ordinaire se débloque tout seul dès que son parent est
+        parcouru, et une alerte dont on ne sait pas dire la cause ne dit à
+        personne quoi faire — elle use l'avertissement pour rien.
+
+        `cold_seconds` ne s'applique qu'aux racines : le temps d'attendre qu'un
+        passage planifié fasse son travail avant de déranger l'utilisateur.
+        Un dossier illisible, lui, a une cause certaine : on le signale tout de
+        suite."""
+        racines = sorted(d for d in self.cold_roots
+                         if (now - self.cold_since.get(d, now)) >= cold_seconds)
+        return sorted(self.known_unreadable()), racines
 
     def clear_cold(self, target_dir):
         """Oublie l'état froid de CE dossier, et de TOUTE sa descendance.
@@ -508,9 +670,13 @@ class DebounceState:
         un lancement de moteur inutile.
         """
         self.cold.pop(target_dir, None)
+        self.cold_since.pop(target_dir, None)
+        self.cold_roots.discard(target_dir)
         prefixe = target_dir.rstrip("/") + "/"
         for d in [k for k in self.cold if k.startswith(prefixe)]:
             self.cold.pop(d, None)
+            self.cold_since.pop(d, None)
+            self.cold_roots.discard(d)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -719,6 +885,12 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
         _cleanup(markers)
         state.clear(target_dir)
         state.clear_cold(target_dir)   # au cas où il était froid : il est chaud maintenant
+        # Le passage a réussi : ce qu'on croyait illisible sous cette cible ne
+        # l'est plus. On oublie d'abord (ne jamais figer un échec résolu), puis
+        # on reprend ce que CE passage vient de constater — un passage peut très
+        # bien réussir globalement tout en butant sur un sous-dossier.
+        state.clear_unreadable(target_dir)
+        state.note_unreadable(parse_unreadable(output))
         # Le moteur a-t-il SAUTÉ ce sous-chemin parce que son nom est filtré ?
         # On relaie simplement son signal (chaîne « sous-chemin exclu » émise par
         # le garde-fou de proton_sync.py) plutôt que de rejuger l'exclusion ici —
@@ -743,7 +915,8 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
         # le compteur de re-vérif à zéro ; on ignore désormais sa valeur de retour.
         _restore_markers(markers, log=log)
         state.clear(target_dir)
-        state.mark_cold(target_dir, time.monotonic())
+        est_racine = "[subpath-cold-root]" in output
+        state.mark_cold(target_dir, time.monotonic(), is_root=est_racine)
         # Le message annonçait « différé au passage planifié » : c'était vrai
         # tant que la reprise attendait COLD_RECHECK_SECONDS (30 min), donc
         # souvent la nuit. Depuis que clear_cold() invalide la descendance, la
@@ -758,12 +931,31 @@ def process_ready(state, target_dir, mappings, config_path, log, runner=None):
         # incus-exports répétait ce message chaque minute après un amorçage
         # échoué, alors que seul un nouveau passage complet pouvait le
         # débloquer). Le moteur distingue les deux cas par tag stable.
-        if "[subpath-cold-root]" in output:
+        #
+        # Troisième cas, ajouté après l'incident de septembre : le parent EXISTE
+        # et sera reparcouru, mais il ne pourra JAMAIS devenir complet parce
+        # qu'un dossier sous lui est illisible. La complétude remonte de bas en
+        # haut : un seul dossier qu'on ne peut pas lister suffit à ce que rien
+        # au-dessus ne soit jamais marqué complet. Promettre ici « dès que son
+        # parent sera indexé » envoie l'utilisateur attendre une reprise qui
+        # n'arrivera pas — c'est ce qui a laissé passer 14 heures. Le dossier
+        # fautif n'est en général PAS un ancêtre de la cible mais un VOISIN :
+        # il suffit qu'il partage le même parent pour que ce parent ne soit
+        # jamais complet. Quand on en connaît un, on le nomme, et on nomme le
+        # geste qui débloque.
+        if est_racine:
             log(_("    ⏳ this mapping has never been fully analysed — run "
                   "“Prime the cache”, or wait for the scheduled pass"))
         else:
-            log(_("    ⏳ cold folder — will be picked up as soon as its parent "
-                  "folder is indexed"))
+            bloquant = state.blocking_unreadable(os.path.dirname(target_dir))
+            if bloquant:
+                log(_("    ⛔ cold folder — it will NOT be picked up on its own: "
+                      "a neighbouring folder cannot be read, so their common "
+                      "parent can never be marked complete. Fix the permissions "
+                      "on: {p}").format(p=bloquant))
+            else:
+                log(_("    ⏳ cold folder — will be picked up as soon as its parent "
+                      "folder is indexed"))
         return False
     elif code == 4:
         # COMPTE Proton changé : le cache appartient à l'ancien compte — le
@@ -922,7 +1114,7 @@ def _count_ready_mappings(config_path):
 
 
 def _write_status(auth_ok, cycle_seconds, mappings_path=None,
-                  nas_scripts_stale=False):
+                  nas_scripts_stale=False, unreadable=None, cold_roots=None):
     """Battement de cœur pour l'icône de barre des tâches (tray_indicator.py) :
     horodatage + état de session + fichier de mappings ACTIF (écriture atomique).
     L'indicateur en déduit trois états : fichier frais + auth_ok -> connecté ;
@@ -936,7 +1128,15 @@ def _write_status(auth_ok, cycle_seconds, mappings_path=None,
     attente (écart de contenu poste↔disque NAS). Le systray en fait un 4e état
     (avertissement « ! », moins prioritaire que expired/stopped) et la fenêtre
     Temps réel le reflète. Défaut False (rétrocompatible : les lecteurs qui
-    ignorent la clé se comportent comme avant)."""
+    ignorent la clé se comportent comme avant).
+
+    unreadable / cold_roots : ce qu'il y a à SIGNALER, avec une cause nommée.
+    `unreadable` = dossiers dont la lecture échoue (leur contenu n'est pas
+    sauvegardé) ; `cold_roots` = racines de mapping qu'aucun passage complet n'a
+    jamais analysées depuis assez longtemps pour que ce soit anormal. Rien
+    d'autre n'est publié : une alerte dont on ne sait pas dire la cause
+    n'apprend rien à l'utilisateur et finit par être ignorée. Défaut vide,
+    rétrocompatible."""
     path = appconfig.STATUS_FILE if _HAS_CONFIG else os.path.join(BASE_DIR, "status.json")
     try:
         tmp = path + ".tmp"
@@ -945,7 +1145,9 @@ def _write_status(auth_ok, cycle_seconds, mappings_path=None,
                        "cycle_seconds": int(cycle_seconds),
                        "mappings_path": (os.path.abspath(mappings_path)
                                          if mappings_path else None),
-                       "nas_scripts_stale": bool(nas_scripts_stale)}, f)
+                       "nas_scripts_stale": bool(nas_scripts_stale),
+                       "unreadable": list(unreadable or []),
+                       "cold_roots": list(cold_roots or [])}, f)
         os.replace(tmp, path)
     except OSError:
         pass   # informatif seulement : ne doit jamais gêner le cycle
@@ -970,16 +1172,24 @@ class _Heartbeat:
         self._cycle = int(cycle_seconds)
         self._mappings_path = mappings_path
         self._nas_scripts_stale = False
+        # Ce qu'il y a à signaler, avec sa cause. Transporté par le battement :
+        # l'indicateur de la barre des tâches ne lit qu'un fichier, et il reste
+        # juste même pendant un passage très long (c'est tout l'intérêt de ce
+        # thread).
+        self._unreadable = []
+        self._cold_roots = []
         self._interval = max(5, int(interval))
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self):
         _write_status(self._auth_ok, self._cycle, self._mappings_path,
-                      self._nas_scripts_stale)                     # battement immédiat
+                      self._nas_scripts_stale, self._unreadable,
+                      self._cold_roots)                            # battement immédiat
         self._thread.start()
 
-    def update(self, auth_ok=None, cycle_seconds=None, nas_scripts_stale=None):
+    def update(self, auth_ok=None, cycle_seconds=None, nas_scripts_stale=None,
+               unreadable=None, cold_roots=None):
         """Publie le dernier état connu (appelé par la boucle à chaque cycle).
         Le thread s'en sert pour ses écritures régulières."""
         with self._lock:
@@ -989,13 +1199,18 @@ class _Heartbeat:
                 self._cycle = int(cycle_seconds)
             if nas_scripts_stale is not None:
                 self._nas_scripts_stale = bool(nas_scripts_stale)
+            if unreadable is not None:
+                self._unreadable = list(unreadable)
+            if cold_roots is not None:
+                self._cold_roots = list(cold_roots)
 
     def beat_now(self):
         """Écrit le battement immédiatement avec l'état courant (utile juste
         après un cycle pour ne pas attendre l'intervalle du thread)."""
         with self._lock:
             _write_status(self._auth_ok, self._cycle, self._mappings_path,
-                          self._nas_scripts_stale)
+                          self._nas_scripts_stale, self._unreadable,
+                          self._cold_roots)
 
     def _run(self):
         # Réveil fin (1 s) pour pouvoir s'arrêter vite, mais on n'écrit qu'aux
@@ -1007,7 +1222,8 @@ class _Heartbeat:
                 elapsed = 0
                 with self._lock:
                     _write_status(self._auth_ok, self._cycle, self._mappings_path,
-                                  self._nas_scripts_stale)
+                                  self._nas_scripts_stale, self._unreadable,
+                                  self._cold_roots)
 
     def stop(self):
         self._stop.set()
@@ -1209,9 +1425,17 @@ def main():
         # Battement de cœur : publier l'état courant au thread dédié (qui écrit
         # à intervalle régulier, y compris pendant un long run_once) et forcer un
         # battement immédiat maintenant que le cycle est terminé.
+        # Ce qu'il y a à signaler, calculé à chaque cycle : les dossiers
+        # illisibles (cause certaine, signalés tout de suite) et les racines de
+        # mapping froides depuis plus de COLD_ALERT_SECONDS (cause nommée elle
+        # aussi : aucun passage complet ne les a analysées).
+        _illisibles, _racines_froides = state.alert_paths(time.monotonic(),
+                                                          COLD_ALERT_SECONDS)
         hb.update(auth_ok=(waiting_reason not in ("locked", "account")),
                   cycle_seconds=cfg["cycle_seconds"],
-                  nas_scripts_stale=_scripts_stale)
+                  nas_scripts_stale=_scripts_stale,
+                  unreadable=_illisibles,
+                  cold_roots=_racines_froides)
         hb.beat_now()
 
         if args.once:

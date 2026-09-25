@@ -23,7 +23,7 @@ L'applet se termine de lui-même si le réglage « tray_enabled » passe à Fals
 
 Clic gauche : ouvre l'éditeur de mappings. Clic droit : menu (Ouvrir / Quitter).
 """
-__version__ = "1.2.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -55,6 +55,13 @@ EDITOR = os.path.join(APP_DIR, "proton_mapping_editor.py")
 ICONS = {
     "ok":            os.path.join(APP_DIR, "tray_connected.png"),
     "scripts_stale": os.path.join(APP_DIR, "tray_scripts.png"),
+    # « degraded » réutilise volontairement l'icône de session expirée : elle
+    # attire l'œil, et ajouter un cinquième dessin aurait dilué le signal sans
+    # rien apprendre de plus. La distinction se fait dans l'infobulle, qui
+    # énumère TOUTES les causes actives (voir build_tooltip) — sinon, avec deux
+    # causes possibles derrière la même icône, la chaîne de priorité en cacherait
+    # une.
+    "degraded":      os.path.join(APP_DIR, "tray_expired.png"),
     "expired":       os.path.join(APP_DIR, "tray_expired.png"),
     "stopped":       os.path.join(APP_DIR, "tray_stopped.png"),
 }
@@ -67,10 +74,24 @@ REFRESH_SECONDS = 5     # cadence de lecture du battement de cœur
 _MIN_STALE_SECONDS = 90
 
 
+def _alert_lists(status):
+    """Les deux listes d'alerte de status.json, nettoyées.
+
+    Tolérant : clés absentes (battement écrit par une version antérieure) ou
+    contenu inattendu -> listes vides. L'indicateur ne doit jamais tomber à
+    cause d'un fichier d'observation."""
+    if not isinstance(status, dict):
+        return [], []
+    def _liste(cle):
+        v = status.get(cle)
+        return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+    return _liste("unreadable"), _liste("cold_roots")
+
+
 def decide_state(status, now):
     """État de l'icône à partir du contenu de status.json (dict ou None).
     Fonction PURE (testable sans GTK).
-    Retourne 'ok' | 'scripts_stale' | 'expired' | 'stopped'."""
+    Retourne 'ok' | 'scripts_stale' | 'degraded' | 'expired' | 'stopped'."""
     if not isinstance(status, dict):
         return "stopped"
     ts = status.get("ts")
@@ -81,11 +102,16 @@ def decide_state(status, now):
     stale_after = max(3 * cycle, _MIN_STALE_SECONDS)
     if now - ts > stale_after:
         return "stopped"
-    # Priorité : stopped > expired > scripts_stale > ok. « scripts_stale » est un
-    # AVERTISSEMENT (la synchro tourne, mais des scripts NAS sont à déployer),
-    # donc SOUS les états critiques (démons arrêtés, session expirée).
+    # Priorité : stopped > expired > degraded > scripts_stale > ok.
+    #
+    # « degraded » passe DEVANT « scripts_stale » : un dossier illisible veut
+    # dire que de la sauvegarde ne se fait pas — des scripts NAS à déployer, non.
+    # Il reste DERRIÈRE « expired », qui empêche toute synchro.
     if not status.get("auth_ok", True):
         return "expired"
+    illisibles, racines = _alert_lists(status)
+    if illisibles or racines:
+        return "degraded"
     if status.get("nas_scripts_stale"):
         return "scripts_stale"
     return "ok"
@@ -134,9 +160,52 @@ TOOLTIPS = {
     "ok":            lambda: _("Proton Drive sync — active, session OK"),
     "scripts_stale": lambda: _("Proton Drive sync — NAS scripts out of date: "
                                "open the editor and run Install / Update"),
+    "degraded":      lambda: _("Proton Drive sync — some folders are not being "
+                               "backed up"),
     "expired":       lambda: _("Proton Drive sync — session expired or keyring locked"),
     "stopped":       lambda: _("Proton Drive sync — daemons stopped"),
 }
+
+# Nombre de chemins détaillés dans l'infobulle avant de résumer. Une infobulle
+# n'est pas un journal : au-delà, on dit combien il en reste et on renvoie à
+# l'éditeur, qui a la place de tout afficher.
+_MAX_PATHS_IN_TOOLTIP = 3
+
+
+def build_tooltip(status, state):
+    """Texte de l'infobulle : l'état principal, PUIS toutes les causes actives.
+
+    Fonction PURE (testable sans GTK).
+
+    POURQUOI énumérer au lieu de se contenter de l'état. « degraded » et
+    « expired » partagent la même icône, et la chaîne de priorité n'en retient
+    qu'un : si la session expire pendant qu'un dossier est illisible, l'icône ne
+    changerait pas et le second problème resterait invisible. L'infobulle dit
+    donc tout ce qui est vrai en ce moment, pas seulement ce qui a gagné.
+
+    On NOMME les chemins : une alerte qui ne dit pas sur quoi agir ne sert à
+    rien. C'est aussi pourquoi rien n'est publié dont on ne sache dire la
+    cause."""
+    lignes = [TOOLTIPS.get(state, TOOLTIPS["ok"])()]
+    illisibles, racines = _alert_lists(status)
+    if illisibles:
+        lignes.append("")
+        lignes.append(_("Cannot be read — their contents are NOT backed up:"))
+        for p in illisibles[:_MAX_PATHS_IN_TOOLTIP]:
+            lignes.append("  • " + p)
+        reste = len(illisibles) - _MAX_PATHS_IN_TOOLTIP
+        if reste > 0:
+            lignes.append(_("  … and {n} more").format(n=reste))
+    if racines:
+        lignes.append("")
+        lignes.append(_("Never fully analysed — real-time does not cover them "
+                        "yet; run “Prime the cache”:"))
+        for p in racines[:_MAX_PATHS_IN_TOOLTIP]:
+            lignes.append("  • " + p)
+        reste = len(racines) - _MAX_PATHS_IN_TOOLTIP
+        if reste > 0:
+            lignes.append(_("  … and {n} more").format(n=reste))
+    return "\n".join(lignes)
 
 
 def main():
@@ -153,14 +222,19 @@ def main():
     icon = XApp.StatusIcon()
     icon.set_name("proton-drive-sync")
 
-    state_holder = {"state": None}
+    shown = {"state": None, "tooltip": None}
 
-    def apply_state(state):
-        if state == state_holder["state"]:
+    def apply_state(state, tooltip):
+        # On compare le COUPLE (état, infobulle), pas l'état seul. Sinon, tant
+        # que l'état reste le même — « degraded » avec un dossier illisible de
+        # plus, ou « expired » pendant qu'un dossier devient illisible —
+        # l'infobulle resterait figée sur son premier texte.
+        if state == shown["state"] and tooltip == shown["tooltip"]:
             return
-        state_holder["state"] = state
+        shown["state"] = state
+        shown["tooltip"] = tooltip
         icon.set_icon_name(ICONS[state])
-        icon.set_tooltip_text(TOOLTIPS[state]())
+        icon.set_tooltip_text(tooltip)
 
     def open_editor(*_a):
         subprocess.Popen(build_editor_cmd(read_status(), scheduled_mappings_path()),
@@ -184,15 +258,20 @@ def main():
     menu.show_all()
     icon.set_secondary_menu(menu)
 
+    def _refresh_once():
+        status = read_status()
+        state = decide_state(status, time.time())
+        apply_state(state, build_tooltip(status, state))
+
     def refresh():
         # L'applet s'éteint de lui-même si le réglage est décoché dans le GUI.
         if _HAS_CONFIG and not appconfig.tray_enabled():
             Gtk.main_quit()
             return False
-        apply_state(decide_state(read_status(), time.time()))
+        _refresh_once()
         return True   # re-planifier
 
-    apply_state(decide_state(read_status(), time.time()))
+    _refresh_once()
     GLib.timeout_add_seconds(REFRESH_SECONDS, refresh)
     Gtk.main()
 

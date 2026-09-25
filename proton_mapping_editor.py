@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.24.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.25.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -4903,6 +4903,48 @@ class MappingEditor(tk.Tk):
             pass
         self.after(1500, self._prime_tick)
 
+    # Nombre de chemins nommés dans la boîte d'avertissement avant résumé.
+    _MAX_UNREADABLE_SHOWN = 8
+
+    def _warn_unreadable(self):
+        """Avertit, en fin d'amorçage, des dossiers qui n'ont pas pu être lus.
+
+        À N'APPELER QUE depuis le fil principal (via self._ui) : c'est une
+        fenêtre Tk.
+
+        POURQUOI une boîte plutôt qu'une ligne de plus. Le détail a défilé des
+        milliers de lignes plus haut et la fenêtre se referme ; sans cela,
+        personne n'apprend que la sauvegarde d'un sous-arbre ne se fait plus.
+        C'est exactement ce qui s'est produit en production en septembre —
+        quatorze heures avant qu'on s'en aperçoive.
+
+        La boîte appartient à l'INTERFACE, jamais au moteur : celui-ci tourne
+        sans écran (timers, temps réel) et ne doit jamais attendre une réponse.
+        Ici, l'utilisateur vient de lancer l'amorçage et attend devant.
+
+        Rédaction : dire ce qui arrive concrètement, et BORNER ce qui n'est pas
+        touché — sinon l'avertissement finit par être lu comme « tout est
+        cassé » et devient inaudible."""
+        chemins = getattr(self, "_prime_unreadable", [])
+        if not chemins:
+            return
+        montres = chemins[:self._MAX_UNREADABLE_SHOWN]
+        liste = "\n".join("  • " + p for p in montres)
+        reste = len(chemins) - len(montres)
+        if reste > 0:
+            liste += "\n" + _("  … and {n} more").format(n=reste)
+        dlg_warning(
+            self,
+            _("{n} folder(s) could not be read.\n\n"
+              "{list}\n\n"
+              "What this means: the contents of these folders are NOT being "
+              "backed up, and real-time is disabled for them. Everything else "
+              "synced normally.\n\n"
+              "This is almost always a permissions change at the source. Once "
+              "the folders are readable again, prime the cache to clear it.")
+            .format(n=len(chemins), list=liste),
+            title=_("Folders that could not be read"))
+
     def _prime_thread(self, sources):
         """Enveloppe : construit la commande d'amorçage puis délègue à
         l'orchestration commune.
@@ -5030,6 +5072,11 @@ class MappingEditor(tk.Tk):
             self._folders_shown = 0
             self._auth_failed_seen = False
             self._prime_failures_seen = False
+            # Dossiers locaux illisibles rencontrés pendant CE passage. Leur
+            # contenu n'est pas sauvegardé et le temps réel y est désactivé :
+            # c'est le genre de chose qu'on ne doit pas laisser filer dans un
+            # journal de plusieurs milliers de lignes.
+            self._prime_unreadable = []
 
             with open(log_path, "w", encoding="utf-8") as logf:
                 self.sync_process = subprocess.Popen(
@@ -5053,6 +5100,16 @@ class MappingEditor(tk.Tk):
                     # texte traduit — même principe que [auth-failed]).
                     if "[upload-failed]" in line:
                         self._prime_failures_seen = True
+                    # Dossier local impossible à lister. Le moteur écrit
+                    # l'étiquette et le chemin SEULS sur leur ligne (la raison
+                    # traduite vient sur la suivante) : tout ce qui suit
+                    # l'étiquette est donc le chemin, sans avoir à le découper
+                    # dans une phrase traduite. Même principe que [upload-failed].
+                    _i = line.find("[unreadable] ")
+                    if _i >= 0:
+                        _chemin = line[_i + len("[unreadable] "):].strip()
+                        if _chemin and _chemin not in self._prime_unreadable:
+                            self._prime_unreadable.append(_chemin)
                     self._feed_output(line)          # affichage (brut ou épuré)
                     # @@PROGRESS non écrit au log (protocole interne, cf. B9/site 1).
                     if not line.startswith("@@PROGRESS"):
@@ -5090,6 +5147,7 @@ class MappingEditor(tk.Tk):
                 daemons_stopped = False   # redémarrage normal effectué
                 ready, total = realtime_manager.mappings_ready_count(self.config_path)
                 self._append_output(_("✓ {r}/{t} mapping(s) now ready for real-time.").format(r=ready, t=total) + "\n\n")
+                self._ui(self._warn_unreadable)
                 if is_reset:
                     self._ui(lambda: self.status.set(
                         _("Reset done — {r}/{t} mapping(s) ready for real-time.").format(r=ready, t=total)))
@@ -5097,6 +5155,7 @@ class MappingEditor(tk.Tk):
                     self._ui(lambda: self.status.set(
                         _("Priming done — {r}/{t} mapping(s) ready for real-time.").format(r=ready, t=total)))
             else:
+                self._ui(self._warn_unreadable)
                 if is_reset:
                     self._ui(lambda: self.status.set(_("Reset finished (code {c}).").format(c=code)))
                 else:
