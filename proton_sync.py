@@ -26,7 +26,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.9.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.9.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -494,6 +494,25 @@ class Cache:
     def invalidate(self, local_dir):
         if local_dir in self.data:
             del self.data[local_dir]
+            self.dirty = True
+
+    def mark_incomplete(self, local_dir):
+        """Retire la SEULE marque de complétude, sans toucher au reste.
+
+        Sert quand un dossier n'a pas pu être lu : on ne peut plus affirmer que
+        son sous-arbre a été vérifié, mais on n'a rien appris contre son
+        empreinte ni contre sa réconciliation de suppressions — les écraser
+        provoquerait une réconciliation distante complète au passage suivant,
+        pour un simple échec de lecture.
+
+        Passer par `update(..., signature=None)` ne convenait PAS : cette
+        méthode ÉCRIT la signature reçue et, la voyant changer, remet aussi
+        `delete_synced` à False. D'où cette méthode dédiée, qui ne modifie
+        qu'un champ. Sans entrée existante, il n'y a rien à retirer : l'absence
+        vaut déjà « non complet »."""
+        raw = self.data.get(local_dir)
+        if isinstance(raw, dict) and raw.get("subtree_complete"):
+            raw["subtree_complete"] = False
             self.dirty = True
 
 
@@ -1722,6 +1741,38 @@ def _note_unreadable(local_dir, err):
         _UNREADABLE.append(local_dir)
 
 
+def _forget_completeness(cache, local_dir, dry_run):
+    """Retire la marque « complet » d'un dossier qu'on n'a PAS pu lire.
+
+    POURQUOI. Quand `os.scandir` échoue, le moteur ressort avant d'écrire quoi
+    que ce soit : l'ancienne valeur `subtree_complete: True`, écrite au dernier
+    passage réussi, survit telle quelle. Elle affirme alors « ce dossier et tout
+    ce qu'il contient ont été vérifiés » à propos d'un dossier qu'on vient
+    justement de ne pas pouvoir ouvrir.
+
+    Ça n'avait pas de conséquence tant que le garde-fou temps réel ne consultait
+    que le PARENT. Depuis qu'il consulte aussi la cible, un dossier illisible
+    serait admis sur la foi de cette marque périmée — et si son contenu a
+    beaucoup grossi pendant qu'il était illisible, le temps réel partirait dans
+    le gros parcours que le garde-fou existe précisément pour éviter.
+
+    Le prix : sur un échec PASSAGER (hoquet réseau sur un montage NFS), on
+    efface une marque légitime et le prochain passage complet reparcourt ce
+    sous-arbre. Coût en temps sur un passage, aucun risque pour les données —
+    alors que l'inverse, faire confiance à une marque qu'on ne peut plus
+    vérifier, en fait courir un.
+
+    On ne touche ni à la signature ni à `delete_synced` : seule la complétude
+    est remise en cause, parce que c'est la seule chose que cet échec
+    contredit."""
+    if cache is None or dry_run:
+        return
+    try:
+        cache.mark_incomplete(local_dir)
+    except Exception:
+        pass   # observation seulement : ne doit jamais faire échouer un passage
+
+
 def _take_unreadable():
     """Vide et retourne la liste des dossiers illisibles accumulés jusqu'ici.
 
@@ -1805,6 +1856,7 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
         entries = list(os.scandir(local_dir))
     except OSError as e:
         _note_unreadable(local_dir, e)
+        _forget_completeness(cache, local_dir, dry_run)
         return False   # illisible -> sous-arbre non complet
 
     # Normalisation des extensions MAJUSCULES -> minuscules sur les fichiers directs
@@ -1822,6 +1874,7 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
                 entries = list(os.scandir(local_dir))
             except OSError as e:
                 _note_unreadable(local_dir, e)
+                _forget_completeness(cache, local_dir, dry_run)
                 return False
 
     # Ensemble des noms locaux NON exclus (sert à détecter les orphelins distants).
