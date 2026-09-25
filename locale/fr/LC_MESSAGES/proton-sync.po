@@ -204,10 +204,6 @@ msgid "  🗑  Wiping remote folder to TRASH: {p}"
 msgstr "  🗑  Vidage du dossier distant vers la CORBEILLE : {p}"
 
 #, python-brace-format
-msgid "  ❌ Could not read {p}: {e}"
-msgstr "  ❌ Impossible de lire {p} : {e}"
-
-#, python-brace-format
 msgid "  ⚡ {t}, skipping the CLI call for {p}"
 msgstr "  ⚡ {t}, saut de l'appel CLI pour {p}"
 
@@ -4050,3 +4046,73 @@ msgstr ""
 "   ⚠  {n} mapping(s) sont réglés en suppression DÉFINITIVE, ce que le CLI "
 "Proton ne permet plus de façon fiable — ils supprimeront vers la CORBEILLE. "
 "Passez-les en mode corbeille pour faire taire cet avis."
+
+#, python-brace-format
+msgid "Could not read this folder: {e}"
+msgstr "Impossible de lire ce dossier : {e}"
+
+#, python-brace-format
+msgid "  ⚠  Could not write the health file: {e}"
+msgstr "  ⚠  Écriture impossible du fichier d'état de santé : {e}"
+
+#, python-brace-format
+msgid ""
+"⚠  {n} folder(s) could not be read — their contents are NOT backed up and "
+"real-time is disabled for them. The rest of the mappings synced normally."
+msgstr ""
+"⚠  {n} dossier(s) n'ont pas pu être lus — leur contenu n'est PAS sauvegardé "
+"et le temps réel y est désactivé. Le reste des mappings s'est synchronisé "
+"normalement."
+
+#, python-brace-format
+msgid ""
+"    ⛔ cold folder — it will NOT be picked up on its own: a neighbouring "
+"folder cannot be read, so their common parent can never be marked complete. "
+"Fix the permissions on: {p}"
+msgstr ""
+"    ⛔ dossier froid — il ne sera PAS repris tout seul : un dossier voisin "
+"est impossible à lire, donc leur dossier parent commun ne pourra jamais être "
+"marqué complet. Corrige les permissions sur : {p}"
+
+#, python-brace-format
+msgid "  … and {n} more"
+msgstr "  … et {n} de plus"
+
+#, python-brace-format
+msgid ""
+"{n} folder(s) could not be read.\n"
+"\n"
+"{list}\n"
+"\n"
+"What this means: the contents of these folders are NOT being backed up, and "
+"real-time is disabled for them. Everything else synced normally.\n"
+"\n"
+"This is almost always a permissions change at the source. Once the folders "
+"are readable again, prime the cache to clear it."
+msgstr ""
+"{n} dossier(s) n'ont pas pu être lus.\n"
+"\n"
+"{list}\n"
+"\n"
+"Ce que cela signifie : le contenu de ces dossiers n'est PAS sauvegardé, et "
+"le temps réel y est désactivé. Tout le reste s'est synchronisé normalement.\n"
+"\n"
+"C'est presque toujours un changement de permissions à la source. Une fois "
+"les dossiers redevenus lisibles, amorce le cache pour effacer cet "
+"avertissement."
+
+msgid "Folders that could not be read"
+msgstr "Dossiers impossibles à lire"
+
+msgid "Proton Drive sync — some folders are not being backed up"
+msgstr "Synchro Proton Drive — des dossiers ne sont pas sauvegardés"
+
+msgid "Cannot be read — their contents are NOT backed up:"
+msgstr "Impossible à lire — leur contenu n'est PAS sauvegardé :"
+
+msgid ""
+"Never fully analysed — real-time does not cover them yet; run “Prime the "
+"cache”:"
+msgstr ""
+"Jamais analysés entièrement — le temps réel ne les couvre pas encore ; lance "
+"« Amorcer le cache » :"

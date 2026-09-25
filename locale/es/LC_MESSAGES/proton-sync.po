@@ -212,10 +212,6 @@ msgid "  🗑  Wiping remote folder to TRASH: {p}"
 msgstr "  🗑  Borrando carpeta remota a la PAPELERA: {p}"
 
 #, python-brace-format
-msgid "  ❌ Could not read {p}: {e}"
-msgstr "  ❌ No se pudo leer {p}: {e}"
-
-#, python-brace-format
 msgid "  ⚡ {t}, skipping the CLI call for {p}"
 msgstr "  ⚡ {t}, omitiendo la llamada a la CLI para {p}"
 
@@ -4043,3 +4039,73 @@ msgstr ""
 "   ⚠  {n} asignación(es) están en eliminación PERMANENTE, lo que la CLI de "
 "Proton ya no permite de forma fiable — eliminarán hacia la PAPELERA. Páselas "
 "a modo papelera para silenciar este aviso."
+
+#, python-brace-format
+msgid "Could not read this folder: {e}"
+msgstr "No se pudo leer esta carpeta: {e}"
+
+#, python-brace-format
+msgid "  ⚠  Could not write the health file: {e}"
+msgstr "  ⚠  No se pudo escribir el archivo de estado: {e}"
+
+#, python-brace-format
+msgid ""
+"⚠  {n} folder(s) could not be read — their contents are NOT backed up and "
+"real-time is disabled for them. The rest of the mappings synced normally."
+msgstr ""
+"⚠  No se pudieron leer {n} carpeta(s) — su contenido NO se respalda y el "
+"tiempo real está desactivado para ellas. El resto de las asignaciones se "
+"sincronizó con normalidad."
+
+#, python-brace-format
+msgid ""
+"    ⛔ cold folder — it will NOT be picked up on its own: a neighbouring "
+"folder cannot be read, so their common parent can never be marked complete. "
+"Fix the permissions on: {p}"
+msgstr ""
+"    ⛔ carpeta fría — NO se retomará por sí sola: una carpeta vecina no se "
+"puede leer, por lo que su carpeta principal común nunca podrá marcarse como "
+"completa. Corrija los permisos de: {p}"
+
+#, python-brace-format
+msgid "  … and {n} more"
+msgstr "  … y {n} más"
+
+#, python-brace-format
+msgid ""
+"{n} folder(s) could not be read.\n"
+"\n"
+"{list}\n"
+"\n"
+"What this means: the contents of these folders are NOT being backed up, and "
+"real-time is disabled for them. Everything else synced normally.\n"
+"\n"
+"This is almost always a permissions change at the source. Once the folders "
+"are readable again, prime the cache to clear it."
+msgstr ""
+"No se pudieron leer {n} carpeta(s).\n"
+"\n"
+"{list}\n"
+"\n"
+"Lo que esto significa: el contenido de estas carpetas NO se respalda y el "
+"tiempo real está desactivado para ellas. Todo lo demás se sincronizó con "
+"normalidad.\n"
+"\n"
+"Casi siempre se trata de un cambio de permisos en el origen. Cuando las "
+"carpetas vuelvan a ser legibles, inicialice la caché para borrar este aviso."
+
+msgid "Folders that could not be read"
+msgstr "Carpetas que no se pudieron leer"
+
+msgid "Proton Drive sync — some folders are not being backed up"
+msgstr "Sincronización de Proton Drive — algunas carpetas no se respaldan"
+
+msgid "Cannot be read — their contents are NOT backed up:"
+msgstr "No se pueden leer — su contenido NO se respalda:"
+
+msgid ""
+"Never fully analysed — real-time does not cover them yet; run “Prime the "
+"cache”:"
+msgstr ""
+"Nunca analizados por completo — el tiempo real todavía no los cubre; ejecute "
+"«Inicializar caché»:"

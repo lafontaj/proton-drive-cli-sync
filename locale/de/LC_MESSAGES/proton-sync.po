@@ -217,10 +217,6 @@ msgid "  🗑  Wiping remote folder to TRASH: {p}"
 msgstr "  🗑  Remote-Ordner in den PAPIERKORB leeren: {p}"
 
 #, python-brace-format
-msgid "  ❌ Could not read {p}: {e}"
-msgstr "  ❌ {p} konnte nicht gelesen werden: {e}"
-
-#, python-brace-format
 msgid "  ⚡ {t}, skipping the CLI call for {p}"
 msgstr "  ⚡ {t}, CLI-Aufruf für {p} wird übersprungen"
 
@@ -4082,3 +4078,74 @@ msgstr ""
 "   ⚠  {n} Mapping(s) sind auf ENDGÜLTIGES Löschen eingestellt, was die "
 "Proton-CLI nicht mehr zuverlässig erlaubt — sie löschen in den PAPIERKORB. "
 "Stellen Sie sie auf Papierkorb-Modus, um diesen Hinweis abzustellen."
+
+#, python-brace-format
+msgid "Could not read this folder: {e}"
+msgstr "Dieser Ordner konnte nicht gelesen werden: {e}"
+
+#, python-brace-format
+msgid "  ⚠  Could not write the health file: {e}"
+msgstr "  ⚠  Die Zustandsdatei konnte nicht geschrieben werden: {e}"
+
+#, python-brace-format
+msgid ""
+"⚠  {n} folder(s) could not be read — their contents are NOT backed up and "
+"real-time is disabled for them. The rest of the mappings synced normally."
+msgstr ""
+"⚠  {n} Ordner konnten nicht gelesen werden — ihr Inhalt wird NICHT gesichert "
+"und Echtzeit ist dafür deaktiviert. Die übrigen Zuordnungen wurden normal "
+"synchronisiert."
+
+#, python-brace-format
+msgid ""
+"    ⛔ cold folder — it will NOT be picked up on its own: a neighbouring "
+"folder cannot be read, so their common parent can never be marked complete. "
+"Fix the permissions on: {p}"
+msgstr ""
+"    ⛔ kalter Ordner — er wird NICHT von selbst übernommen: ein benachbarter "
+"Ordner kann nicht gelesen werden, daher kann ihr gemeinsamer übergeordneter "
+"Ordner nie als vollständig markiert werden. Korrigieren Sie die "
+"Berechtigungen für: {p}"
+
+#, python-brace-format
+msgid "  … and {n} more"
+msgstr "  … und {n} weitere"
+
+#, python-brace-format
+msgid ""
+"{n} folder(s) could not be read.\n"
+"\n"
+"{list}\n"
+"\n"
+"What this means: the contents of these folders are NOT being backed up, and "
+"real-time is disabled for them. Everything else synced normally.\n"
+"\n"
+"This is almost always a permissions change at the source. Once the folders "
+"are readable again, prime the cache to clear it."
+msgstr ""
+"{n} Ordner konnten nicht gelesen werden.\n"
+"\n"
+"{list}\n"
+"\n"
+"Was das bedeutet: Der Inhalt dieser Ordner wird NICHT gesichert, und "
+"Echtzeit ist dafür deaktiviert. Alles Übrige wurde normal synchronisiert.\n"
+"\n"
+"Fast immer ist das eine geänderte Berechtigung an der Quelle. Sobald die "
+"Ordner wieder lesbar sind, initialisieren Sie den Cache, um diese Warnung zu "
+"löschen."
+
+msgid "Folders that could not be read"
+msgstr "Ordner, die nicht gelesen werden konnten"
+
+msgid "Proton Drive sync — some folders are not being backed up"
+msgstr "Proton Drive Synchronisierung — einige Ordner werden nicht gesichert"
+
+msgid "Cannot be read — their contents are NOT backed up:"
+msgstr "Nicht lesbar — ihr Inhalt wird NICHT gesichert:"
+
+msgid ""
+"Never fully analysed — real-time does not cover them yet; run “Prime the "
+"cache”:"
+msgstr ""
+"Nie vollständig analysiert — Echtzeit erfasst sie noch nicht; führen Sie "
+"„Cache initialisieren“ aus:"
