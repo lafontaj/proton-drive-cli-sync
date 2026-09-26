@@ -1,9 +1,57 @@
 #!/usr/bin/env python3
 """Génère un PDF imprimable depuis un document Markdown du projet.
-Réglages validés : corps 13 pt, interligne 1.5, DejaVu Sans ; emoji remplacés
-par des équivalents imprimables (pastilles colorées, glyphes couverts).
+Réglages validés : corps 13 pt, interligne 1.5, DejaVu Sans.
+Les symboles du document sont imprimés TELS QUELS ; l'outil se contente de
+signaler ceux qu'aucune police disponible ne sait dessiner.
 Usage : python3 build_pdf.py SOURCE.md SORTIE.pdf [TITRE]"""
-__version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.8.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+#
+# 1.8.0 — la table de substitution est SUPPRIMÉE, remplacée par un contrôle.
+#
+# Ce que la table faisait, mesuré le 25 septembre 2026 sur les 69 symboles que
+# le logiciel emploie réellement : elle en altérait 32. Et pas seulement en
+# apparence —
+#
+#   * elle FUSIONNAIT des signes que le logiciel distingue : « 🔄 », « ⟳ » et
+#     « ↻ » devenaient tous « ↻ », et « 🚫 » devenait « ⊘ » alors que « ⊘ » est
+#     déjà employé ailleurs par le moteur pour autre chose. La documentation
+#     confondait ce que le logiciel sépare ;
+#   * elle EFFAÇAIT onze pictogrammes de noms de boutons — « ⏰ Planification… »
+#     s'imprimait « Planification… », avec le trou laissé par le caractère
+#     disparu. Le lecteur cherchait à l'écran un bouton portant un autre nom.
+#
+# La justification d'origine était que « DejaVu ne couvre pas les emoji
+# couleur ». Elle est fausse dans le cas général : wkhtmltopdf ne sait pas lire
+# une police emoji EN COULEUR (des images, pas des dessins de lettres), mais
+# fontconfig se rabat alors sur les polices monochromes du système — FreeSans,
+# FreeSerif, Noto Sans Symbols2, Symbola — que le moteur rend sans difficulté.
+# Vérifié par la mesure : 67 des 69 symboles s'impriment sans aucune table.
+#
+# À LA PLACE, un CONTRÔLE DE COUVERTURE. Avant la conversion, chaque caractère
+# du document est confronté aux polices réellement installées. Celui qu'aucune
+# ne couvre est SIGNALÉ — avec son code, son nom et sa ligne — et rien d'autre :
+# il n'est ni remplacé ni effacé. Le PDF est fabriqué quand même.
+#
+# C'est plus sûr que la table pour trois raisons : le contrôle couvre TOUS les
+# caractères et pas seulement ceux qu'on avait pensé à lister ; il ne peut pas
+# faire converger deux signes distincts ; et il ne peut plus rien faire
+# disparaître en silence — le défaut qui a lancé toute cette révision.
+#
+# LIMITE CONNUE, à ne pas oublier : une police emoji EN COULEUR couvre le
+# caractère du point de vue de fontconfig, mais pas du point de vue de
+# wkhtmltopdf. Les familles purement bitmap sont donc écartées du contrôle
+# (POLICES_COULEUR ci-dessous), sans quoi il annoncerait « couvert » pour un
+# caractère qui sortira vide. C'est exactement le cas de « 🧹 » et « 🧪 », les
+# deux seuls symboles du logiciel que la chaîne ne sait pas rendre.
+#
+# LE HTML INTERMÉDIAIRE N'EST PLUS DANS /tmp. Il s'écrit à côté du PDF, sous le
+# nom de la sortie suivi de « .html », et il est effacé dès que le PDF est fait.
+# Il n'est CONSERVÉ qu'en cas d'échec, et le programme dit alors où le trouver.
+# L'ancien chemin en dur « /tmp/doc.html » avait trois défauts : un nom fixe,
+# donc deux générations simultanées s'écrasaient l'une l'autre sans un mot ; le
+# fichier n'était jamais effacé ; et, appartenant au premier utilisateur qui
+# l'avait créé, il rendait la génération impossible à tout autre
+# (« Permission denied », constaté le 25 septembre 2026).
 #
 # 1.7.0 — la réparation des emphases mutilait les lignes de cron.
 #
@@ -142,7 +190,11 @@ __version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il 
 # morceaux, le « +%F » exécuté comme une commande à part. Le contrôle a
 # ensuite trouvé 24 lignes dans le même cas, réparties sur cinq documents.
 
-import sys, subprocess, markdown
+
+import sys, os, subprocess, unicodedata, markdown
+import re as _re
+import html as _html
+import math as _math
 
 src, out = sys.argv[1], sys.argv[2]
 title = sys.argv[3] if len(sys.argv) > 3 else out.rsplit(".", 1)[0]
@@ -150,51 +202,92 @@ title = sys.argv[3] if len(sys.argv) > 3 else out.rsplit(".", 1)[0]
 text = open(src, encoding="utf-8").read()
 
 # 1.4.0 (a) — retirer le sélecteur de variante emoji U+FE0F.
-# Les clés de REPL sont écrites sans sélecteur. Elles se déclenchent bien sur la
-# forme « pictogramme + U+FE0F » — str.replace cherche une sous-chaîne — mais
-# laissent le sélecteur collé au remplacement, orphelin et invisible.
-# Placé en tête par CONVENTION, pas par nécessité : vérifié en comparant les deux
-# ordres sur un document réel, le retrait après la table donne un résultat
-# identique au caractère près. L'intérêt est l'invariant — passé cette ligne, le
-# texte ne porte plus aucun sélecteur et tout ce qui suit travaille sur une forme
-# unique, y compris le comptage de largeur des blocs de code.
-# Corollaire : ne jamais ajouter à REPL une clé PORTANT un sélecteur ; le retrait
-# préalable la rendrait inopérante.
+# « ⚠️ » n'est pas un caractère mais deux : U+26A0 suivi de U+FE0F. C'est le
+# sélecteur, et non le pictogramme, qui envoyait le moteur chercher une police
+# emoji absente. Passé cette ligne, le texte ne porte plus aucun sélecteur et
+# tout ce qui suit travaille sur une forme unique — y compris le contrôle de
+# couverture et le comptage de largeur des blocs de code.
 text = text.replace("️", "")
 
-# Emoji -> équivalents imprimables (DejaVu ne couvre pas les emoji couleur).
-REPL = {
-    "🟢": '<span style="color:#2e9e3f">●</span>',
-    "🟠": '<span style="color:#e08a00">●</span>',
-    "🔴": '<span style="color:#d23b3b">●</span>',
-    "➕": "+", "➖": "−", "🔄": "↻", "⟳": "↻",
-    "⚡": "", "⏰": "", "🔓": "", "🌍": "", "📜": "", "📅": "",
-    # ⏳ NE DOIT PAS disparaître : il porte du sens (état « à amorcer ») et,
-    # entouré de gras dans la source, sa disparition laissait un `****` vide
-    # que Markdown ne sait pas apparier — le gras déraillait sur plusieurs
-    # paragraphes après. Constaté dans le PDF du 28 août.
-    "⏳": "[...]",
-    # 🚫 rendait ⊘, que la ligne suivante retransformait en « x » : double
-    # substitution, le symbole se confondait avec celui de « dossier disparu ».
-    # ⊘ (U+2298) est couvert par DejaVu Sans — on le garde tel quel.
-    "🚫": "⊘", "🗑": "[corbeille]",
-    # 1.4.0 (d) — ces trois-là sont désormais rendus par de vrais glyphes.
-    # ✔ U+2714, ✘ U+2718 et ⚠ U+26A0 sont tous couverts par DejaVu Sans une
-    # fois le sélecteur de variante retiré. Pour revenir aux crochets, remettre
-    # simplement :  "✅": "[OK]", "❌": "[X]", "⚠": "[!]",
-    "✅": "✔", "❌": "✘",
-    # « ⚠ » et « ℹ » ne sont plus substitués du tout : ils s'impriment tels quels.
-    "🧪": "", "🧹": "", "💾": "", "📂": "", "🔃": "", "🔎": "",
-    "▶": ">", "⏭": "»", "⏸": "||", "⏹": "[stop]", "↪": "->",
-    # ✓ donnait « OK », d'où des « OK ok » illisibles quand la source cite la
-    # sortie réelle du logiciel. √ (U+221A) est couvert et se lit comme une coche.
-    "✓": "√", "✗": "×", "🌐": "", "•": "•",
-}
-for k, v in REPL.items():
-    text = text.replace(k, v)
+# ---------------------------------------------------------------------------
+# CONTRÔLE DE COUVERTURE DES CARACTÈRES (1.8.0)
+#
+# On demande à fontconfig — le même mécanisme que wkhtmltopdf interroge — quelle
+# police couvre chaque symbole du document. Celui qu'aucune ne couvre sortira
+# VIDE dans le PDF, sans le moindre signe. On le signale ici, nommément.
+#
+# Portée : seuls les caractères au-dessus de U+2000 sont contrôlés. En dessous,
+# c'est l'alphabet latin, les accents et la ponctuation courante, que DejaVu
+# Sans couvre intégralement ; les contrôler ferait 70 appels de plus pour rien.
+#
+# Les familles ci-dessous stockent des IMAGES en couleur plutôt que des dessins
+# de lettres. fontconfig les compte comme couvrantes, wkhtmltopdf ne sait pas
+# les lire : les inclure ferait dire « couvert » pour un caractère qui sortira
+# vide. On les écarte donc du contrôle.
+POLICES_COULEUR = ("Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji",
+                   "Twemoji Mozilla", "EmojiOne Color", "JoyPixels")
 
-# Filet : si une substitution vide a malgré tout laissé une emphase creuse,
-# on la retire AVANT que Markdown ne tente de l'apparier.
+SEUIL_CONTROLE = 0x2000
+
+
+def _polices_couvrant(caractere):
+    """Familles non-couleur couvrant ce caractère, d'après fontconfig."""
+    try:
+        r = subprocess.run(["fc-list", ":charset=%04X" % ord(caractere), "family"],
+                           capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None          # fc-list indisponible : contrôle impossible
+    familles = set()
+    for ligne in r.stdout.splitlines():
+        for nom in ligne.split(","):
+            nom = nom.strip()
+            if nom and nom not in POLICES_COULEUR:
+                familles.add(nom)
+    return familles
+
+
+def _controler_couverture(contenu):
+    """Signale les caractères qu'aucune police disponible ne sait dessiner.
+
+    Ne remplace rien et n'efface rien : le PDF est fabriqué quand même, avec
+    des trous à ces endroits-là. C'est à l'auteur de décider quoi en faire."""
+    premieres_lignes = {}
+    for no, ligne in enumerate(contenu.splitlines(), 1):
+        for ch in ligne:
+            if ord(ch) > SEUIL_CONTROLE and ch not in premieres_lignes:
+                premieres_lignes[ch] = no
+    if not premieres_lignes:
+        return
+
+    absents = []
+    for ch in sorted(premieres_lignes, key=lambda c: premieres_lignes[c]):
+        familles = _polices_couvrant(ch)
+        if familles is None:
+            print("[i] fc-list introuvable : impossible de vérifier que les "
+                  "symboles du document seront rendus.", file=sys.stderr)
+            return
+        if not familles:
+            absents.append((ch, premieres_lignes[ch]))
+
+    if not absents:
+        return
+    print("[!] %d caractère(s) ne seront PAS dessinés dans le PDF : aucune "
+          "police installée\n    ne les couvre. Ils y laisseront un blanc, sans "
+          "autre signe. À remplacer\n    dans le document, ou à couvrir en "
+          "installant une police adéquate :" % len(absents), file=sys.stderr)
+    for ch, no in absents:
+        try:
+            nom = unicodedata.name(ch)
+        except ValueError:
+            nom = "(sans nom)"
+        print("    ligne %-5d U+%05X  %s" % (no, ord(ch), nom), file=sys.stderr)
+
+
+_controler_couverture(text)
+
+# ---------------------------------------------------------------------------
+# Filet : si une substitution a laissé une emphase creuse, on la retire AVANT
+# que Markdown ne tente de l'apparier.
 #
 # 1.2.0 — les deux filets étaient trop larges et abîmaient du texte valide :
 #
@@ -211,15 +304,18 @@ for k, v in REPL.items():
 # astérisques ; le second exige au moins une espace entre les deux.
 #
 # 1.7.0 — et surtout : les deux filets NE TRAVERSENT PLUS LES BLOCS DE CODE.
-# Voir le journal en tête du fichier.
-import re as _re
-
+#
+# 1.8.0 — la table de substitution ayant disparu, ces filets ne rattrapent plus
+# ses dégâts. Ils sont CONSERVÉS parce qu'un « **** » ou un « * * » peut venir
+# du document lui-même, et parce qu'ils ne coûtent rien.
 _MOTIFS_EMPHASE = (r"\*{4}", r"(?<!\*)\*[ \t]+\*(?!\*)")
+
 
 def _reparer_emphases(fragment):
     for motif in _MOTIFS_EMPHASE:
         fragment = _re.sub(motif, "", fragment)
     return fragment
+
 
 # Découpe le document en alternance « prose / code ». Le motif capture, dans
 # l'ordre, les blocs délimités par ``` et les segments `entre accents graves`.
@@ -288,9 +384,6 @@ body = markdown.markdown(text, extensions=_EXT)
 # précisément ceux qui produisent le défaut.
 HAUTEUR_MAX_BLOC = 30
 
-import html as _html
-import math as _math
-
 
 def _hauteur_affichee(contenu):
     """Nombre de lignes qu'occupera ce contenu une fois enroulé à LARGEUR_MAX."""
@@ -322,13 +415,12 @@ if _blocs_longs:
           f"laisser une page blanche.", file=sys.stderr)
 
 # Les images sont référencées RELATIVEMENT au document source (docs/images/…).
-# Le HTML intermédiaire étant écrit dans /tmp, ces chemins n'y menaient nulle
-# part : les quatre captures du README sortaient en cadres vides. Une balise
-# <base> pointant sur le dossier du source rétablit la résolution.
-import os as _os
-_base = _os.path.dirname(_os.path.abspath(src)) + _os.sep
+# Une balise <base> pointant sur le dossier du source rétablit la résolution
+# quel que soit l'endroit où le HTML intermédiaire est écrit.
+_base = os.path.dirname(os.path.abspath(src)) + os.sep
 
 html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>{title}</title>
 <base href="file://{_base}">
 <style>
 body {{ font-family: "DejaVu Sans", sans-serif; font-size: 13pt;
@@ -364,9 +456,27 @@ li {{ margin-bottom: 4px; }}
 img {{ max-width: 100%; height: auto; border: 1px solid #ccc; }}
 </style></head><body>{body}</body></html>"""
 
-open("/tmp/doc.html", "w", encoding="utf-8").write(html)
+# ---------------------------------------------------------------------------
+# 1.8.0 — le HTML intermédiaire s'écrit à côté du PDF, sous le nom de la sortie
+# suivi de « .html ». Deux sorties différentes ne peuvent donc plus s'écraser,
+# et le fichier n'appartient jamais à quelqu'un d'autre. Il est effacé dès que
+# le PDF est fait, et CONSERVÉ en cas d'échec — c'est là qu'on va regarder.
+chemin_html = out + ".html"
+open(chemin_html, "w", encoding="utf-8").write(html)
+
 r = subprocess.run(["wkhtmltopdf", "--encoding", "utf-8", "--enable-local-file-access",
                     "--margin-top", "16mm", "--margin-bottom", "16mm",
                     "--margin-left", "15mm", "--margin-right", "15mm",
-                    "--quiet", "/tmp/doc.html", out])
+                    "--quiet", chemin_html, out])
+
+if r.returncode == 0:
+    try:
+        os.remove(chemin_html)
+    except OSError:
+        pass
+else:
+    print("[!] wkhtmltopdf a échoué (code %d). Le HTML intermédiaire est "
+          "conservé pour\n    examen : %s" % (r.returncode, chemin_html),
+          file=sys.stderr)
+
 sys.exit(r.returncode)
