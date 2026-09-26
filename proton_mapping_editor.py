@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.25.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.25.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -252,8 +252,30 @@ class StyledDialog(tk.Toplevel):
 
         # Corps : le message. Placé APRÈS les boutons, il occupe l'espace restant
         # entre la bande et la zone de boutons (déjà réservée en bas).
-        body = tk.Frame(self, bg=DLG_BG, padx=22, pady=18)
-        body.pack(side="top", fill="both", expand=True)
+        #
+        # Le corps vit dans un CANEVAS pour pouvoir DÉFILER. Réserver le bas
+        # (ci-dessus) garantissait déjà que les boutons ne sortent pas de la
+        # fenêtre ; ça ne garantissait pas que la FENÊTRE tienne dans l'écran.
+        # Un message assez long faisait grandir la boîte au-delà de la hauteur
+        # disponible, et le bouton partait sous le bord de l'écran. Mesuré le
+        # 25 septembre 2026 sous Xvfb en 1024×600 : la confirmation « Propager
+        # les suppressions » faisait déjà 695 px — donc son bouton était hors
+        # champ sur l'écran le plus petit du parc, sur l'action la plus
+        # destructive de l'application. Le défaut était antérieur ; il attendait
+        # seulement un message assez long pour se voir.
+        #
+        # La barre de défilement n'apparaît QUE si elle sert (voir plus bas) :
+        # une boîte courte reste exactement ce qu'elle était.
+        outer = tk.Frame(self, bg=DLG_BG)
+        outer.pack(side="top", fill="both", expand=True)
+        self._canvas = tk.Canvas(outer, bg=DLG_BG, highlightthickness=0, bd=0)
+        self._vsb = tk.Scrollbar(outer, orient="vertical",
+                                 command=self._canvas.yview)
+        self._canvas.configure(yscrollcommand=self._vsb.set)
+        self._canvas.pack(side="left", fill="both", expand=True)
+        body = tk.Frame(self._canvas, bg=DLG_BG, padx=22, pady=18)
+        self._body_id = self._canvas.create_window((0, 0), window=body,
+                                                   anchor="nw")
         tk.Label(body, text=message, bg=DLG_BG, fg=DLG_TEXT,
                  font=("DejaVu Sans", 10), justify="left", wraplength=420,
                  anchor="w").pack(anchor="w")
@@ -318,13 +340,44 @@ class StyledDialog(tk.Toplevel):
             # Plancher plus large si une commande copiable est affichée (les
             # commandes shell sont longues et ne doivent pas être tronquées).
             floor = 560 if command else 380
-            need_w = max(self.winfo_reqwidth(), floor)
-            need_h = self.winfo_reqheight()
-            self.minsize(need_w, need_h)
-            if self.winfo_reqwidth() < floor:
-                self.geometry(f"{need_w}x{need_h}")
+            corps_l = body.winfo_reqwidth()
+            corps_h = body.winfo_reqheight()
+            fixe_h = band.winfo_reqheight() + btns.winfo_reqheight()
+            # Plafond : 90 % de l'écran, comme les autres fenêtres du projet.
+            # Au-delà, ce n'est pas la fenêtre qui grandit — c'est le contenu
+            # qui défile, et les boutons restent visibles.
+            plafond = int(self.winfo_screenheight() * 0.90)
+            voulue_h = fixe_h + corps_h
+            defile = voulue_h > plafond
+            finale_h = min(voulue_h, plafond)
+            visible_h = max(finale_h - fixe_h, 1)
+
+            finale_l = max(corps_l, floor)
+            if defile:
+                self._vsb.pack(side="right", fill="y")
+                finale_l += self._vsb.winfo_reqwidth()
+            # Le corps garde SA largeur ; seule la hauteur visible est réduite.
+            self._canvas.configure(width=max(corps_l, floor), height=visible_h,
+                                   scrollregion=(0, 0, corps_l, corps_h))
+            self._canvas.itemconfigure(self._body_id,
+                                       width=max(corps_l, floor))
+            if defile:
+                # Molette : sans elle, une boîte qui défile ne se lirait qu'à la
+                # barre, ce que personne ne pense à faire sur une boîte de
+                # message. Boutons 4/5 = molette sous X11.
+                def _molette(ev, c=self._canvas):
+                    pas = -1 if getattr(ev, "num", 0) == 4 or getattr(ev, "delta", 0) > 0 else 1
+                    c.yview_scroll(pas, "units")
+                for sequence in ("<Button-4>", "<Button-5>", "<MouseWheel>"):
+                    self.bind_all(sequence, _molette)
+                self.bind("<Destroy>", lambda e: [
+                    self.unbind_all(s) for s in
+                    ("<Button-4>", "<Button-5>", "<MouseWheel>")], add="+")
+            self.minsize(finale_l, finale_h)
+            self.geometry(f"{finale_l}x{finale_h}")
+            self._taille = (finale_l, finale_h)
         except Exception:
-            pass
+            self._taille = None
         self._center_on(parent)
         self.deiconify()
         try:
@@ -340,11 +393,23 @@ class StyledDialog(tk.Toplevel):
             px, py = parent.winfo_rootx(), parent.winfo_rooty()
             # winfo_width d'une fenêtre RETIRÉE vaut 1 : on mesure la taille
             # DEMANDÉE (reqwidth/reqheight), fiable avant affichage.
-            w = max(self.winfo_width(), self.winfo_reqwidth())
-            h = max(self.winfo_height(), self.winfo_reqheight())
+            taille = getattr(self, "_taille", None)
+            if taille:
+                w, h = taille
+            else:
+                w = max(self.winfo_width(), self.winfo_reqwidth())
+                h = max(self.winfo_height(), self.winfo_reqheight())
             x = px + (pw - w) // 2
             y = py + (ph - h) // 3
-            self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+            # BORNER AUX DEUX BOUTS. L'ancien code ne corrigeait que les
+            # coordonnées négatives : une boîte placée trop bas sortait par le
+            # bas de l'écran sans que rien ne la retienne. On la ramène donc
+            # aussi vers le haut si son bord inférieur dépasserait — même
+            # principe que le dimensionnement résolution-conscient des autres
+            # fenêtres du projet.
+            x = max(0, min(x, self.winfo_screenwidth() - w))
+            y = max(0, min(y, self.winfo_screenheight() - h))
+            self.geometry(f"+{x}+{y}")
         except Exception:
             pass
 
