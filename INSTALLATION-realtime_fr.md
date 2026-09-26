@@ -122,8 +122,8 @@ chaud, donc un nouveau push est pris en compte sans redémarrer le service.
 ## 3. Vérifier la chaîne complète
 
 1. **GUI → Temps réel → ⬆ Pousser les mappings vers le NAS** : l'indicateur passe
-   au 🟢 vert (« À jour sur le NAS »).
-2. **Watcher NAS (observation)** : 🟢 « NAS joignable ».
+   au ● (vert) « À jour sur le NAS ».
+2. **Watcher NAS (observation)** : ● (vert) « NAS joignable ».
 3. Modifie un fichier dans une source surveillée → un marqueur apparaît dans la
    file, le consommateur le traite après le délai de debounce.
 4. **Files de marqueurs** : le compteur revient à 0 une fois traité.

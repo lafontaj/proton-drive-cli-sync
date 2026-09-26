@@ -627,7 +627,7 @@ A marker is only deleted **after** a successful pass; a failure (typically the l
 
 ### Pushing mappings to the NAS (+ version drift)
 
-The NAS watcher must know the mappings to know which folders to watch. The GUI therefore **pushes** a copy of the active mappings file to `/home/nasuser/proton-sync/config/mappings-<account>.json` (the NAS watcher discovers accounts via `glob mappings-*.json` and hot-reloads). This push is **automatic on every save** of the mapping (and available on demand via a button). A **version hash** (sha256, in a `.version` sidecar) lets the GUI display the **drift**: 🟢 up to date / 🟠 local modified, not pushed / 🔴 NAS unreachable.
+The NAS watcher must know the mappings to know which folders to watch. The GUI therefore **pushes** a copy of the active mappings file to `/home/nasuser/proton-sync/config/mappings-<account>.json` (the NAS watcher discovers accounts via `glob mappings-*.json` and hot-reloads). This push is **automatic on every save** of the mapping (and available on demand via a button). A **version hash** (sha256, in a `.version` sidecar) lets the GUI display the **drift**: ● (green) up to date / ● (orange) local modified, not pushed / ● (red) NAS unreachable.
 
 ### Control window ("⚡ Real-time…")
 
@@ -818,10 +818,6 @@ The project's main files:
 ---
 
 ## Future ideas
-
-### Planned work (next step)
-
-- **Regenerate the PDFs** (`build_pdf.py`) now that the documentation has changed; revisit the symbol substitution map.
 
 ### Longer-term ideas
 

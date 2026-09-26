@@ -632,7 +632,7 @@ Un marqueur n'est effacé qu'**après** un passage réussi ; un échec (typiquem
 
 ### Copie des mappings vers le NAS (+ dérive de version)
 
-Le watcher NAS doit connaître les mappings pour savoir quels dossiers surveiller. Le GUI **pousse** donc la copie du fichier de mappings actif vers `/home/nasuser/proton-sync/config/mappings-<compte>.json` (le watcher NAS y découvre les comptes par `glob mappings-*.json` et recharge à chaud). Ce push est **automatique à chaque enregistrement** du mapping (et disponible à la demande via un bouton). Un **hash de version** (sha256, dans un sidecar `.version`) permet au GUI d'afficher la **dérive** : 🟢 à jour / 🟠 local modifié non poussé / 🔴 NAS injoignable.
+Le watcher NAS doit connaître les mappings pour savoir quels dossiers surveiller. Le GUI **pousse** donc la copie du fichier de mappings actif vers `/home/nasuser/proton-sync/config/mappings-<compte>.json` (le watcher NAS y découvre les comptes par `glob mappings-*.json` et recharge à chaud). Ce push est **automatique à chaque enregistrement** du mapping (et disponible à la demande via un bouton). Un **hash de version** (sha256, dans un sidecar `.version`) permet au GUI d'afficher la **dérive** : ● (vert) à jour / ● (orange) local modifié non poussé / ● (rouge) NAS injoignable.
 
 ### Fenêtre de pilotage (« ⚡ Temps réel… »)
 
@@ -823,10 +823,6 @@ Les principaux fichiers du projet :
 ---
 
 ## Idées pour la suite
-
-### Chantiers planifiés (prochaine étape)
-
-- **Régénérer les PDF** (`build_pdf.py`) maintenant que la documentation a changé ; revoir la table de substitution des symboles.
 
 ### Pistes plus lointaines
 

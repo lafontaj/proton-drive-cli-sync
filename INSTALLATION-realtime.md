@@ -120,9 +120,9 @@ new push is picked up without restarting the service.
 
 ## 3. Verifying the full chain
 
-1. **GUI → Real-time → ⬆ Push mappings to the NAS**: the indicator turns 🟢 green
-   ("Up to date on the NAS").
-2. **NAS watcher (observation)**: 🟢 "NAS reachable".
+1. **GUI → Real-time → ⬆ Push mappings to the NAS**: the indicator turns to ● (green)
+   "Up to date on the NAS".
+2. **NAS watcher (observation)**: ● (green) "NAS reachable".
 3. Modify a file inside a watched source → a marker appears in the queue, the
    consumer processes it after the debounce delay.
 4. **Marker queues**: the counter drops back to 0 once processed.
