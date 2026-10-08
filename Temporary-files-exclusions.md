@@ -219,9 +219,11 @@ A neighbour of the "file that chokes on upload" case, but **not** an exclusion
 matter (the file must be backed up): the Proton CLI derives the MIME type from the
 extension **case-sensitively**. An uppercase extension (`DOC.PDF`, `IMG.JPG`) is
 mis-typed → no thumbnail, no preview, no icon in the Proton apps, **silently**.
-The engine fixes this at the source by **renaming** the extension to lowercase
-(see the README, "Upload robustness, thumbnails and MIME detection"), with a
-collision guard and a `~/.proton-drive-sync/renamed-extensions.log`. Disable with
-`--no-rename-ext`. Related: TIFF/HEIC/AVIF fail thumbnail generation (image codec)
+With a CLI older than 0.5.0 the engine still **renames** the extension to
+lowercase by default. From 0.5.0 it does not, unless settings turn that back
+on (see the README, "Upload robustness, thumbnails and MIME detection"). A
+rename uses a collision guard and is logged in
+`~/.proton-drive-sync/renamed-extensions.log`. `--no-rename-ext` disables it
+for one run. Related: TIFF/HEIC/AVIF fail thumbnail generation (image codec)
 — the engine then auto-retries with `--skip-thumbnails` (file saved, no built-in
 Proton preview; convert to JPEG/PNG for a preview).

@@ -20,24 +20,21 @@ Compiled catalogs are expected under:
     <project dir>/locale/<lang>/LC_MESSAGES/proton-sync.mo
 Their absence never breaks anything: gettext falls back to the source strings.
 """
-__version__ = "1.0.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.0.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import gettext
 import json
 import os
 
+import paths
+
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 LOCALE_DIR = os.path.join(APP_DIR, "locale")
-# PROTON_SYNC_SETTINGS : chemin alternatif de settings.json, figé à l'import
-# comme le chemin historique. Sert aux tests (réglages isolés) et au
-# paquetage. config.py lit ce fichier À TRAVERS
-# i18n quand ce module est présent, donc les deux chemins doivent suivre
-# la même variable. Absente ou vide = APP_DIR/settings.json.
-_settings_override = os.environ.get("PROTON_SYNC_SETTINGS", "").strip()
-if _settings_override:
-    SETTINGS_PATH = _settings_override
-else:
-    SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
+# Même résolution que config.py (paths.settings_path) : variable
+# d'environnement, puis fichier XDG, puis copie unique depuis
+# APP_DIR/settings.json. SETTINGS_PATH est l'instantané à l'import ;
+# chaque lecture repasse par paths pour suivre la variable.
+SETTINGS_PATH = paths.settings_path()
 DOMAIN = "proton-sync"
 
 SUPPORTED = ("en", "fr", "de", "es", "it", "pt")
@@ -48,7 +45,7 @@ SOURCE_LANGUAGE = "en"   # language of the msgid strings in the code (Option B)
 
 def _read_settings():
     try:
-        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+        with open(paths.settings_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
@@ -84,13 +81,23 @@ def write_setting(key, value):
     Returns True on success (same atomic write as write_language_setting)."""
     data = _read_settings()
     data[key] = value
+    path = paths.settings_path()
+    tmp = path + ".tmp"
     try:
-        tmp = SETTINGS_PATH + ".tmp"
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, mode=0o700, exist_ok=True)
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, SETTINGS_PATH)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+        os.chmod(path, 0o600)
         return True
     except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
         return False
 
 

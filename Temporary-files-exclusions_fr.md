@@ -225,10 +225,13 @@ Cas voisin d'un « fichier qui coince à l'upload », mais qui ne relève **pas*
 exclusions (le fichier doit être sauvegardé) : le CLI Proton déduit le type MIME
 de l'extension **de façon sensible à la casse**. Une extension majuscule
 (`DOC.PDF`, `IMG.JPG`) est mal typée → ni vignette, ni aperçu, ni icône dans les
-apps Proton, **silencieusement**. Le moteur corrige ça à la source en
-**renommant** l'extension en minuscule (voir README, section « Robustesse
-d'upload, vignettes et détection MIME »), avec garde-fou anti-collision et journal
-`~/.proton-drive-sync/renamed-extensions.log`. Désactivable par `--no-rename-ext`.
+apps Proton, **silencieusement**. Avec un CLI antérieur à 0.5.0, le moteur
+**renomme** encore l'extension en minuscule par défaut. À partir de 0.5.0 il
+ne le fait plus, sauf si les réglages le réactivent (voir README, section
+« Robustesse d'upload, vignettes et détection MIME »). Un renommage a un
+garde-fou anti-collision et est journalisé dans
+`~/.proton-drive-sync/renamed-extensions.log`. `--no-rename-ext` le coupe
+pour un passage.
 Cas connexe : TIFF/HEIC/AVIF échouent la génération de vignette (codec image) —
 le moteur re-téléverse alors automatiquement avec `--skip-thumbnails` (fichier
 sauvegardé, sans aperçu intégré Proton ; convertir en JPEG/PNG pour un aperçu).

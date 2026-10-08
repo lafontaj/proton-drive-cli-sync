@@ -1,4 +1,4 @@
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
@@ -3547,12 +3547,11 @@ msgstr "Impossibile trovare il binario della CLI di Proton Drive."
 
 msgid ""
 "This application does not perform the sync itself: it drives the official "
-"`proton-drive` binary, which you download separately. It does not search the "
-"system for it — it looks in this order:"
+"`proton-drive` binary, which you download separately. It looks in this order:"
 msgstr ""
 "Questa applicazione non esegue la sincronizzazione da sé: pilota il binario "
-"ufficiale `proton-drive`, che scaricate separatamente. Non lo cerca nel "
-"sistema — lo risolve in quest'ordine:"
+"ufficiale `proton-drive`, che scaricate separatamente. Lo risolve in "
+"quest'ordine:"
 
 msgid "  1. the PROTON_DRIVE_CLI environment variable, if set;"
 msgstr "  1. la variabile d'ambiente PROTON_DRIVE_CLI, se impostata;"
@@ -3563,13 +3562,12 @@ msgstr ""
 "Configurazione;"
 
 msgid ""
-"Simplest fix: place the binary next to the scripts, at the third location "
-"above — nothing to configure. To keep it elsewhere, fill in the "
-"Configuration field."
+"Simplest fix: install the `proton-drive` binary on PATH, or place it next to "
+"the scripts (step 3). To keep it elsewhere, fill in the Configuration field."
 msgstr ""
-"Il modo più semplice: mettete il binario accanto agli script, nella terza "
-"posizione indicata sopra — così non c'è nulla da configurare. Per tenerlo "
-"altrove, compilate il campo nella finestra Configurazione."
+"Il modo più semplice: installate il binario `proton-drive` nel PATH, oppure "
+"mettetelo accanto agli script (passo 3). Per tenerlo altrove, compilate il "
+"campo nella finestra Configurazione."
 
 msgid ""
 "If you change this path AFTER installing the services, reinstall them: "
@@ -3581,8 +3579,8 @@ msgstr ""
 "e continuerebbero altrimenti a puntare al vecchio."
 
 #, python-brace-format
-msgid "  3. failing that: {p}"
-msgstr "  3. in mancanza: {p}"
+msgid "  3. {p}, when that file is executable;"
+msgstr "  3. {p}, quando quel file è eseguibile;"
 
 msgid "Open Configuration…"
 msgstr "Apri Configurazione…"
@@ -4160,6 +4158,47 @@ msgstr ""
 "riservalo a un controllo occasionale (es. una volta al mese), non all'uso "
 "quotidiano."
 
+msgid "  4. `proton-drive` on PATH;"
+msgstr "  4. `proton-drive` nel PATH;"
+
+msgid "  5. otherwise the path in step 3, so the error can name it."
+msgstr "  5. altrimenti il percorso del passo 3, così l'errore può nominarlo."
+
+#, python-brace-format
+msgid "Settings copied to {p}. The previous file was left in place."
+msgstr ""
+"Impostazioni copiate in {p}. Il file precedente è stato lasciato al suo "
+"posto."
+
+#, python-brace-format
+msgid "Could not write settings to {p}; reading {legacy} instead."
+msgstr "Impossibile scrivere le impostazioni in {p}; si legge {legacy}."
+
+msgid "Settings location"
+msgstr "Posizione delle impostazioni"
+
+msgid "Settings file"
+msgstr "File delle impostazioni"
+
+msgid "Settings file in use:"
+msgstr "File delle impostazioni in uso:"
+
+#, python-brace-format
+msgid ""
+"Settings now live in {path}.\n"
+"\n"
+"The file beside the scripts is no longer read.\n"
+"\n"
+"A backup of the scripts folder no longer includes the configuration. Add "
+"this folder to your backups: {folder}."
+msgstr ""
+"Le impostazioni si trovano ora in {path}.\n"
+"\n"
+"Il file accanto agli script non viene più letto.\n"
+"\n"
+"Un backup della cartella degli script non include più la configurazione. "
+"Aggiungete questa cartella ai backup: {folder}."
+
 #, python-brace-format
 msgid "Summary: uploaded {files_uploaded}, would upload {files_would_upload}, failed {files_failed}, vanished {files_vanished}, listing failed {folders_listing_failed}, unreadable {folders_unreadable}, permission denied {folders_permission_denied}, stall-skipped {folders_stall_skipped}, trashed {items_trashed}, trash failed {trash_failed}, deletions refused {deletions_refused}, sources missing {sources_missing}, mappings {mappings_complete}/{mappings_total}."
 msgstr "Riepilogo: caricati {files_uploaded}, da caricare {files_would_upload}, non riusciti {files_failed}, scomparsi {files_vanished}, elenco non riuscito {folders_listing_failed}, illeggibili {folders_unreadable}, permesso negato {folders_permission_denied}, saltati dopo blocco {folders_stall_skipped}, nel cestino {items_trashed}, cestino non riuscito {trash_failed}, eliminazioni rifiutate {deletions_refused}, origini mancanti {sources_missing}, mapping {mappings_complete}/{mappings_total}."
@@ -4199,3 +4238,151 @@ msgstr "Aggiornamento del servizio pianificato non riuscito: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Aggiornamento del servizio pianificato non riuscito."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"controllo del mount fallito durante il passaggio, eliminazioni fermate per "
+"il resto di questo mapping: {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    conservato (escluso): {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr "  ⚠  Valore excluded_remote sconosciuto {v!r} — si usa \"prune\"."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Conservare su Proton la copia remota dei nomi esclusi in questo mapping. Le "
+"esclusioni globali rimuovono comunque la copia remota."
+
+#, python-brace-format
+msgid ""
+"refusing to trash {n} of {t} remote item(s) in {p} (limit: at least {m} and "
+"more than {r:.0%}); nothing deleted there. Use --allow-mass-delete for a "
+"deliberate cleanup."
+msgstr ""
+"rifiuta di cestinare {n} di {t} elemento/i remoto/i in {p} (limite: almeno "
+"{m} e più di {r:.0%}); nulla viene eliminato lì. --allow-mass-delete "
+"consente una pulizia voluta."
+
+msgid ""
+"Mass-deletion guard\n"
+"\n"
+"Off by default. A file you delete locally is still taken as something you "
+"meant to delete, and the Proton trash remains the safety net.\n"
+"\n"
+"Turn this on if you want a pass to stop when one remote folder would lose "
+"too much at once — for example an emptied folder. Nothing in that folder is "
+"trashed, and the next pass looks again.\n"
+"\n"
+"When a pass you start from this window is refused, the app offers to run "
+"that same pass once more and allow the deletion."
+msgstr ""
+"Protezione contro la cancellazione di massa\n"
+"\n"
+"Spenta per impostazione predefinita. Un file cancellato in locale resta "
+"considerato voluto, e il cestino Proton resta la rete di sicurezza.\n"
+"\n"
+"Attivarla se si vuole che un passaggio si fermi quando una cartella remota "
+"perderebbe troppo in una volta — per esempio una cartella svuotata. In "
+"quella cartella non si cesta nulla, e il passaggio successivo guarda di "
+"nuovo.\n"
+"\n"
+"Quando un passaggio avviato da questa finestra viene rifiutato, "
+"l'applicazione propone di eseguirlo ancora una volta e di consentire la "
+"cancellazione."
+
+msgid ""
+"Minimum number of items\n"
+"\n"
+"The guard only steps in when a folder would lose at least this many remote "
+"items AND more than the share set next to it. Both have to be true.\n"
+"\n"
+"20 is a comfortable default: deleting a handful of files still goes through. "
+"A bad value here is ignored and 20 is used instead."
+msgstr ""
+"Numero minimo di elementi\n"
+"\n"
+"La protezione interviene solo se una cartella perderebbe almeno questo "
+"numero di elementi remoti E più della quota indicata accanto. Entrambe le "
+"condizioni devono essere vere.\n"
+"\n"
+"20 è un valore comodo: cancellare una manciata di file passa ancora. Un "
+"valore errato viene ignorato e si usa 20."
+
+msgid ""
+"Share of the folder\n"
+"\n"
+"Together with the minimum count. 0.5 means “more than half of the items "
+"already on Proton in that one folder”.\n"
+"\n"
+"A mapping can set its own pair of numbers. Leave those fields blank to keep "
+"using these. A value outside 0 to 1 is ignored and 0.5 is used instead."
+msgstr ""
+"Quota della cartella\n"
+"\n"
+"Insieme al minimo. 0,5 significa «più della metà degli elementi già su "
+"Proton in quella sola cartella».\n"
+"\n"
+"Una mappatura può indicare una propria coppia. Lasciare i campi vuoti per "
+"continuare a usare questi. Un valore fuori da 0 a 1 viene ignorato e si usa "
+"0,5."
+
+msgid ""
+"The mass-deletion guard refused to trash items in a folder. Those items are "
+"still on Proton.\n"
+"\n"
+"Run this same pass again and allow the deletion this time?"
+msgstr ""
+"La protezione contro la cancellazione di massa ha rifiutato di cestinare "
+"elementi in una cartella. Quegli elementi sono ancora su Proton.\n"
+"\n"
+"Eseguire di nuovo lo stesso passaggio e consentire la cancellazione questa "
+"volta?"
+
+msgid "Mass deletion refused"
+msgstr "Cancellazione di massa rifiutata"
+
+msgid "Allow this run"
+msgstr "Consenti questo passaggio"
+
+msgid "Keep them"
+msgstr "Tienili"
+
+msgid "The minimum must be a whole number, 0 or more, or left blank."
+msgstr ""
+"Il minimo deve essere un numero intero, 0 o più, oppure lasciato vuoto."
+
+msgid "The share must be a number from 0 to 1, or left blank."
+msgstr "La quota deve essere un numero da 0 a 1, oppure lasciata vuota."
+
+msgid "Mass deletion"
+msgstr "Cancellazione di massa"
+
+msgid "Thresholds for this mapping only (leave blank to use Configuration):"
+msgstr "Soglie solo per questa mappatura (vuoto = i valori di Configurazione):"
+
+msgid "Minimum items: "
+msgstr "Elementi minimi: "
+
+msgid "Share of the folder (0 to 1): "
+msgstr "Quota della cartella (da 0 a 1): "
+
+msgid "Invalid threshold"
+msgstr "Soglia non valida"
+
+msgid "Turn on the mass-deletion guard"
+msgstr "Attiva la protezione contro la cancellazione di massa"
+
+msgid "Minimum items in one folder: "
+msgstr "Elementi minimi in una cartella: "
+
+msgid "Share of that folder (0 to 1): "
+msgstr "Quota di questa cartella (da 0 a 1): "

@@ -1,4 +1,4 @@
-"""PROTON_SYNC_SETTINGS is evaluated at import and defaults to the historical path."""
+"""PROTON_SYNC_SETTINGS is evaluated at import. Unset means the XDG settings path."""
 
 import os
 import subprocess
@@ -11,6 +11,7 @@ REPO = Path(__file__).resolve().parents[1]
 def _python(code, home, extra_env=None):
     env = os.environ.copy()
     env.pop("PROTON_SYNC_SETTINGS", None)
+    env.pop("XDG_CONFIG_HOME", None)
     env["HOME"] = str(home)
     if extra_env:
         env.update(extra_env)
@@ -27,10 +28,12 @@ def test_settings_path_defaults_when_env_unset(tmp_path):
     home = tmp_path / "seam-home"
     home.mkdir()
     code = (
-        "import os, config, i18n\n"
-        "expect = os.path.join(config.APP_DIR, 'settings.json')\n"
+        "import os, config, i18n, paths\n"
+        "expect = os.path.join(os.environ['HOME'], '.config', "
+        "'proton-drive-sync', 'settings.json')\n"
         "assert config._SETTINGS_PATH == expect, config._SETTINGS_PATH\n"
-        "assert i18n.SETTINGS_PATH == os.path.join(i18n.APP_DIR, 'settings.json')\n"
+        "assert i18n.SETTINGS_PATH == expect, i18n.SETTINGS_PATH\n"
+        "assert paths.settings_path() == expect\n"
         "print('ok')\n"
     )
     result = _python(code, home)
@@ -42,10 +45,12 @@ def test_settings_path_defaults_when_env_empty(tmp_path):
     home = tmp_path / "seam-home-empty"
     home.mkdir()
     code = (
-        "import os, config, i18n\n"
-        "expect = os.path.join(config.APP_DIR, 'settings.json')\n"
+        "import os, config, i18n, paths\n"
+        "expect = os.path.join(os.environ['HOME'], '.config', "
+        "'proton-drive-sync', 'settings.json')\n"
         "assert config._SETTINGS_PATH == expect, config._SETTINGS_PATH\n"
-        "assert i18n.SETTINGS_PATH == os.path.join(i18n.APP_DIR, 'settings.json')\n"
+        "assert i18n.SETTINGS_PATH == expect, i18n.SETTINGS_PATH\n"
+        "assert paths.settings_path() == expect\n"
         "print('ok')\n"
     )
     result = _python(code, home, {"PROTON_SYNC_SETTINGS": ""})

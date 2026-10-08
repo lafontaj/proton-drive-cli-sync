@@ -3,7 +3,7 @@
 Watcher inotify LOCAL de la machine locale (couche 3) pour la synchro Proton Drive.
 
 Surveille les dossiers déclarés dans les mappings de l'utilisateur courant et
-dépose un marqueur dans la file locale (~/.proton_sync/queue/) à chaque
+dépose un marqueur dans la file locale (~/.proton-drive-sync/queue/) à chaque
 changement détecté. Le démon consommateur (couche 2) prend ensuite le relais.
 
 Décisions de conception (validées) :
@@ -30,7 +30,7 @@ La PARTIE LOGIQUE (marker_for_event, classify, ...) est pure et testable sans
 pyinotify. La PARTIE BRANCHEMENT (WatchManager, boucle d'événements) nécessite
 pyinotify et de vrais dossiers — testée sur la machine locale.
 """
-__version__ = "1.1.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.1.3"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -61,7 +61,7 @@ if _HAS_CONFIG:
     BASE_DIR = appconfig.DATA_DIR
     LOCAL_QUEUE = appconfig.QUEUE_DIR
 else:
-    BASE_DIR = os.path.expanduser("~/.proton_sync")
+    BASE_DIR = os.path.expanduser("~/.proton-drive-sync")
     LOCAL_QUEUE = os.path.join(BASE_DIR, "queue")
 
 # mount_check est requis pour classer local vs NAS.

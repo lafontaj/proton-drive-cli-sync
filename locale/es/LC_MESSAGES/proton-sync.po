@@ -1,4 +1,4 @@
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
@@ -1202,8 +1202,8 @@ msgstr ""
 "texto al nombre del nuevo archivo en lugar de sobrescribir nada (p. ej. "
 "«doc_ProtonEditExt.pdf»).\n"
 "\n"
-"Puede cambiar este texto si prefiere otro, pero no puede contener / \\ \" "
-"' (caracteres que romperían un nombre de archivo)."
+"Puede cambiar este texto si prefiere otro, pero no puede contener / \\ \" ' "
+"(caracteres que romperían un nombre de archivo)."
 
 msgid ""
 "Which extensions to fix\n"
@@ -3538,12 +3538,11 @@ msgstr "No se encontró el binario del CLI de Proton Drive."
 
 msgid ""
 "This application does not perform the sync itself: it drives the official "
-"`proton-drive` binary, which you download separately. It does not search the "
-"system for it — it looks in this order:"
+"`proton-drive` binary, which you download separately. It looks in this order:"
 msgstr ""
 "Esta aplicación no realiza la sincronización por sí misma: controla el "
-"binario oficial `proton-drive`, que usted descarga por separado. No lo busca "
-"en el sistema — lo resuelve en este orden:"
+"binario oficial `proton-drive`, que usted descarga por separado. Lo resuelve "
+"en este orden:"
 
 msgid "  1. the PROTON_DRIVE_CLI environment variable, if set;"
 msgstr "  1. la variable de entorno PROTON_DRIVE_CLI, si está definida;"
@@ -3554,13 +3553,12 @@ msgstr ""
 "Configuración;"
 
 msgid ""
-"Simplest fix: place the binary next to the scripts, at the third location "
-"above — nothing to configure. To keep it elsewhere, fill in the "
-"Configuration field."
+"Simplest fix: install the `proton-drive` binary on PATH, or place it next to "
+"the scripts (step 3). To keep it elsewhere, fill in the Configuration field."
 msgstr ""
-"Lo más sencillo: coloque el binario junto a los scripts, en la tercera "
-"ubicación indicada arriba — así no hay nada que configurar. Para guardarlo "
-"en otro sitio, rellene el campo de la ventana Configuración."
+"Lo más sencillo: instale el binario `proton-drive` en el PATH, o colóquelo "
+"junto a los scripts (paso 3). Para guardarlo en otro sitio, rellene el campo "
+"de la ventana Configuración."
 
 msgid ""
 "If you change this path AFTER installing the services, reinstall them: "
@@ -3572,8 +3570,8 @@ msgstr ""
 "seguirían apuntando a la anterior."
 
 #, python-brace-format
-msgid "  3. failing that: {p}"
-msgstr "  3. en su defecto: {p}"
+msgid "  3. {p}, when that file is executable;"
+msgstr "  3. {p}, cuando ese archivo es ejecutable;"
 
 msgid "Open Configuration…"
 msgstr "Abrir Configuración…"
@@ -4139,6 +4137,46 @@ msgstr ""
 "resérvelo para una comprobación ocasional (p. ej. una vez al mes), no para "
 "uso diario."
 
+msgid "  4. `proton-drive` on PATH;"
+msgstr "  4. `proton-drive` en el PATH;"
+
+msgid "  5. otherwise the path in step 3, so the error can name it."
+msgstr "  5. si no, la ruta del paso 3, para que el error pueda nombrarla."
+
+#, python-brace-format
+msgid "Settings copied to {p}. The previous file was left in place."
+msgstr "Ajustes copiados en {p}. El archivo anterior se dejó en su sitio."
+
+#, python-brace-format
+msgid "Could not write settings to {p}; reading {legacy} instead."
+msgstr ""
+"No se pudieron escribir los ajustes en {p}; se lee {legacy} en su lugar."
+
+msgid "Settings location"
+msgstr "Ubicación de los ajustes"
+
+msgid "Settings file"
+msgstr "Archivo de ajustes"
+
+msgid "Settings file in use:"
+msgstr "Archivo de ajustes en uso:"
+
+#, python-brace-format
+msgid ""
+"Settings now live in {path}.\n"
+"\n"
+"The file beside the scripts is no longer read.\n"
+"\n"
+"A backup of the scripts folder no longer includes the configuration. Add "
+"this folder to your backups: {folder}."
+msgstr ""
+"Los ajustes están ahora en {path}.\n"
+"\n"
+"El archivo junto a los scripts ya no se lee.\n"
+"\n"
+"Una copia de seguridad de la carpeta de scripts ya no incluye la "
+"configuración. Añada esta carpeta a sus copias de seguridad: {folder}."
+
 #, python-brace-format
 msgid "Summary: uploaded {files_uploaded}, would upload {files_would_upload}, failed {files_failed}, vanished {files_vanished}, listing failed {folders_listing_failed}, unreadable {folders_unreadable}, permission denied {folders_permission_denied}, stall-skipped {folders_stall_skipped}, trashed {items_trashed}, trash failed {trash_failed}, deletions refused {deletions_refused}, sources missing {sources_missing}, mappings {mappings_complete}/{mappings_total}."
 msgstr "Resumen: enviados {files_uploaded}, se enviarían {files_would_upload}, fallidos {files_failed}, desaparecidos {files_vanished}, listado fallido {folders_listing_failed}, ilegibles {folders_unreadable}, permiso denegado {folders_permission_denied}, omitidos por bloqueo {folders_stall_skipped}, a la papelera {items_trashed}, papelera fallida {trash_failed}, eliminaciones rechazadas {deletions_refused}, orígenes ausentes {sources_missing}, asignaciones {mappings_complete}/{mappings_total}."
@@ -4178,3 +4216,147 @@ msgstr "Falló la actualización del servicio programado: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Falló la actualización del servicio programado."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"la comprobación del montaje falló durante el pase, eliminaciones detenidas "
+"para el resto de este mapeo: {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    conservado (excluido): {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr "  ⚠  Valor excluded_remote desconocido {v!r} — se usa \"prune\"."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Conservar en Proton la copia remota de los nombres excluidos en este mapeo. "
+"Las exclusiones globales siguen eliminando la copia remota."
+
+#, python-brace-format
+msgid ""
+"refusing to trash {n} of {t} remote item(s) in {p} (limit: at least {m} and "
+"more than {r:.0%}); nothing deleted there. Use --allow-mass-delete for a "
+"deliberate cleanup."
+msgstr ""
+"se niega a enviar a la papelera {n} de {t} elemento(s) remoto(s) en {p} "
+"(límite: al menos {m} y más de {r:.0%}); no se borra nada ahí. --allow-mass-"
+"delete permite una limpieza deliberada."
+
+msgid ""
+"Mass-deletion guard\n"
+"\n"
+"Off by default. A file you delete locally is still taken as something you "
+"meant to delete, and the Proton trash remains the safety net.\n"
+"\n"
+"Turn this on if you want a pass to stop when one remote folder would lose "
+"too much at once — for example an emptied folder. Nothing in that folder is "
+"trashed, and the next pass looks again.\n"
+"\n"
+"When a pass you start from this window is refused, the app offers to run "
+"that same pass once more and allow the deletion."
+msgstr ""
+"Protección contra el borrado masivo\n"
+"\n"
+"Apagada por defecto. Un archivo que borra en local se sigue tomando como "
+"intencionado, y la papelera de Proton sigue siendo la red.\n"
+"\n"
+"Enciéndala si quiere que un pase se detenga cuando una carpeta remota "
+"perdería demasiado de una vez — por ejemplo una carpeta vaciada. En esa "
+"carpeta no se envía nada a la papelera, y el siguiente pase vuelve a mirar.\n"
+"\n"
+"Cuando un pase que inicia desde esta ventana es rechazado, la aplicación "
+"ofrece ejecutarlo otra vez y permitir el borrado."
+
+msgid ""
+"Minimum number of items\n"
+"\n"
+"The guard only steps in when a folder would lose at least this many remote "
+"items AND more than the share set next to it. Both have to be true.\n"
+"\n"
+"20 is a comfortable default: deleting a handful of files still goes through. "
+"A bad value here is ignored and 20 is used instead."
+msgstr ""
+"Número mínimo de elementos\n"
+"\n"
+"La protección solo interviene si una carpeta perdería al menos esta cantidad "
+"de elementos remotos Y más que la parte indicada al lado. Las dos "
+"condiciones tienen que cumplirse.\n"
+"\n"
+"20 es un valor cómodo: borrar un puñado de archivos sigue adelante. Un valor "
+"incorrecto se ignora y se usa 20."
+
+msgid ""
+"Share of the folder\n"
+"\n"
+"Together with the minimum count. 0.5 means “more than half of the items "
+"already on Proton in that one folder”.\n"
+"\n"
+"A mapping can set its own pair of numbers. Leave those fields blank to keep "
+"using these. A value outside 0 to 1 is ignored and 0.5 is used instead."
+msgstr ""
+"Parte de la carpeta\n"
+"\n"
+"Junto con el mínimo. 0,5 significa «más de la mitad de los elementos que ya "
+"están en Proton en esa sola carpeta».\n"
+"\n"
+"Un mapeo puede fijar su propio par. Deje esos campos vacíos para seguir "
+"usando estos. Un valor fuera de 0 a 1 se ignora y se usa 0,5."
+
+msgid ""
+"The mass-deletion guard refused to trash items in a folder. Those items are "
+"still on Proton.\n"
+"\n"
+"Run this same pass again and allow the deletion this time?"
+msgstr ""
+"La protección contra el borrado masivo se negó a enviar elementos a la "
+"papelera en una carpeta. Esos elementos siguen en Proton.\n"
+"\n"
+"¿Ejecutar de nuevo este mismo pase y permitir el borrado esta vez?"
+
+msgid "Mass deletion refused"
+msgstr "Borrado masivo rechazado"
+
+msgid "Allow this run"
+msgstr "Permitir este pase"
+
+msgid "Keep them"
+msgstr "Conservarlos"
+
+msgid "The minimum must be a whole number, 0 or more, or left blank."
+msgstr "El mínimo debe ser un número entero, 0 o más, o dejarse en blanco."
+
+msgid "The share must be a number from 0 to 1, or left blank."
+msgstr "La parte debe ser un número de 0 a 1, o dejarse en blanco."
+
+msgid "Mass deletion"
+msgstr "Borrado masivo"
+
+msgid "Thresholds for this mapping only (leave blank to use Configuration):"
+msgstr ""
+"Umbrales solo para este mapeo (en blanco = los valores de Configuración):"
+
+msgid "Minimum items: "
+msgstr "Elementos mínimos: "
+
+msgid "Share of the folder (0 to 1): "
+msgstr "Parte de la carpeta (0 a 1): "
+
+msgid "Invalid threshold"
+msgstr "Umbral no válido"
+
+msgid "Turn on the mass-deletion guard"
+msgstr "Activar la protección contra el borrado masivo"
+
+msgid "Minimum items in one folder: "
+msgstr "Elementos mínimos en una carpeta: "
+
+msgid "Share of that folder (0 to 1): "
+msgstr "Parte de esa carpeta (0 a 1): "

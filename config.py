@@ -17,6 +17,9 @@ Two concerns:
        - rename_ext_whitelist          (list[str])
        - cli_stall_minutes             (int)
        - cli_stall_max_kills           (int)
+       - mass_delete_guard             (bool, off by default)
+       - max_delete_min                (int)
+       - max_delete_ratio              (float)
 
   2. DATA_DIR and its subpaths (cache, queue, logs): a single computed
      location per installation (~/.proton-drive-sync), with a ONE-TIME, safe
@@ -33,10 +36,12 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
-__version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.9.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
+
+import paths
 
 try:
     import i18n
@@ -48,16 +53,11 @@ except ImportError:
         return s
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-# PROTON_SYNC_SETTINGS : chemin alternatif de settings.json, figé à l'import
-# comme le chemin historique. Sert aux tests (réglages isolés, sans toucher
-# au fichier du dépôt) et au paquetage, pour sortir les réglages mutables
-# du répertoire d'installation. Absente ou vide =
-# APP_DIR/settings.json, le comportement d'avant.
-_settings_override = os.environ.get("PROTON_SYNC_SETTINGS", "").strip()
-if _settings_override:
-    _SETTINGS_PATH = _settings_override
-else:
-    _SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
+# Résolution partagée avec i18n (paths.settings_path) : PROTON_SYNC_SETTINGS,
+# sinon ~/.config/proton-drive-sync/settings.json, avec copie unique depuis
+# APP_DIR/settings.json s'il existe. _SETTINGS_PATH est l'instantané à
+# l'import ; les lectures repassent par paths.
+_SETTINGS_PATH = paths.settings_path()
 
 # ─────────────────────────────────────────────────────────────────────────
 #  1) Réglages typés (settings.json)
@@ -109,6 +109,15 @@ DEFAULTS = {
     # 0 = illimité (défaut) : le moteur réessaie indéfiniment, ce qui est le
     # comportement sûr tant qu'on n'a pas observé de blocage systématique.
     "cli_stall_max_kills": 0,
+    # Garde-fou de suppression de masse, ÉTEINT par défaut : une suppression
+    # locale reste intentionnelle tant que l'utilisateur ne l'allume pas.
+    # Allumé, un dossier distant où un passage enverrait à la corbeille au moins
+    # `max_delete_min` éléments ET plus de `max_delete_ratio` de ses enfants
+    # n'est pas touché. Seuils surchargeables par mapping (mêmes clés).
+    # --allow-mass-delete coupe le garde-fou pour un seul passage.
+    "mass_delete_guard": False,
+    "max_delete_min": 20,
+    "max_delete_ratio": 0.5,
     "tray_enabled": False,            # icône d'état dans la barre des tâches (tray_indicator.py)
     "account_name": None,             # identité NAS stable (None = auto : amorçage intelligent)
     # Correspondance des chemins de DONNÉES entre cette machine (desktop) et le
@@ -132,7 +141,7 @@ def _read_raw():
     if _HAS_I18N:
         return i18n._read_settings()
     try:
-        with open(_SETTINGS_PATH, "r", encoding="utf-8") as f:
+        with open(paths.settings_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
@@ -146,13 +155,23 @@ def _write_raw(key, value):
         return i18n.write_setting(key, value)
     data = _read_raw()
     data[key] = value
+    path = paths.settings_path()
+    tmp = path + ".tmp"
     try:
-        tmp = _SETTINGS_PATH + ".tmp"
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, mode=0o700, exist_ok=True)
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, _SETTINGS_PATH)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+        os.chmod(path, 0o600)
         return True
     except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
         return False
 
 
@@ -319,6 +338,34 @@ def set_proton_cli_path(path):
 
 def rename_ext_enabled():
     return bool(get("rename_ext_enabled"))
+
+
+def effective_rename_ext(cli_supports_fix):
+    """Le moteur doit-il renommer les extensions pour ce passage ?
+
+    Décision en lecture seule (n'écrit pas settings.json). `cli_supports_fix`
+    est un appelable sans argument : True si le CLI est ≥ 0.5.0.
+
+    - `rename_ext_enabled` explicitement faux dans le fichier → arrêté.
+    - explicitement vrai ET `rename_ext_auto_disabled` vrai → allumé (l'utilisateur
+      l'a réactivé après la migration unique du GUI).
+    - clé absente, ou vrai sans ce drapeau (souvent l'ancien défaut écrit par le
+      GUI) → arrêté si le CLI a le correctif, sinon allumé. Version inconnue
+      (l'appelable rend faux, ou lève) → allumé, comme avant.
+    """
+    data = _read_raw()
+    if not isinstance(data, dict):
+        data = {}
+    if "rename_ext_enabled" in data and not data.get("rename_ext_enabled"):
+        return False
+    if (data.get("rename_ext_enabled") is True
+            and data.get("rename_ext_auto_disabled") is True):
+        return True
+    try:
+        modern = bool(cli_supports_fix())
+    except Exception:
+        modern = False
+    return not modern
 
 
 def set_rename_ext_enabled(value):
@@ -488,21 +535,75 @@ def set_cli_stall_max_kills(value):
     return _put("cli_stall_max_kills", n)
 
 
+def mass_delete_guard():
+    """Garde-fou de suppression de masse. Défaut False : éteint, les
+    suppressions restent celles d'avant. Une valeur illisible retombe sur
+    False (on n'arme pas le garde-fou par accident de saisie)."""
+    v = get("mass_delete_guard")
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        return v.strip().lower() in ("1", "true", "yes", "on")
+    if isinstance(v, int):
+        return v != 0
+    return DEFAULTS["mass_delete_guard"]
+
+
+def set_mass_delete_guard(value):
+    return _put("mass_delete_guard", bool(value))
+
+
+def max_delete_min():
+    """Nombre minimal d'orphelins (dans un dossier) pour armer le garde-fou.
+    Valeur illisible ou négative -> défaut."""
+    v = get("max_delete_min")
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return DEFAULTS["max_delete_min"]
+    return n if n >= 0 else DEFAULTS["max_delete_min"]
+
+
+def set_max_delete_min(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return False
+    if n < 0:
+        return False
+    return _put("max_delete_min", n)
+
+
+def max_delete_ratio():
+    """Part (0..1) des enfants distants d'un dossier au-delà de laquelle le
+    garde-fou refuse. Valeur illisible ou hors [0, 1] -> défaut."""
+    v = get("max_delete_ratio")
+    try:
+        r = float(v)
+    except (TypeError, ValueError):
+        return DEFAULTS["max_delete_ratio"]
+    return r if 0.0 <= r <= 1.0 else DEFAULTS["max_delete_ratio"]
+
+
+def set_max_delete_ratio(value):
+    try:
+        r = float(value)
+    except (TypeError, ValueError):
+        return False
+    if not 0.0 <= r <= 1.0:
+        return False
+    return _put("max_delete_ratio", r)
+
+
 def resolve_proton_cli():
-    """Ordre de résolution du binaire CLI Proton, PARTAGÉ par tous les
-    fichiers (moteur, GUI, démons) — une seule règle, jamais dupliquée :
-      1. Variable d'environnement PROTON_DRIVE_CLI (prioritaire : ne casse
-         rien chez qui l'utilise déjà) ;
-      2. Réglage 'proton_cli_path' de settings.json (le plus pratique pour un
-         usage GUI — pas besoin de manipuler une variable d'environnement) ;
-      3. Défaut historique : <dossier d'installation>/proton-drive."""
-    env = os.environ.get("PROTON_DRIVE_CLI")
-    if env:
-        return env
-    configured = proton_cli_path()
-    if configured:
-        return configured
-    return os.path.join(APP_DIR, "proton-drive")
+    """Chemin du binaire CLI. L'ordre est décidé uniquement par paths.resolve_cli :
+      1. Variable d'environnement PROTON_DRIVE_CLI ;
+      2. Réglage 'proton_cli_path' de settings.json ;
+      3. <dossier d'installation>/proton-drive, s'il est un fichier exécutable ;
+      4. `proton-drive` trouvé sur PATH ;
+      5. <dossier d'installation>/proton-drive quand même, pour que le message
+         d'erreur nomme un chemin."""
+    return paths.resolve_cli(APP_DIR, proton_cli_path())
 
 
 def cli_is_usable(path=None):
@@ -571,23 +672,26 @@ def cli_missing_explanation():
     l'information complète ne vivait que dans un tableau de réglages du README,
     à un endroit où personne ne la cherche en installant.
 
-    L'ordre annoncé est EXACTEMENT celui de resolve_proton_cli() ci-dessus —
+    L'ordre annoncé est EXACTEMENT celui de paths.resolve_cli() —
     ne jamais décrire ici un ordre qui ne serait pas celui du code.
     """
     return [
         _("The Proton Drive CLI binary was not found."),
         "",
         _("This application does not perform the sync itself: it drives the "
-          "official `proton-drive` binary, which you download separately. It "
-          "does not search the system for it — it looks in this order:"),
+          "official `proton-drive` binary, which you download separately. "
+          "It looks in this order:"),
         "",
         _("  1. the PROTON_DRIVE_CLI environment variable, if set;"),
         _("  2. the “Proton CLI binary path” field in the Configuration window;"),
-        _("  3. failing that: {p}").format(p=os.path.join(APP_DIR, "proton-drive")),
+        _("  3. {p}, when that file is executable;").format(
+            p=os.path.join(APP_DIR, "proton-drive")),
+        _("  4. `proton-drive` on PATH;"),
+        _("  5. otherwise the path in step 3, so the error can name it."),
         "",
-        _("Simplest fix: place the binary next to the scripts, at the third "
-          "location above — nothing to configure. To keep it elsewhere, fill "
-          "in the Configuration field."),
+        _("Simplest fix: install the `proton-drive` binary on PATH, or place "
+          "it next to the scripts (step 3). To keep it elsewhere, fill in "
+          "the Configuration field."),
         "",
         _("If you change this path AFTER installing the services, reinstall "
           "them: generated systemd units embed the path when created, and "

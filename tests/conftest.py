@@ -115,6 +115,13 @@ class FakeDrive:
         node = self._load()["nodes"].get(remote_state.normalize(remote_path))
         return bool(isinstance(node, dict) and node.get("trashed"))
 
+    def set_version(self, version):
+        text = "Proton Drive CLI cli-drive@{v}+fake\n".format(v=version)
+
+        def mutate(state):
+            state["version_text"] = text
+        self._update(mutate)
+
     def revisions(self, remote_path):
         node = self._load()["nodes"].get(remote_state.normalize(remote_path))
         if not isinstance(node, dict):
@@ -183,6 +190,7 @@ def _isolate(monkeypatch, isolated_home, tmp_path):
     monkeypatch.delenv("PROTON_SYNC_DEBUG", raising=False)
     settings = tmp_path / "isolate-settings.json"
     settings.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setenv("PROTON_SYNC_SETTINGS", str(settings))
     for module_name, attr in (("config", "_SETTINGS_PATH"), ("i18n", "SETTINGS_PATH")):
         module = sys.modules.get(module_name)
         if module is not None and hasattr(module, attr):
@@ -241,13 +249,22 @@ def write_mappings(tmp_path):
     return _write
 
 
-@pytest.fixture
-def engine(fake_drive, isolated_home, tmp_path):
-    """Run proton_sync.py in a subprocess. Refuses to start without the fake CLI."""
-    settings = tmp_path / "engine-settings.json"
-    settings.write_text('{"language": "en"}\n', encoding="utf-8")
+class EngineRunner:
+    """Callable engine launch, plus a way to write this test's settings.json."""
 
-    def run(mappings, *args):
+    def __init__(self, settings, isolated_home, fake_drive):
+        self.settings = settings
+        self.isolated_home = isolated_home
+        self.fake_drive = fake_drive
+
+    def update_settings(self, **values):
+        data = json.loads(self.settings.read_text(encoding="utf-8"))
+        data.update(values)
+        self.settings.write_text(json.dumps(data), encoding="utf-8")
+
+    def __call__(self, mappings, *args, settings_doc=None):
+        if settings_doc is not None:
+            self.settings.write_text(json.dumps(settings_doc) + "\n", encoding="utf-8")
         cli = os.environ.get("PROTON_DRIVE_CLI")
         if not cli:
             raise RuntimeError(
@@ -255,13 +272,13 @@ def engine(fake_drive, isolated_home, tmp_path):
                 "(it would look for a real proton-drive binary)"
             )
         env = os.environ.copy()
-        env["HOME"] = str(isolated_home)
-        env["XDG_CONFIG_HOME"] = str(isolated_home / ".config")
-        env["XDG_STATE_HOME"] = str(isolated_home / ".local" / "state")
-        env["XDG_CACHE_HOME"] = str(isolated_home / ".cache")
-        env["PROTON_SYNC_SETTINGS"] = str(settings)
+        env["HOME"] = str(self.isolated_home)
+        env["XDG_CONFIG_HOME"] = str(self.isolated_home / ".config")
+        env["XDG_STATE_HOME"] = str(self.isolated_home / ".local" / "state")
+        env["XDG_CACHE_HOME"] = str(self.isolated_home / ".cache")
+        env["PROTON_SYNC_SETTINGS"] = str(self.settings)
         env["PROTON_DRIVE_CLI"] = cli
-        env["FAKE_PROTON_STATE"] = str(fake_drive.state_path)
+        env["FAKE_PROTON_STATE"] = str(self.fake_drive.state_path)
         env["LANG"] = "C.UTF-8"
         env["LC_ALL"] = "C.UTF-8"
         env.pop("PROTON_SYNC_DEBUG", None)
@@ -273,4 +290,11 @@ def engine(fake_drive, isolated_home, tmp_path):
             text=True,
             timeout=45,
         )
-    return run
+
+
+@pytest.fixture
+def engine(fake_drive, isolated_home, tmp_path):
+    """Run proton_sync.py in a subprocess. Refuses to start without the fake CLI."""
+    settings = tmp_path / "engine-settings.json"
+    settings.write_text('{"language": "en"}\n', encoding="utf-8")
+    return EngineRunner(settings, isolated_home, fake_drive)

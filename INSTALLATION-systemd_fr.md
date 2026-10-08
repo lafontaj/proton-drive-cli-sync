@@ -29,22 +29,38 @@ lendemain — aucun blocage, aucune corruption.
 ## Avant de commencer : où placer le binaire du CLI Proton
 
 L'application n'exécute pas la synchro elle-même : elle pilote le binaire officiel
-`proton-drive`, que vous téléchargez séparément. **Elle ne le cherche pas sur le
-système** — elle le résout dans cet ordre :
+`proton-drive`, que vous téléchargez séparément. Elle résout le binaire dans
+cet ordre :
 
 1. la variable d'environnement `PROTON_DRIVE_CLI`, si elle est définie ;
 2. le champ **« Chemin du binaire proton-drive »** de la fenêtre **Configuration**
    du GUI ;
-3. à défaut : `<dossier des scripts>/proton-drive`.
+3. `<dossier des scripts>/proton-drive`, lorsque ce fichier est exécutable ;
+4. `proton-drive` sur le `PATH` ;
+5. sinon le chemin de l'étape 3, pour que l'erreur puisse le nommer.
 
-**Le plus simple** : déposer le binaire **à côté des scripts** (cas 3) — il n'y a
-alors rien à régler. Pour le garder ailleurs, renseignez le champ de la fenêtre
-Configuration ; inutile de manipuler une variable d'environnement.
+**Le plus simple** : installer `proton-drive` sur le `PATH`, ou déposer le
+binaire **à côté des scripts** (étape 3). Pour le garder ailleurs, renseignez
+le champ de la fenêtre Configuration.
 
 > **Si vous changez ce chemin APRÈS avoir installé les services**, réinstallez-les
 > (bouton « Installer / Mettre à jour », ou en régénérant les unités à la main) :
 > les unités systemd embarquent le chemin **au moment de leur création** et
 > continueraient sinon à pointer sur l'ancien emplacement.
+
+---
+
+## Où vivent les réglages
+
+Les réglages sont dans `~/.config/proton-drive-sync/settings.json`
+(`$XDG_CONFIG_HOME/proton-drive-sync/settings.json` si cette variable est définie).
+Le fichier `settings.json` à côté des scripts n'est plus lu. S'il est le seul,
+le premier lancement le copie une fois (mode 0600) et le laisse en place.
+Une sauvegarde du dossier des scripts n'inclut plus la configuration :
+ajoutez aussi `~/.config/proton-drive-sync`, ou `$XDG_CONFIG_HOME/proton-drive-sync`
+si cette variable est définie. L'éditeur le dit une fois, à la première
+ouverture après la copie. `PROTON_SYNC_SETTINGS`, si elle est définie, désigne
+ce fichier à la place et ne lance pas la copie.
 
 ---
 
