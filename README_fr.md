@@ -379,6 +379,8 @@ Ce double niveau est délibéré : le JSON déclare l'intention, la ligne de com
 
 **`mount_check.py` DOIT être placé à côté de `proton_sync.py`** (même dossier). Sans lui, toutes les suppressions sont refusées (garde-fou).
 
+Le garde-fou de montage s'exécute aussi de nouveau juste avant les suppressions de chaque dossier. Un verdict sain est réutilisé pendant 5 secondes ; un refus ne l'est jamais. Si le contrôle échoue au milieu d'un passage, les suppressions suivantes de ce mapping s'arrêtent, et les envois continuent. Le refus est compté dans `deletions_refused` : le passage se termine donc avec le code 5.
+
 **Interaction avec le cache (drapeau `delete_synced`)** — pour ne pas perdre la vitesse du cache en mode `--delete`, chaque entrée de cache porte un drapeau indiquant si le distant a déjà été réconcilié (orphelins traités) lors d'un passage `--delete`. Conséquence :
 
 - Le **premier** passage `--delete` vérifie tout le distant (plus lent), puis marque les dossiers réconciliés.

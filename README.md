@@ -377,6 +377,8 @@ This double level is deliberate: the JSON declares the intent, the command line 
 
 **`mount_check.py` MUST live next to `proton_sync.py`** (same folder). Without it, all deletions are refused (safety guard).
 
+The mount guard also runs again right before each folder's deletions. A healthy verdict is reused for 5 seconds; a refusal is never reused. If the check fails in the middle of a pass, later deletions in that mapping stop, and uploads continue. The refusal is counted in `deletions_refused`, so the pass ends with code 5.
+
 **Cache interaction (the `delete_synced` flag)** — to keep the cache's speed in `--delete` mode, each cache entry carries a flag saying whether the remote side has already been reconciled (orphans handled) during a `--delete` pass. Consequences:
 
 - The **first** `--delete` pass checks the whole remote side (slower), then marks folders as reconciled.

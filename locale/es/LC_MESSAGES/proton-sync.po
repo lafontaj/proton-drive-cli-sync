@@ -4178,3 +4178,11 @@ msgstr "Falló la actualización del servicio programado: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Falló la actualización del servicio programado."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"la comprobación del montaje falló durante el pase, eliminaciones detenidas "
+"para el resto de este mapeo: {r}"

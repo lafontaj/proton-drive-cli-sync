@@ -29,7 +29,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.12.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.13.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -2084,6 +2084,33 @@ def _delete_guard_ok(source_path, source_kind, verbose=False):
     return mount_check.source_is_safe_for_delete(source_path, source_kind, verbose=verbose)
 
 
+# Durée (s) pendant laquelle un verdict « montage sain » est réutilisé entre deux
+# dossiers : detect_source_kind relit /proc/mounts, trop lourd à chaque dossier.
+_MOUNT_RECHECK_TTL = 5.0
+
+
+def build_delete_opts(mapping, guard_path, verbose=False):
+    """Options de suppression d'UN mapping pour sync_folder : re-contrôle du
+    montage (`delete_guard`, avec verrou `mount_lost` valable pour tout le
+    passage du mapping). Seul un verdict positif est mémorisé."""
+    source_kind = mapping.get("source_kind")
+    cache_state = {"ok_until": 0.0}
+
+    def delete_guard():
+        # Seul un verdict POSITIF est mémorisé ; un refus est toujours revérifié.
+        if time.monotonic() < cache_state["ok_until"]:
+            return True, ""
+        ok, raison = _delete_guard_ok(guard_path, source_kind, verbose=verbose)
+        if ok:
+            cache_state["ok_until"] = time.monotonic() + _MOUNT_RECHECK_TTL
+        return ok, raison
+
+    return {
+        "delete_guard": delete_guard,
+        "mount_lost": False,
+    }
+
+
 def _wipe_mapping_remote(mapping, dry_run=False, verbose=False):
     """Envoie à la CORBEILLE (jamais définitif, quel que soit delete_mode) le
     dossier distant d'un mapping, en préalable à une reconstruction (option de la
@@ -2251,7 +2278,11 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
                 conflict_mode="replace",
                 cache=None, ignore_cache=False, exclusions=None,
                 delete=False, delete_mode="trash", realtime=False, rename_ext=True,
-                collision_suffix=_EXT_COLLISION_SUFFIX_DEFAULT, remote_hint=None):
+                collision_suffix=_EXT_COLLISION_SUFFIX_DEFAULT, remote_hint=None,
+                delete_opts=None):
+    # `delete_opts` : options de suppression du mapping (voir build_delete_opts).
+    # None = pas de re-contrôle du montage en cours de passage : le garde-fou
+    # initial de sync_folder_guarded reste alors le seul.
     # `remote_hint` : ce que le listing du PARENT dit de ce dossier sur Drive —
     # True (il y figure), False (il n'y figure pas), None (le parent n'a pas été
     # listé : sauté par le cache, ou passage temps réel visant ce dossier).
@@ -2369,7 +2400,7 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
                     cache=cache, ignore_cache=ignore_cache,
                     exclusions=exclusions, delete=delete, delete_mode=delete_mode,
                     realtime=realtime, rename_ext=rename_ext,
-                    collision_suffix=collision_suffix)
+                    collision_suffix=collision_suffix, delete_opts=delete_opts)
                 if not child_complete:
                     all_children_complete = False
         # Le dossier lui-même est valide (cache frais) ; sa complétude de sous-arbre
@@ -2478,7 +2509,8 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
                 cache=cache, ignore_cache=ignore_cache,
                 exclusions=exclusions, delete=delete, delete_mode=delete_mode,
                 realtime=realtime, rename_ext=rename_ext,
-                collision_suffix=collision_suffix, remote_hint=child_hint)
+                collision_suffix=collision_suffix, remote_hint=child_hint,
+                delete_opts=delete_opts)
             if not child_complete:
                 all_children_complete = False
         elif entry.is_file():   # suit les liens : un lien vers un fichier EST un fichier
@@ -2515,9 +2547,33 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
 
     # --- Propagation des suppressions (si activée pour ce mapping) ---
     if delete:
-        _n_del, n_del_failed = delete_orphans(
-            local_dir, remote_folder, remote_items, local_names,
-            delete_mode=delete_mode, dry_run=dry_run, verbose=verbose)
+        opts = delete_opts or {}
+        guard = opts.get("delete_guard")
+        has_candidates = any(n not in local_names for n in remote_items)
+        deletions_blocked = False
+        if guard is not None and has_candidates:
+            # Re-contrôle du montage juste avant les suppressions de CE dossier.
+            # Un NAS tombé en cours de passage rend des dossiers entiers
+            # « orphelins » : au premier refus on verrouille (latch) toutes les
+            # suppressions des dossiers suivants de ce mapping. Les envois,
+            # déjà faits plus haut, continuent dans les dossiers suivants.
+            if opts.get("mount_lost"):
+                deletions_blocked = True
+            else:
+                ok_mount, raison_mount = guard()
+                if not ok_mount:
+                    opts["mount_lost"] = True
+                    deletions_blocked = True
+                    print("    [delete-guard] " + _(
+                        "mount check failed during the pass, deletions stopped for "
+                        "the rest of this mapping: {r}").format(r=raison_mount))
+                    _RUN.add("deletions_refused")
+        if deletions_blocked:
+            n_del_failed = 1
+        else:
+            _n_del, n_del_failed = delete_orphans(
+                local_dir, remote_folder, remote_items, local_names,
+                delete_mode=delete_mode, dry_run=dry_run, verbose=verbose)
         if n_del_failed:
             # Au moins un orphelin distant n'a PAS pu être supprimé (erreur CLI
             # transitoire, réseau…). Sans ce garde, le dossier serait quand même
@@ -2592,7 +2648,8 @@ def sync_folder_guarded(mapping, local_dir, remote_parent, dry_run=False, verbos
                        conflict_mode=mapping.get("conflict_mode", "replace"),
                        cache=cache, ignore_cache=ignore_cache,
                        exclusions=exclusions, delete=mapping_delete, delete_mode=mode,
-                       rename_ext=rename_ext, collision_suffix=collision_suffix)
+                       rename_ext=rename_ext, collision_suffix=collision_suffix,
+                       delete_opts=build_delete_opts(mapping, local_dir, verbose))
 
 
 def sync_file(local_file, remote_parent, dry_run=False, verbose=False, verify_hash=False,
@@ -2836,7 +2893,8 @@ def sync_subpath(mapping, subpath, dry_run=False, verbose=False, verify_hash=Fal
                            cache=cache, ignore_cache=ignore_cache,
                            exclusions=exclusions, delete=mapping_delete, delete_mode=mode,
                            realtime=True, rename_ext=rename_ext,
-                           collision_suffix=collision_suffix)
+                           collision_suffix=collision_suffix,
+                           delete_opts=build_delete_opts(mapping, subpath, verbose))
     return "ok" if complete else "failed"
 
 

@@ -4185,3 +4185,11 @@ msgstr "Échec de la mise à jour du service planifié : {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Échec de la mise à jour du service planifié."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"contrôle du montage échoué en cours de passage, suppressions arrêtées pour "
+"le reste de ce mapping : {r}"

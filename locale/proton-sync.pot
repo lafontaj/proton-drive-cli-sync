@@ -3372,3 +3372,9 @@ msgstr ""
 
 msgid "Scheduled service update failed."
 msgstr ""
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
