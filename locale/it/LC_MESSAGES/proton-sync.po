@@ -1,4 +1,4 @@
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
@@ -4199,3 +4199,26 @@ msgstr "Aggiornamento del servizio pianificato non riuscito: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Aggiornamento del servizio pianificato non riuscito."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"controllo del mount fallito durante il passaggio, eliminazioni fermate per "
+"il resto di questo mapping: {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    conservato (escluso): {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr "  ⚠  Valore excluded_remote sconosciuto {v!r} — si usa \"prune\"."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Conservare su Proton la copia remota dei nomi esclusi in questo mapping. Le "
+"esclusioni globali rimuovono comunque la copia remota."

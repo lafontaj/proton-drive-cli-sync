@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.26.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.27.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -68,6 +68,9 @@ try:
     _HAS_CONFIG = True
 except ImportError:
     _HAS_CONFIG = False
+
+# Clés de mapping inconnues du dialogue : préservées à l'édition (mapping_keys.py).
+from mapping_keys import carry_unknown_keys
 
 # Moteur importé comme MODULE pour réutiliser get_remote_listing (navigateur de
 # destinations Proton) — aucune logique de parsing parallèle. Import tolérant :
@@ -2476,6 +2479,19 @@ class MappingEditor(tk.Tk):
             variable=allow_var, command=lambda: toggle_delete())
         allow_chk.pack(anchor="w")
 
+        # Case opt-in : cochée = conserver sur Proton les noms exclus SUR CE
+        # mapping ("excluded_remote": "keep"). Décochée = clé absente = prune
+        # (la copie déjà envoyée part à la corbeille). Les exclusions globales
+        # nettoient toujours, quelle que soit la case.
+        keep_excluded_var = tk.BooleanVar(
+            value=bool(is_edit and mapping.get("excluded_remote") == "keep"))
+        ttk.Checkbutton(
+            del_frame,
+            text=_("Keep on Proton the remote copy of names excluded on this "
+                   "mapping. Global exclusions still remove the remote copy."),
+            variable=keep_excluded_var,
+        ).pack(anchor="w", pady=(6, 0))
+
         # Note affichée quand la destination est sous « Partagé avec moi » : la
         # suppression y est impossible (limitation CLI) -> mapping en ajout seul.
         shared_note = ttk.Label(del_frame, text="", wraplength=600,
@@ -2783,6 +2799,15 @@ class MappingEditor(tk.Tk):
                             ok_text=_("Add anyway"), cancel_text=_("Cancel")):
                             return
 
+            # Clés que ce dialogue n'édite pas : reportées telles quelles.
+            # excluded_remote EST édité par la case ci-dessus : on l'écrit
+            # APRÈS la copie, sinon une case décochée restaurerait l'ancienne clé.
+            if is_edit:
+                carry_unknown_keys(mapping, new_m)
+            if keep_excluded_var.get():
+                new_m["excluded_remote"] = "keep"
+            else:
+                new_m.pop("excluded_remote", None)
             result["value"] = new_m
             dlg.destroy()
 

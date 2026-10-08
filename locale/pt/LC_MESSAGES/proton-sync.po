@@ -1,4 +1,4 @@
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
@@ -1168,8 +1168,8 @@ msgstr ""
 "Corrigir extensões em maiúsculas\n"
 "\n"
 "O Proton Drive pode não mostrar uma miniatura, pré-visualização ou ícone "
-"correto para um ficheiro cuja extensão está escrita em MAIÚSCULAS (ex. «FOTO."
-"JPG» em vez de «foto.jpg») — mesmo que o próprio ficheiro esteja "
+"correto para um ficheiro cuja extensão está escrita em MAIÚSCULAS (ex. "
+"«FOTO.JPG» em vez de «foto.jpg») — mesmo que o próprio ficheiro esteja "
 "perfeitamente bem.\n"
 "\n"
 "Quando isto está ativo, a aplicação renomeia automaticamente esses ficheiros "
@@ -1199,8 +1199,8 @@ msgstr ""
 "aplicação adiciona este pequeno texto ao nome do novo ficheiro em vez de "
 "substituir seja o que for (ex. «doc_ProtonEditExt.pdf»).\n"
 "\n"
-"Pode alterar este texto se preferir outro, mas não pode conter / \\ \" "
-"' (carateres que invalidariam um nome de ficheiro)."
+"Pode alterar este texto se preferir outro, mas não pode conter / \\ \" ' "
+"(carateres que invalidariam um nome de ficheiro)."
 
 msgid ""
 "Which extensions to fix\n"
@@ -4168,3 +4168,26 @@ msgstr "Falha ao atualizar o serviço agendado: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Falha ao atualizar o serviço agendado."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"verificação da montagem falhou durante a passagem, eliminações paradas para "
+"o resto deste mapeamento: {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    mantido (excluído): {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr "  ⚠  Valor excluded_remote desconhecido {v!r} — a usar \"prune\"."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Manter no Proton a cópia remota dos nomes excluídos neste mapeamento. As "
+"exclusões globais continuam a remover a cópia remota."

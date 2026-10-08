@@ -1,4 +1,4 @@
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
@@ -1202,8 +1202,8 @@ msgstr ""
 "texto al nombre del nuevo archivo en lugar de sobrescribir nada (p. ej. "
 "«doc_ProtonEditExt.pdf»).\n"
 "\n"
-"Puede cambiar este texto si prefiere otro, pero no puede contener / \\ \" "
-"' (caracteres que romperían un nombre de archivo)."
+"Puede cambiar este texto si prefiere otro, pero no puede contener / \\ \" ' "
+"(caracteres que romperían un nombre de archivo)."
 
 msgid ""
 "Which extensions to fix\n"
@@ -4178,3 +4178,26 @@ msgstr "Falló la actualización del servicio programado: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Falló la actualización del servicio programado."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"la comprobación del montaje falló durante el pase, eliminaciones detenidas "
+"para el resto de este mapeo: {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    conservado (excluido): {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr "  ⚠  Valor excluded_remote desconocido {v!r} — se usa \"prune\"."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Conservar en Proton la copia remota de los nombres excluidos en este mapeo. "
+"Las exclusiones globales siguen eliminando la copia remota."

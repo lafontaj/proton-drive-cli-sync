@@ -1,4 +1,4 @@
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: proton-sync 1.0\n"
@@ -360,9 +360,9 @@ msgid ""
 "   To proceed on the NEW account: run “Prime the cache” (or reset the "
 "mappings). The destinations will be (re)created on the new Drive."
 msgstr ""
-"   Um mit dem NEUEN Konto fortzufahren: führen Sie „Cache "
-"initialisieren“ (oder Zuordnungen zurücksetzen) aus. Die Ziele werden auf "
-"dem neuen Drive (neu) erstellt."
+"   Um mit dem NEUEN Konto fortzufahren: führen Sie „Cache initialisieren“ "
+"(oder Zuordnungen zurücksetzen) aus. Die Ziele werden auf dem neuen Drive "
+"(neu) erstellt."
 
 msgid ""
 "⏹ Interrupted — cache progress saved: resuming will skip what is already "
@@ -4220,3 +4220,28 @@ msgstr "Aktualisierung des geplanten Dienstes fehlgeschlagen: {e}"
 
 msgid "Scheduled service update failed."
 msgstr "Aktualisierung des geplanten Dienstes fehlgeschlagen."
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+"Einhängeprüfung während des Durchlaufs fehlgeschlagen, Löschungen für den "
+"Rest dieses Mappings gestoppt: {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    behalten (ausgeschlossen): {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr ""
+"  ⚠  Unbekannter excluded_remote-Wert {v!r} — es wird \"prune\" verwendet."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Die entfernte Kopie von Namen, die auf diesem Mapping ausgeschlossen sind, "
+"auf Proton behalten. Globale Ausschlüsse entfernen die entfernte Kopie "
+"weiterhin."

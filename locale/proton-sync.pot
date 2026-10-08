@@ -2,7 +2,7 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the proton-sync package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
 #, fuzzy
 msgid ""
 msgstr ""
@@ -3371,4 +3371,23 @@ msgid "Scheduled service update failed: {e}"
 msgstr ""
 
 msgid "Scheduled service update failed."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"mount check failed during the pass, deletions stopped for the rest of this "
+"mapping: {r}"
+msgstr ""
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr ""
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr ""
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
 msgstr ""
