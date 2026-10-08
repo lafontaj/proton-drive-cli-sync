@@ -12,5 +12,9 @@
   "rename_ext_enabled": true,
   "rename_ext_collision_suffix": "_ProtonEditExt",
 
+  "mass_delete_guard": false,
+  "max_delete_min": 20,
+  "max_delete_ratio": 0.5,
+
   "tray_enabled": false
 }

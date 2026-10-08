@@ -270,6 +270,8 @@ TWO accepted formats (backward compatibility):
   **This setting also depends on your Proton account.** Version history is configured **account-wide**, under *Settings → Proton Drive → Version history*: "Don't keep versions", 7 days, 30 days, 180 days, 365 days or 10 years. **If it is turned off, a mapping in `revision` mode keeps nothing** — the upload succeeds normally, with no error and no warning, but no version is retained. The application cannot detect this setting: it only knows the CLI version. So check on Proton's side before relying on revisions. (A change to that setting takes a few minutes to take effect.) (definitive, irreversible). The mapping's mode is authoritative.
 
 - `source_kind`: `"nfs"` or `"local"`. Auto-detected by the GUI, confirmed when editing. Used by the safety guard: an `nfs` source only deletes if the network mount is alive.
+- `excluded_remote`: absent (the default) or `"prune"` sends the already-uploaded remote copy of a name excluded **on this mapping** to the Proton trash on the next `--delete` pass. `"keep"` is opt-in — the checkbox in the mapping dialog — and covers only exclusions written on that mapping. A name that matches a **global** exclusion is still trashed. Any other value is treated as `"prune"` with a warning. Applies to full passes, resets and `--subpath`.
+- `max_delete_min` / `max_delete_ratio`: optional per-mapping override of the mass-deletion thresholds (see "Deletion propagation"). Absent means the values from Configuration (`settings.json`). Defaults 20 and 0.5. They do nothing until the guard is turned on.
 
 ### Exclusions
 
@@ -285,7 +287,7 @@ Two cumulative levels:
 
 An excluded folder is not visited at all (its entire content is ignored). An important deliberate nuance: we do NOT blindly exclude all hidden files (starting with `.`) — a wanted `.important_config` is kept, while an explicitly listed `.caltrash` is excluded.
 
-**Automatic cleanup with `--delete`**: a file excluded locally but already present on Proton (uploaded before the exclusion was added) is seen as an **orphan** at the next `--delete` pass and goes to the Proton trash (recoverable until you empty it). The **cache signature embeds a fingerprint of the exclusion set**: any exclusion change invalidates `delete_synced` and forces reconciliation at the next `--delete` pass — cleanup is therefore automatic, no "Ignore cache" needed. Trade-off: that first pass after an exclusion change re-checks every folder and compares equal-size files by SHA1 (slower, once), then fast skips resume. Keep in mind: refine your exclusions if you want to keep on Proton certain files excluded locally — what you exclude eventually disappears from the backup.
+**Automatic cleanup with `--delete`** (the default): a file excluded locally but already present on Proton (uploaded before the exclusion was added) is seen as an **orphan** at the next `--delete` pass and goes to the Proton trash (recoverable until you empty it). That is what happens when `excluded_remote` is absent. The mapping dialog has a checkbox, **Keep on Proton the remote copy of names excluded on this mapping**, which writes `"excluded_remote": "keep"`. That checkbox covers only exclusions written on that mapping. A name that matches a **global** exclusion is still trashed, whatever the mapping says. With `"keep"`, a verbose pass prints `kept (excluded)` for a name it left in place. The **cache signature embeds a fingerprint of the exclusion set**: any exclusion change invalidates `delete_synced` and forces reconciliation at the next `--delete` pass. Trade-off: that first pass after an exclusion change re-checks every folder and compares equal-size files by SHA1 (slower, once), then fast skips resume.
 
 **Real-time safety guard (`sync_subpath`)**: when the watcher targets a subpath directly, the engine tests **every segment** of the path relative to the mapping root — the target itself (`__pycache__`, `logs`) **and its ancestors** (`.Trash-1000/info` is skipped because `.Trash-1000` matches `.Trash-*`). The engine then emits a line carrying the **stable tag `[subpath-excluded]`** (language-independent), which the consumer detects to display "🚫 excluded (name filtered) — nothing to sync" instead of an ambiguous "✓ ok". No upload, no remote creation, no deletion for those paths.
 
@@ -377,6 +379,8 @@ This double level is deliberate: the JSON declares the intent, the command line 
 
 **`mount_check.py` MUST live next to `proton_sync.py`** (same folder). Without it, all deletions are refused (safety guard).
 
+The mount guard also runs again right before each folder's deletions. A healthy verdict is reused for 5 seconds; a refusal is never reused. If the check fails in the middle of a pass, later deletions in that mapping stop, and uploads continue. The refusal is counted in `deletions_refused`, so the pass ends with code 5.
+
 **Cache interaction (the `delete_synced` flag)** — to keep the cache's speed in `--delete` mode, each cache entry carries a flag saying whether the remote side has already been reconciled (orphans handled) during a `--delete` pass. Consequences:
 
 - The **first** `--delete` pass checks the whole remote side (slower), then marks folders as reconciled.
@@ -384,7 +388,7 @@ This double level is deliberate: the JSON declares the intent, the command line 
 - A local deletion changes the folder's fingerprint → it is re-checked at the next `--delete` → the orphan is propagated.
 - A pass WITHOUT `--delete` does not mark folders as reconciled → a later `--delete` will catch a deletion made in between. (Backward-compatible with old caches, migrated on the fly.)
 
-**No mass-deletion guard**: a deliberate choice. A local deletion is considered intentional, and the window between two passes (point-in-time sync, not continuous) plus the trash are sufficient safety nets. The only guard is the mount one (technical failure, not human decision).
+**Mass-deletion guard, off until you turn it on.** A local deletion is taken as intended: there is no such refusal until you enable it in ⚙ Configuration. With it on, in one remote folder, a pass that would trash at least `max_delete_min` items (default 20) **and** more than `max_delete_ratio` of that folder's remote children (default 0.5) trashes **nothing** there, prints `[delete-guard]`, and does not mark the folder as reconciled, so the next pass looks again. The refusal is counted in `deletions_refused`, so the pass ends with code 5. Names kept by `excluded_remote: keep` are not counted as deletions. The two thresholds live in `settings.json` and a mapping can override them with the same keys (blank in the mapping dialog keeps the global values). `--allow-mass-delete` turns the guard off for one run. When a pass started from the editor is refused, the editor offers to run that same pass again with the guard off for that run. The mount guard is unchanged (technical failure, not this choice).
 
 > **The trash does not empty itself.** A file stays recoverable there **for as long as you do not empty it** — there is no automatic purge after any delay (the 30 days often quoted apply to Proton Mail, not Drive). Without a manual purge, the trash keeps everything `--delete` passes send to it, and your plan's storage fills up with stale files. See "[Emptying the Proton trash](#emptying-the-proton-trash)".
 
@@ -450,8 +454,9 @@ Options:
 - `--dry-run`: shows what would be done without transferring anything (and without touching the cache)
 - `--verify-hash`: compares all equal-size files by SHA1, without trusting the last pass (slower, reads every file; bypasses the cache; once after an update, then monthly use)
 - `--ignore-cache`: forces a full re-check on the Proton side (rebuilds the cache on the fly); without the record of the last pass, equal-size files are compared by SHA1, hence read in full
-- `--delete`: **master switch** for deletion propagation. Without it, no deletion. With it, every mapping with `allow_delete: true` propagates its local deletions to Proton, according to its `delete_mode` (trash/permanent) and subject to the mount guard. Always test with `--dry-run` first.
-- `--subpath <folder>` + `--mapping-source <source>`: processes only **one subfolder** of a given mapping, instead of sweeping everything. Used by the real-time layer (the consumer launches the engine targeted at the folder that just changed).
+- `--delete`: **master switch** for deletion propagation. Without it, no deletion. With it, every mapping with `allow_delete: true` propagates its local deletions to Proton, according to its `delete_mode` (trash/permanent) and subject to the mount guard. A name excluded on that mapping is removed from Proton too, unless the mapping asks to keep it (`excluded_remote`: `keep`, the checkbox in the mapping dialog). Global exclusions always remove the remote copy. If the mass-deletion guard is on (it is off by default), a folder that would lose too much at once is left untouched. Always test with `--dry-run` first.
+- `--allow-mass-delete`: with `--delete`, turns the mass-deletion guard off for this run only, even when the setting is on. The editor can pass it after you accept the offer that follows a refusal.
+- `--subpath <folder>` + `--mapping-source <source>`: processes only **one subfolder** of a given mapping, instead of sweeping everything. Deletions follow the same rules as a full pass, including `excluded_remote`. Used by the real-time layer (the consumer launches the engine targeted at the folder that just changed).
 - `--check-auth`: probes **only** authentication (is the keyring unlocked?) then exits — code 0 = OK, code 2 = locked. Doesn't take the lock, syncs nothing, doesn't touch the cache. Used by the real-time consumer to avoid launching passes doomed to exit code 2 while the session isn't open (reuses the engine's exact test, no duplicated logic).
 - `-v` / `--verbose`: also shows `unchanged` files, cache skips, and the raw JSON of each folder's first element
 - `--no-rename-ext`: **disables** extension normalization (see below; on by default).
@@ -496,7 +501,7 @@ Cross-cutting rule: **everything depends first on a lowercase extension** (other
 - OK: 2nd pass validated — instant cache (~1m40 for User1 fully cached) + automatic catch-up of 500 errors
 - OK: **systemd automation operational** — `--user` timers armed for User1 (3:00 am) and User2 (3:02 am), linger enabled for both
 - OK: **exclusions** (trashes, temporary files) implemented and tested
-- OK: **deletion propagation (`--delete`)** — mount guard (`mount_check.py`), trash/permanent modes per mapping, cache enriched with `delete_synced`, dry-run validated under real conditions
+- OK: **deletion propagation (`--delete`)** — mount guard (`mount_check.py`), trash only (a `"permanent"` mapping behaves like `"trash"`), `excluded_remote` defaults to prune, cache enriched with `delete_synced`, dry-run validated under real conditions
 - OK: **glob fix** — file names with braces (Thunderbird extensions) now upload correctly
 - OK: **real-time layer** — inotify watchers (local + NAS), marker queue, debouncing consumer, full chain validated in production on both profiles (local AND NAS sources)
 - OK: **"⚡ Real-time…" window** — 5 sections (daemons, delays, NAS push + drift, NAS observation, queues) + live event log, auto refresh, screen-aware sizing
@@ -508,7 +513,7 @@ Cross-cutting rule: **everything depends first on a lowercase extension** (other
 - OK: **scheduled pass retry on lock collision** — service switched to `Type=exec` + `Restart=on-failure` + `RestartSec=120` (bounded by `StartLimitBurst`): a collision with real-time no longer skips the nightly pass; installed for User1 + User2
 - OK: **mount-aware local watcher** — immediate watching + adaptive re-scan: catches up NAS sources mounted late at boot, and tracks mounts going down/up during the session (`➕`/`➖`/`🔄` log lines); **validated in an actual boot race**
 - OK: **real-time exclusion guard** — `sync_subpath` tests the target AND its ancestors (stable tag `[subpath-excluded]`), the consumer shows "🚫 excluded"; validated in production (`logs`, `__pycache__`, `.Trash-1000/info`)
-- OK: **exclusion-aware cache** — the exclusion set fingerprint enters the signature: an exclusion change forces reconciliation at the next `--delete` (automatic cleanup of newly excluded orphans, e.g. `.dtrash`, `thumbnails-digikam.db`)
+- OK: **exclusion-aware cache** — the exclusion set fingerprint enters the signature: an exclusion change forces reconciliation at the next `--delete` (automatic cleanup of newly excluded orphans, e.g. `.dtrash`, `thumbnails-digikam.db`). `"excluded_remote": "keep"` (the mapping dialog checkbox) leaves a copy excluded only on that mapping; global exclusions still clean up.
 - OK: **"Run history" panel** — last run isolated by start boundary (reliable after a reboot), date picker, success/failure summary; validated (the July 1st collision is visible there)
 - OK: **complete FR/EN internationalization** — GUI, engine, daemons, systemd descriptions; "🌍 Language…" selector, gettext catalog (766 messages), stable tag and multilingual markers for detections; validated in production in both languages
 - OK: **equal-size detection** — a file modified without a size change is compared by SHA1 as soon as its date changes, in scheduled passes and in real time alike; a file rewritten with identical content is not sent again; validated in production through real time
@@ -792,6 +797,9 @@ Since the "configuration" work package, everything that varies from one installa
 | `rename_ext_whitelist` | images, video, audio, documents (37 entries) | Extensions the normalization is allowed to touch. Empty list = no restriction (historical behavior) |
 | `cli_stall_minutes` | `5` | Minutes of total inactivity after which a frozen upload is stopped. `0` disables the circuit breaker |
 | `cli_stall_max_kills` | `0` | Consecutive freezes tolerated on one destination before skipping a pass. `0` = unlimited |
+| `mass_delete_guard` | `false` | Mass-deletion guard. Off until you turn it on in ⚙ Configuration. A local deletion stays intended while it is off |
+| `max_delete_min` | `20` | With the guard on: minimum number of items in one remote folder that arms the refusal (together with the ratio). A bad value falls back to 20 |
+| `max_delete_ratio` | `0.5` | With the guard on: fraction of that folder's remote children above which the pass trashes nothing there. A bad value falls back to 0.5. Overridable per mapping |
 | `tray_enabled` | `false` | Status icon in the system tray (see below) |
 
 Changes apply at the **next launch** of the GUI and the **next restart** of the daemons (like the language). The file is written atomically and **preserves unknown keys**.

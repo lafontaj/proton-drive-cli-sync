@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.26.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.28.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -68,6 +68,9 @@ try:
     _HAS_CONFIG = True
 except ImportError:
     _HAS_CONFIG = False
+
+# Clés de mapping inconnues du dialogue : préservées à l'édition (mapping_keys.py).
+from mapping_keys import carry_unknown_keys
 
 # Moteur importé comme MODULE pour réutiliser get_remote_listing (navigateur de
 # destinations Proton) — aucune logique de parsing parallèle. Import tolérant :
@@ -812,6 +815,32 @@ CONFIG_HELP = {
         "The launcher opens the mappings editor (empty, or directly on the "
         "current mappings file if you chose that option)."
     ),
+    "mass-delete-guard": _(
+        "Mass-deletion guard\n\n"
+        "Off by default. A file you delete locally is still taken as something "
+        "you meant to delete, and the Proton trash remains the safety net.\n\n"
+        "Turn this on if you want a pass to stop when one remote folder would "
+        "lose too much at once — for example an emptied folder. Nothing in "
+        "that folder is trashed, and the next pass looks again.\n\n"
+        "When a pass you start from this window is refused, the app offers to "
+        "run that same pass once more and allow the deletion."
+    ),
+    "max-delete-min": _(
+        "Minimum number of items\n\n"
+        "The guard only steps in when a folder would lose at least this many "
+        "remote items AND more than the share set next to it. Both have to "
+        "be true.\n\n"
+        "20 is a comfortable default: deleting a handful of files still goes "
+        "through. A bad value here is ignored and 20 is used instead."
+    ),
+    "max-delete-ratio": _(
+        "Share of the folder\n\n"
+        "Together with the minimum count. 0.5 means “more than half of the "
+        "items already on Proton in that one folder”.\n\n"
+        "A mapping can set its own pair of numbers. Leave those fields blank "
+        "to keep using these. A value outside 0 to 1 is ignored and 0.5 is "
+        "used instead."
+    ),
 }
 
 
@@ -1173,6 +1202,51 @@ def visible_editor_lines(lines, verbose=False, errors_only=False):
         shown.append(pending)
     return shown
 # --- end editor output filter ---
+
+
+def _parse_optional_min(text):
+    """None = champ vide (pas de surcharge). False = saisie illisible."""
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+    except ValueError:
+        return False
+    if n < 0:
+        return False
+    return n
+
+
+def _parse_optional_ratio(text):
+    """None = champ vide. False = hors [0, 1] ou illisible."""
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    try:
+        r = float(raw)
+    except ValueError:
+        return False
+    if not 0.0 <= r <= 1.0:
+        return False
+    return r
+
+
+# Même msgid que le moteur : le préfixe traduit (avant {n}) est ce que la
+# sortie affiche. Le refus de montage ([delete-guard] aussi) n'est pas cette ligne.
+_MASS_REFUSAL = (
+    "refusing to trash {n} of {t} remote item(s) in {p} "
+    "(limit: at least {m} and more than {r:.0%}); nothing deleted there. "
+    "Use --allow-mass-delete for a deliberate cleanup."
+)
+
+
+def _is_mass_delete_refusal(line):
+    """La ligne qui refuse d'envoyer N éléments sur T à la corbeille."""
+    if "[delete-guard]" not in line:
+        return False
+    prefix = _(_MASS_REFUSAL).split("{n}")[0]
+    return bool(prefix) and prefix in line
 
 
 class MappingEditor(tk.Tk):
@@ -2476,6 +2550,19 @@ class MappingEditor(tk.Tk):
             variable=allow_var, command=lambda: toggle_delete())
         allow_chk.pack(anchor="w")
 
+        # Case opt-in : cochée = conserver sur Proton les noms exclus SUR CE
+        # mapping ("excluded_remote": "keep"). Décochée = clé absente = prune
+        # (la copie déjà envoyée part à la corbeille). Les exclusions globales
+        # nettoient toujours, quelle que soit la case.
+        keep_excluded_var = tk.BooleanVar(
+            value=bool(is_edit and mapping.get("excluded_remote") == "keep"))
+        ttk.Checkbutton(
+            del_frame,
+            text=_("Keep on Proton the remote copy of names excluded on this "
+                   "mapping. Global exclusions still remove the remote copy."),
+            variable=keep_excluded_var,
+        ).pack(anchor="w", pady=(6, 0))
+
         # Note affichée quand la destination est sous « Partagé avec moi » : la
         # suppression y est impossible (limitation CLI) -> mapping en ajout seul.
         shared_note = ttk.Label(del_frame, text="", wraplength=600,
@@ -2523,6 +2610,32 @@ class MappingEditor(tk.Tk):
         warn_lbl = ttk.Label(sub, text="", wraplength=600, foreground="#b00020",
                              justify="left")
         warn_lbl.pack(anchor="w", pady=(4, 0))
+
+        # Surcharge optionnelle des seuils. Vide = les valeurs de Configuration.
+        # Hors de `sub` : on peut les saisir sans cocher la suppression.
+        thresh = ttk.Frame(del_frame)
+        thresh.pack(fill="x", pady=(8, 0))
+        ttk.Label(
+            thresh, wraplength=600, justify="left",
+            text=_("Thresholds for this mapping only (leave blank to use Configuration):"),
+        ).pack(anchor="w")
+        _min_init = ""
+        _ratio_init = ""
+        if is_edit:
+            if "max_delete_min" in mapping and mapping.get("max_delete_min") is not None:
+                _min_init = str(mapping.get("max_delete_min"))
+            if "max_delete_ratio" in mapping and mapping.get("max_delete_ratio") is not None:
+                _ratio_init = str(mapping.get("max_delete_ratio"))
+        min_del_var = tk.StringVar(value=_min_init)
+        ratio_del_var = tk.StringVar(value=_ratio_init)
+        min_row = ttk.Frame(thresh)
+        min_row.pack(anchor="w", pady=(4, 0))
+        ttk.Label(min_row, text=_("Minimum items: ")).pack(side="left")
+        ttk.Entry(min_row, textvariable=min_del_var, width=8).pack(side="left")
+        ratio_row = ttk.Frame(thresh)
+        ratio_row.pack(anchor="w", pady=(4, 0))
+        ttk.Label(ratio_row, text=_("Share of the folder (0 to 1): ")).pack(side="left")
+        ttk.Entry(ratio_row, textvariable=ratio_del_var, width=8).pack(side="left")
 
         def detect_and_show():
             """Lance la détection sur la source courante et met à jour l'affichage."""
@@ -2783,6 +2896,33 @@ class MappingEditor(tk.Tk):
                             ok_text=_("Add anyway"), cancel_text=_("Cancel")):
                             return
 
+            parsed_min = _parse_optional_min(min_del_var.get())
+            if parsed_min is False:
+                dlg_warning(
+                    dlg,
+                    _("The minimum must be a whole number, 0 or more, or left blank."),
+                    title=_("Invalid threshold"))
+                return
+            parsed_ratio = _parse_optional_ratio(ratio_del_var.get())
+            if parsed_ratio is False:
+                dlg_warning(
+                    dlg,
+                    _("The share must be a number from 0 to 1, or left blank."),
+                    title=_("Invalid threshold"))
+                return
+            if parsed_min is not None:
+                new_m["max_delete_min"] = parsed_min
+            if parsed_ratio is not None:
+                new_m["max_delete_ratio"] = parsed_ratio
+            # Clés que ce dialogue n'édite pas : reportées telles quelles.
+            # excluded_remote EST édité par la case ci-dessus : on l'écrit
+            # APRÈS la copie, sinon une case décochée restaurerait l'ancienne clé.
+            if is_edit:
+                carry_unknown_keys(mapping, new_m)
+            if keep_excluded_var.get():
+                new_m["excluded_remote"] = "keep"
+            else:
+                new_m.pop("excluded_remote", None)
             result["value"] = new_m
             dlg.destroy()
 
@@ -3983,6 +4123,27 @@ class MappingEditor(tk.Tk):
             ttk.Label(krow, text=_("  (0 = unlimited)")).pack(side="left")
             help_btn(krow, "cli-stall-max-kills")
 
+            # Garde-fou de masse : éteint par défaut. Les deux seuils sont
+            # toujours éditables, y compris quand la case est décochée, pour
+            # qu'on puisse les préparer avant d'allumer le garde-fou.
+            guard_frame = ttk.LabelFrame(frm, text=_("Mass deletion"), padding=10)
+            guard_frame.pack(fill="x", pady=(0, 10))
+            guard_var = tk.BooleanVar(value=appconfig.mass_delete_guard())
+            grow = ttk.Frame(guard_frame); grow.pack(anchor="w", fill="x")
+            ttk.Checkbutton(grow, text=_("Turn on the mass-deletion guard"),
+                            variable=guard_var).pack(side="left")
+            help_btn(grow, "mass-delete-guard")
+            gmin_row = ttk.Frame(guard_frame); gmin_row.pack(anchor="w", fill="x", pady=(8, 0))
+            ttk.Label(gmin_row, text=_("Minimum items in one folder: ")).pack(side="left")
+            gmin_var = tk.StringVar(value=str(appconfig.max_delete_min()))
+            ttk.Entry(gmin_row, textvariable=gmin_var, width=6).pack(side="left")
+            help_btn(gmin_row, "max-delete-min")
+            gratio_row = ttk.Frame(guard_frame); gratio_row.pack(anchor="w", fill="x", pady=(8, 0))
+            ttk.Label(gratio_row, text=_("Share of that folder (0 to 1): ")).pack(side="left")
+            gratio_var = tk.StringVar(value=str(appconfig.max_delete_ratio()))
+            ttk.Entry(gratio_row, textvariable=gratio_var, width=6).pack(side="left")
+            help_btn(gratio_row, "max-delete-ratio")
+
         # ---- Section Langue ----
         if _HAS_I18N:
             lang_frame = ttk.LabelFrame(frm, text=_("Interface language"), padding=10)
@@ -4357,6 +4518,11 @@ class MappingEditor(tk.Tk):
                 # plutôt que d'écraser un réglage valide par une valeur fausse.
                 appconfig.set_cli_stall_minutes(stall_var.get())
                 appconfig.set_cli_stall_max_kills(kills_var.get())
+                # Garde-fou de masse : une saisie illisible est ignorée, les
+                # accesseurs retombent sur les défauts à la lecture.
+                appconfig.set_mass_delete_guard(guard_var.get())
+                appconfig.set_max_delete_min(gmin_var.get())
+                appconfig.set_max_delete_ratio(gratio_var.get())
                 # Icône de barre des tâches : effet IMMÉDIAT (démarrage à
                 # l'activation ; extinction d'elle-même à la désactivation).
                 appconfig.set_tray_enabled(tray_var.get())
@@ -4926,7 +5092,11 @@ class MappingEditor(tk.Tk):
         t = threading.Thread(target=self._run_sync_thread, args=(cmd, env, log_path), daemon=True)
         t.start()
 
-    def _run_sync_thread(self, cmd, env, log_path):
+    def _run_sync_thread(self, cmd, env, log_path, offer_mass_delete=True):
+        # offer_mass_delete : une seule offre. La relance avec
+        # --allow-mass-delete passe False, donc un second [delete-guard]
+        # ne rouvre pas le dialogue.
+        saw_refusal = False
         try:
             with open(log_path, "w", encoding="utf-8") as logf:
                 self.sync_process = subprocess.Popen(
@@ -4946,6 +5116,8 @@ class MappingEditor(tk.Tk):
                               "account.")))
                     if "[auth-failed]" in line:
                         self._auth_failed_seen = True
+                    if offer_mass_delete and _is_mass_delete_refusal(line):
+                        saw_refusal = True
                     self._feed_output(line)      # affichage (brut ou épuré)
                     # @@PROGRESS = protocole interne (barre de progression), traité
                     # à part via _handle_progress_line : jamais au log (sinon
@@ -4980,10 +5152,54 @@ class MappingEditor(tk.Tk):
         except Exception as e:
             self._append_output("\n" + _("=== Launch error: {e} ===").format(e=e) + "\n\n")
             self._ui(lambda: self.status.set(_("Error: {e}").format(e=e)))
+            saw_refusal = False
         finally:
             self.sync_process = None
-            self._ui(lambda: self.run_button.configure(state="normal"))
-            self._ui(lambda: self.stop_button.configure(state="disabled"))
+            # Pas d'offre pour un dry-run, ni pour la relance déjà autorisée.
+            offer = (saw_refusal and offer_mass_delete
+                     and "--dry-run" not in cmd
+                     and "--allow-mass-delete" not in cmd)
+            if offer:
+                snapshot = list(cmd)
+                self._ui(lambda: self._ask_allow_mass_delete(snapshot, env))
+            else:
+                self._ui(lambda: self.run_button.configure(state="normal"))
+                self._ui(lambda: self.stop_button.configure(state="disabled"))
+
+    def _ask_allow_mass_delete(self, cmd, env):
+        """Propose UNE relance du même passage avec --allow-mass-delete.
+        Le drapeau reste utilisable en ligne de commande : ici il évite
+        d'exiger un terminal pour vider un dossier volontairement."""
+        allowed = dlg_confirm(
+            self,
+            _("The mass-deletion guard refused to trash items in a folder. "
+              "Those items are still on Proton.\n\n"
+              "Run this same pass again and allow the deletion this time?"),
+            title=_("Mass deletion refused"),
+            kind="warning",
+            ok_text=_("Allow this run"),
+            cancel_text=_("Keep them"))
+        if not allowed:
+            self.run_button.configure(state="normal")
+            self.stop_button.configure(state="disabled")
+            return
+        rerun = list(cmd)
+        if "--allow-mass-delete" not in rerun:
+            rerun.append("--allow-mass-delete")
+        log_path = self._log_path()
+        self._current_log_path = log_path
+        self._append_output(
+            _("=== Launch: {c} ===").format(c=" ".join(shlex.quote(c) for c in rerun)) + "\n")
+        self._append_output(_("=== Log: {p} ===").format(p=log_path) + "\n\n")
+        self.status.set(_("Sync in progress…"))
+        self.run_button.configure(state="disabled")
+        self.stop_button.configure(state="normal")
+        threading.Thread(
+            target=self._run_sync_thread,
+            args=(rerun, env, log_path),
+            kwargs={"offer_mass_delete": False},
+            daemon=True,
+        ).start()
 
     def on_stop_sync(self):
         # Casser une éventuelle attente de verrou (amorçage/reset patients).

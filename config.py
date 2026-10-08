@@ -17,6 +17,9 @@ Two concerns:
        - rename_ext_whitelist          (list[str])
        - cli_stall_minutes             (int)
        - cli_stall_max_kills           (int)
+       - mass_delete_guard             (bool, off by default)
+       - max_delete_min                (int)
+       - max_delete_ratio              (float)
 
   2. DATA_DIR and its subpaths (cache, queue, logs): a single computed
      location per installation (~/.proton-drive-sync), with a ONE-TIME, safe
@@ -33,7 +36,7 @@ from a deployment):
     except ImportError:
         appconfig = None   # callers fall back to their own built-in defaults
 """
-__version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.8.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -109,6 +112,15 @@ DEFAULTS = {
     # 0 = illimité (défaut) : le moteur réessaie indéfiniment, ce qui est le
     # comportement sûr tant qu'on n'a pas observé de blocage systématique.
     "cli_stall_max_kills": 0,
+    # Garde-fou de suppression de masse, ÉTEINT par défaut : une suppression
+    # locale reste intentionnelle tant que l'utilisateur ne l'allume pas.
+    # Allumé, un dossier distant où un passage enverrait à la corbeille au moins
+    # `max_delete_min` éléments ET plus de `max_delete_ratio` de ses enfants
+    # n'est pas touché. Seuils surchargeables par mapping (mêmes clés).
+    # --allow-mass-delete coupe le garde-fou pour un seul passage.
+    "mass_delete_guard": False,
+    "max_delete_min": 20,
+    "max_delete_ratio": 0.5,
     "tray_enabled": False,            # icône d'état dans la barre des tâches (tray_indicator.py)
     "account_name": None,             # identité NAS stable (None = auto : amorçage intelligent)
     # Correspondance des chemins de DONNÉES entre cette machine (desktop) et le
@@ -486,6 +498,66 @@ def set_cli_stall_max_kills(value):
     if n < 0:
         return False
     return _put("cli_stall_max_kills", n)
+
+
+def mass_delete_guard():
+    """Garde-fou de suppression de masse. Défaut False : éteint, les
+    suppressions restent celles d'avant. Une valeur illisible retombe sur
+    False (on n'arme pas le garde-fou par accident de saisie)."""
+    v = get("mass_delete_guard")
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        return v.strip().lower() in ("1", "true", "yes", "on")
+    if isinstance(v, int):
+        return v != 0
+    return DEFAULTS["mass_delete_guard"]
+
+
+def set_mass_delete_guard(value):
+    return _put("mass_delete_guard", bool(value))
+
+
+def max_delete_min():
+    """Nombre minimal d'orphelins (dans un dossier) pour armer le garde-fou.
+    Valeur illisible ou négative -> défaut."""
+    v = get("max_delete_min")
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return DEFAULTS["max_delete_min"]
+    return n if n >= 0 else DEFAULTS["max_delete_min"]
+
+
+def set_max_delete_min(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return False
+    if n < 0:
+        return False
+    return _put("max_delete_min", n)
+
+
+def max_delete_ratio():
+    """Part (0..1) des enfants distants d'un dossier au-delà de laquelle le
+    garde-fou refuse. Valeur illisible ou hors [0, 1] -> défaut."""
+    v = get("max_delete_ratio")
+    try:
+        r = float(v)
+    except (TypeError, ValueError):
+        return DEFAULTS["max_delete_ratio"]
+    return r if 0.0 <= r <= 1.0 else DEFAULTS["max_delete_ratio"]
+
+
+def set_max_delete_ratio(value):
+    try:
+        r = float(value)
+    except (TypeError, ValueError):
+        return False
+    if not 0.0 <= r <= 1.0:
+        return False
+    return _put("max_delete_ratio", r)
 
 
 def resolve_proton_cli():
