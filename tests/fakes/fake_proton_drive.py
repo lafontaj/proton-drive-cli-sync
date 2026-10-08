@@ -36,23 +36,49 @@ def _fail(message, code=1):
     return code
 
 
-def _parse_upload(args):
-    """Return (names, remote_parent) from `upload` arguments after the verb."""
-    names = []
+def _split_options(args):
+    """Return (options, positionals, unknown) like the real CLI.
+
+    Everything after `--` is positional. Before it, a token that starts with
+    `-` is an option; the real CLI rejects one it does not know with
+    "Unknown option", which is what a file named `-1_-7.xwmc` used to hit.
+    """
+    options, positionals = [], []
     i = 0
     while i < len(args):
         token = args[i]
+        if token == "--":
+            positionals.extend(args[i + 1:])
+            return options, positionals, None
         if token in ("-f", "-d") and i + 1 < len(args):
+            options.extend(args[i:i + 2])
             i += 2
             continue
-        if token == "--skip-thumbnails":
+        if token in ("--skip-thumbnails", "-t", "-j"):
+            options.append(token)
             i += 1
             continue
-        names.append(token)
+        if token.startswith("-") and token != "-":
+            return options, positionals, token
+        positionals.append(token)
         i += 1
+    return options, positionals, None
+
+
+def _unknown_option(token):
+    return _fail("Unknown option '%s'. To specify a positional argument starting "
+                 "with a '-', place it at the end of the command after '--'"
+                 % token.lstrip("-")[:1], 1)
+
+
+def _parse_upload(args):
+    """Return (names, remote_parent, unknown) from `upload` arguments after the verb."""
+    _options, names, unknown = _split_options(args)
+    if unknown:
+        return None, None, unknown
     if len(names) < 2:
-        return None, None
-    return names[:-1], names[-1]
+        return None, None, None
+    return names[:-1], names[-1], None
 
 
 def _take_wide_upload_faults(state, remote_parent):
@@ -95,7 +121,9 @@ def _hang(fault):
 
 
 def _upload(state, args):
-    names, remote_parent = _parse_upload(args)
+    names, remote_parent, unknown = _parse_upload(args)
+    if unknown:
+        return _unknown_option(unknown)
     if not names or not remote_parent:
         return _fail("fake: unsupported command", 2)
     remote_parent = remote_state.normalize(remote_parent)
@@ -238,8 +266,12 @@ def dispatch(state, argv):
         return _list(state, rest[0], as_json)
     if verb == "info" and rest:
         return _info(state, rest[0])
-    if verb == "create-folder" and len(rest) >= 2:
-        return _create_folder(state, rest[0], rest[1])
+    if verb == "create-folder":
+        _options, positionals, unknown = _split_options(argv[2:])
+        if unknown:
+            return _unknown_option(unknown)
+        if len(positionals) >= 2:
+            return _create_folder(state, positionals[0], positionals[1])
     if verb == "upload":
         return _upload(state, argv[2:])
     if verb == "trash" and rest:

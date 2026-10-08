@@ -29,7 +29,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (par défaut : ~/Logiciels/Proton-drive/proton-drive)
 """
-__version__ = "1.12.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.12.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -1488,7 +1488,9 @@ def ensure_remote_path(path, known_absent=False):
             continue
         absent = (known_absent and index == len(parts) - 1) or not remote_exists(current)
         if absent:
-            res = run_cli(["filesystem", "create-folder", parent, part])
+            # « -- » : un nom de dossier qui commence par « - » serait lu comme
+            # une option (même défaut que pour l'envoi, cf. upload_batch).
+            res = run_cli(["filesystem", "create-folder", "--", parent, part])
             if res.returncode != 0 and not _already_exists_error(res.stderr):
                 # Permission refusée : destination non inscriptible. On s'arrête
                 # ICI (un seul message) — inutile de tenter les uploads ni de
@@ -1732,7 +1734,8 @@ def _upload_one(local_path, remote_parent, skip_thumbnails=False,
            "-f", file_conflict_flag(conflict_mode), "-d", "merge"]
     if skip_thumbnails:
         cmd.append("--skip-thumbnails")
-    cmd += names + [remote_parent]
+    # « -- » = fin des options : voir upload_batch.
+    cmd += ["--"] + names + [remote_parent]
     res = run_cli_watched(cmd, cwd=cwd)
     parts = [p for p in ((res.stdout or "").strip(), (res.stderr or "").strip()) if p]
     if getattr(res, "stalled", False):
@@ -1832,8 +1835,13 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False,
     # Les métacaractères du nom restent échappés ; c'est le fait de ne plus
     # transmettre de séparateur qui neutralise le problème des composants cachés.
     cwd, names = _cli_local_args(local_paths)
+    # « -- » = fin des options. Les noms sont passés SEULS (cf. _cli_local_args) :
+    # un nom qui commence par « - » (« -1_-7.xwmc ») était lu comme une option et
+    # le CLI refusait l'envoi (« Unknown option »), à chaque passage. Après « -- »,
+    # tout est pris pour un chemin. Vérifié sur le CLI 0.8.0, qui recommande
+    # lui-même cette forme dans son message d'erreur.
     cmd = (["filesystem", "upload",
-            "-f", file_conflict_flag(conflict_mode), "-d", "merge"]
+            "-f", file_conflict_flag(conflict_mode), "-d", "merge", "--"]
            + names + [remote_parent])
     # Progression (Temps 1) : signaler le lot en cours (nb de fichiers + taille
     # totale) AVANT l'envoi groupé, puis la fin APRÈS. Le GUI affiche un indicateur
