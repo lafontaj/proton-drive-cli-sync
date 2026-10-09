@@ -37,3 +37,23 @@ def test_files_and_folders_starting_with_a_dash_are_sent(
     assert fake_drive.content("/my-files/Backups/Docs/cache_1/-1_-7.xwmc") == b"one"
     assert fake_drive.content("/my-files/Backups/Docs/-dossier/-f.txt") == b"two"
     assert fake_drive.content("/my-files/Backups/Docs/normal.txt") == b"three"
+
+
+def test_thumbnail_retry_keeps_skip_thumbnails_before_double_dash(
+        fake_drive, local_tree, write_mappings, engine):
+    """The retry without thumbnail must put the option BEFORE `--`.
+
+    After `--` the CLI would take `--skip-thumbnails` for a file name: the
+    retry would fail and the file would never be sent.
+    """
+    src = local_tree({"Docs/-photo.tif": (b"image", 1_000_000_000)})
+    # The batch and the per-file retry fail on the thumbnail; the third try,
+    # without thumbnail, goes through.
+    fake_drive.add_fault(cmd="upload", match="-photo.tif", times=2,
+                         stderr="ValidationError: Failed to generate thumbnails")
+    result = engine(write_mappings([_mapping(src / "Docs")]))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert fake_drive.content("/my-files/Backups/Docs/-photo.tif") == b"image"
+    last = [c["argv"] for c in fake_drive.upload_cwds()][-1]
+    assert "--skip-thumbnails" in last
+    assert last.index("--skip-thumbnails") < last.index("--")
