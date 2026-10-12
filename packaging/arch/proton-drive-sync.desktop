@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Proton Drive Sync
+Comment=Folder sync to Proton Drive
+Exec=proton-drive-sync-gui
+Icon=proton-drive-sync
+Terminal=false
+Categories=Utility;Network;FileTransfer;

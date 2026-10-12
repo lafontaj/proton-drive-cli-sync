@@ -1,1 +1,2 @@
 pytest>=8,<9
+PySide6>=6.6

@@ -1,0 +1,9 @@
+{
+    "KPlugin": {
+        "Name": "Proton Drive Sync",
+        "Description": "Shows Proton Drive Sync status for mapped folders",
+        "ServiceTypes": [
+            "KOverlayIconPlugin"
+        ]
+    }
+}

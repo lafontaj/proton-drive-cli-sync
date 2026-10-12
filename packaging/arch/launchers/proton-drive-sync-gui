@@ -1,0 +1,3 @@
+#!/bin/sh
+cd /usr/lib/proton-drive-cli-sync || exit 1
+exec python3 -m ui "$@"

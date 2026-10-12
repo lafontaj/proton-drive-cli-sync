@@ -3,7 +3,9 @@
 # Installation — Real-time layer
 
 > **One-way backup**: the watchers detect **local** changes in order to push them
-> to Proton Drive. Nothing is ever downloaded from Proton.
+> to Proton Drive. Nothing is ever downloaded from Proton, except for a mapping
+> you set to two-way (`"direction": "twoway"`): the same consumer also lists
+> that mapping on Proton about every 5 minutes and brings remote changes down.
 
 Companion to `INSTALLATION-systemd.md`. The real-time layer adds **three daemons**
 on top of the nightly timer already in place: two on the **desktop** (driven from
@@ -93,10 +95,12 @@ On the NAS:
 ```bash
 # Required files in /home/nasuser/proton-sync/ (copy them together):
 #   nas_watcher.py, local_watcher.py (shared helpers), mount_check.py,
-#   i18n.py + the locale/ folder (translations; without them, logs in English).
+#   config.py, paths.py, i18n.py + the locale/ folder
+#   (translations; without them, logs in English).
 # pyinotify installed (python3-pyinotify or pip).
 # Log language: follows the NAS's LANG; to force it:
-#   echo '{"language": "fr"}' > /home/nasuser/proton-sync/settings.json
+#   echo '{"language": "fr"}' > ~/.config/proton-drive-sync/settings.json
+#   (an old settings.json next to the scripts is copied there once)
 sudo cp proton-nas-watch.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now proton-nas-watch.service

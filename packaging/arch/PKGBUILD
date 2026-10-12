@@ -1,0 +1,114 @@
+# Builds lafontaj/proton-drive-cli-sync from main. Not affiliated with Proton AG.
+pkgname=('proton-drive-cli-sync-git' 'proton-drive-cli-sync-dolphin')
+_reponame=proton-drive-cli-sync
+_branch=main
+pkgver=1.17.0
+pkgrel=1
+pkgdesc="Folder sync to Proton Drive built on Proton's official CLI"
+arch=('x86_64')
+url="https://github.com/lafontaj/proton-drive-cli-sync"
+license=('MIT')
+makedepends=('git' 'cmake' 'extra-cmake-modules' 'qt6-base' 'kcoreaddons' 'kio')
+checkdepends=('python-pytest')
+install=proton-drive-cli-sync-git.install
+source=("git+https://github.com/lafontaj/${_reponame}.git#branch=${_branch}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "${srcdir}/${_reponame}"
+  if git describe --long --tags >/dev/null 2>&1; then
+    git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+  else
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  fi
+}
+
+check() {
+  cd "${srcdir}/${_reponame}"
+  # No network, no display, no writes outside a temporary HOME (tests/conftest.py).
+  PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests
+}
+
+build() {
+  cd "${srcdir}/${_reponame}"
+  cmake -B build-dolphin -S packaging/dolphin \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+    -Wno-dev
+  cmake --build build-dolphin
+}
+
+package_proton-drive-cli-sync-git() {
+  depends=('python' 'tk' 'python-pyinotify' 'pyside6' 'python-dbus' 'python-gobject')
+  optdepends=('xapp: tray icon'
+              'libsecret: Secret Service for the CLI credential store'
+              'gnome-keyring: Secret Service for the CLI credential store'
+              'pass: password-store credential store for the CLI'
+              'proton-drive-cli-bin: Proton official CLI (or download it from https://proton.me/download/drive/cli/index.html)'
+              'nautilus: cloud-provider entry in Files'
+              'nautilus-python: per-file emblems in Files'
+              'proton-drive-cli-sync-dolphin: per-file sync marks in Dolphin')
+  provides=('proton-drive-cli-sync')
+  conflicts=('proton-drive-cli-sync' 'proton-drive-sync-bin')
+
+  cd "${srcdir}/${_reponame}"
+  local _lib="${pkgdir}/usr/lib/${_reponame}"
+
+  # Program files: nothing writable lives here.
+  local _py
+  for _py in proton_sync.py config.py paths.py i18n.py mapping_keys.py \
+             mount_check.py unitexec.py doctor.py \
+             local_watcher.py realtime_consumer.py realtime_manager.py \
+             schedule_manager.py proton_mapping_editor.py tray_indicator.py \
+             nas_watcher.py nas_selftest.py nas_selftest_watcher.py \
+             syncdb.py twoway.py volume.py \
+             cloudstatus.py cloudproviders.py cloudlaunch.py; do
+    install -Dm644 "${_py}" "${_lib}/${_py}"
+  done
+  # The whole Qt package, so a new module cannot be left out.
+  local _ui
+  for _ui in ui/*.py ui/pages/*.py; do
+    install -Dm644 "${_ui}" "${_lib}/${_ui}"
+  done
+  local _png
+  for _png in icone.png tray_connected.png tray_expired.png tray_scripts.png tray_stopped.png; do
+    install -Dm644 "${_png}" "${_lib}/${_png}"
+  done
+  local _mo
+  for _mo in locale/*/LC_MESSAGES/proton-sync.mo; do
+    install -Dm644 "${_mo}" "${_lib}/${_mo}"
+  done
+
+  # Stable launchers.
+  install -Dm755 packaging/arch/launchers/proton-drive-sync "${pkgdir}/usr/bin/proton-drive-sync"
+  install -Dm755 packaging/arch/launchers/proton-drive-sync-gui "${pkgdir}/usr/bin/proton-drive-sync-gui"
+  install -Dm755 packaging/arch/launchers/proton-drive-sync-doctor "${pkgdir}/usr/bin/proton-drive-sync-doctor"
+  install -Dm755 packaging/arch/launchers/proton-drive-sync-cloud "${pkgdir}/usr/bin/proton-drive-sync-cloud"
+
+  # Desktop entry, cloud-provider registration, Nautilus emblems, and icon.
+  install -Dm644 packaging/arch/proton-drive-sync.desktop \
+    "${pkgdir}/usr/share/applications/proton-drive-sync.desktop"
+  install -Dm644 packaging/proton-drive-sync-cloud.desktop \
+    "${pkgdir}/usr/share/applications/proton-drive-sync-cloud.desktop"
+  install -Dm644 packaging/nautilus/proton_drive_sync.py \
+    "${pkgdir}/usr/share/nautilus-python/extensions/proton_drive_sync.py"
+  install -Dm644 icone.png \
+    "${pkgdir}/usr/share/icons/hicolor/128x128/apps/proton-drive-sync.png"
+
+  # License and docs.
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  local _doc
+  for _doc in README.md README_fr.md mappings.example.json settings.example.json; do
+    install -Dm644 "${_doc}" "${pkgdir}/usr/share/doc/${pkgname}/${_doc}"
+  done
+}
+
+package_proton-drive-cli-sync-dolphin() {
+  pkgdesc="Dolphin emblems for proton-drive-cli-sync"
+  depends=('proton-drive-cli-sync-git' 'dolphin')
+
+  cd "${srcdir}/${_reponame}"
+  DESTDIR="${pkgdir}" cmake --install build-dolphin
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

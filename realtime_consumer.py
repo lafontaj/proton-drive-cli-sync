@@ -24,7 +24,7 @@ Principes (décidés en conception) :
 
 Un démon par utilisateur (sa session, son trousseau, ses mappings).
 """
-__version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.9.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -82,7 +82,7 @@ if _HAS_CONFIG:
     LOCAL_QUEUE = appconfig.QUEUE_DIR
     CONFIG_FILE = appconfig.REALTIME_CONF
 else:
-    BASE_DIR = os.path.expanduser("~/.proton_sync")
+    BASE_DIR = os.path.expanduser("~/.proton-drive-sync")
     LOCAL_QUEUE = os.path.join(BASE_DIR, "queue")
     CONFIG_FILE = os.path.join(BASE_DIR, "realtime.conf")
 
@@ -1100,6 +1100,103 @@ def _default_log(msg):
     print(f"[{ts}] {msg}", flush=True)
 
 
+# Sondage distant des mappings twoway. Pas de nouveau démon : le consommateur
+# lance le même moteur, au plus souvent que `poll_minutes` (défaut 5). Chaque
+# dossier reste un `filesystem list` ; ce n'est pas une synchro à la seconde.
+DEFAULT_REMOTE_POLL_MINUTES = 5
+
+
+def remote_poll_minutes(mapping):
+    """Minutes entre deux sondages distants, ou None si le mapping n'est pas twoway."""
+    if not isinstance(mapping, dict) or mapping.get("direction") != "twoway":
+        return None
+    if mapping.get("type") != "folder":
+        return None
+    raw = mapping.get("poll_minutes", DEFAULT_REMOTE_POLL_MINUTES)
+    if isinstance(raw, bool):
+        return DEFAULT_REMOTE_POLL_MINUTES
+    try:
+        minutes = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_REMOTE_POLL_MINUTES
+    if minutes <= 0:
+        return DEFAULT_REMOTE_POLL_MINUTES
+    return minutes
+
+
+def note_remote_poll_clocks(mappings, now, last_poll):
+    """Démarre l'horloge à la première vue. Ne lance pas de passage."""
+    for mapping in mappings or []:
+        if remote_poll_minutes(mapping) is None:
+            continue
+        source = os.path.normpath(mapping.get("source") or "")
+        if source and source not in last_poll:
+            last_poll[source] = now
+
+
+def due_remote_polls(mappings, now, last_poll):
+    """Mappings twoway dont le délai de sondage est écoulé."""
+    due = []
+    for mapping in mappings or []:
+        minutes = remote_poll_minutes(mapping)
+        if minutes is None:
+            continue
+        source = os.path.normpath(mapping.get("source") or "")
+        previous = last_poll.get(source)
+        if previous is None:
+            continue
+        if now - previous >= minutes * 60:
+            due.append(mapping)
+    return due
+
+
+def poll_remote_mappings(mappings, config_path, now, last_poll, log,
+                         runner=None, auth_check=None, lock_check=None):
+    """Lance un passage --subpath sur la racine de chaque mapping dû.
+
+    L'horloge avance même si le passage est reporté, pour ne pas resonder
+    Proton à chaque cycle du consommateur.
+    """
+    due = due_remote_polls(mappings, now, last_poll)
+    if not due:
+        return "idle"
+
+    def _stamp():
+        for mapping in due:
+            source = os.path.normpath(mapping.get("source") or "")
+            if source:
+                last_poll[source] = now
+
+    if auth_check is not None and not auth_check():
+        _stamp()
+        log("[remote-poll] " + _("remote poll postponed, Proton is not ready"))
+        return "locked"
+    if lock_check is not None and not lock_check():
+        _stamp()
+        log("[remote-poll] " + _(
+            "remote poll postponed, another pass holds the lock"))
+        return "busy"
+    for mapping in due:
+        source = os.path.normpath(mapping.get("source") or "")
+        minutes = remote_poll_minutes(mapping)
+        log("[remote-poll] " + _(
+            "checking {p} for remote changes (every {n} min, not instant)"
+        ).format(p=source, n=minutes))
+        code, _output = run_engine_subpath(
+            mapping, source, config_path, runner=runner)
+        if source:
+            last_poll[source] = now
+        if code == 3:
+            log("[remote-poll] " + _(
+                "folder not fully indexed yet, remote poll deferred: {p}"
+            ).format(p=source))
+        elif code not in (0, 2, 4):
+            log("[remote-poll] " + _(
+                "remote poll finished with code {c} for {p}"
+            ).format(c=code, p=source))
+    return "done"
+
+
 def run_once(state, queue_dirs, mappings, config_path, debounce_seconds, now,
              log, runner=None, auth_check=None, lock_check=None,
              on_lock_acquired=None):
@@ -1193,7 +1290,8 @@ def _count_ready_mappings(config_path):
         return (0, 0)
     # Cache au NOUVEL emplacement unifié (config.py) — sinon, après migration,
     # ce compte lirait l'ancien dossier vide et afficherait toujours 0.
-    cache_dir = appconfig.CACHE_DIR if _HAS_CONFIG else os.path.expanduser("~/.proton_sync_cache")
+    cache_dir = (appconfig.CACHE_DIR if _HAS_CONFIG
+                 else os.path.expanduser("~/.proton-drive-sync/cache"))
     name = os.path.basename(config_path).replace(".json", "") + ".cache"
     try:
         with open(os.path.join(cache_dir, name), "r", encoding="utf-8") as f:
@@ -1365,6 +1463,7 @@ def main():
         log(_("  • {r}/{t} mapping(s) ready for real-time.").format(r=_ready, t=_total))
 
     waiting_reason = None  # None / "locked" (trousseau) / "busy" (verrou tenu)
+    _last_poll = {}        # source normalisée -> monotonic du dernier sondage distant
     # Thread de battement dédié : garde le status.json frais MÊME pendant un
     # passage long (run_once peut durer plusieurs minutes sur beaucoup de
     # sous-dossiers). Sans lui, le systray passait à tort au gris « arrêté ».
@@ -1495,11 +1594,17 @@ def main():
             elif _wr == "busy":
                 log(_("🔓 Lock released — starting the pass."))
 
+        now_poll = time.monotonic()
+        note_remote_poll_clocks(mappings, now_poll, _last_poll)
         status = run_once(state, queue_dirs, mappings, args.config,
-                          cfg["debounce_seconds"], time.monotonic(), log,
+                          cfg["debounce_seconds"], now_poll, log,
                           auth_check=lambda: keyring_ready(args.config),
                           lock_check=lambda: lock_free(args.config),
                           on_lock_acquired=_announce_resume)
+        poll_remote_mappings(
+            mappings, args.config, time.monotonic(), _last_poll, log,
+            auth_check=lambda: keyring_ready(args.config),
+            lock_check=lambda: lock_free(args.config))
 
         # Trois motifs d'attente possibles, chacun signalé par UNE SEULE ligne
         # tant qu'il dure (au lieu d'un échec par source et par cycle) :

@@ -174,7 +174,8 @@ def _upload(state, args):
         try:
             with open(name, "rb") as handle:
                 data = handle.read()
-            mtime = int(os.stat(name).st_mtime)
+            # POSIX seconds, including the fraction. list -j emits ISO-8601.
+            mtime = os.stat(name).st_mtime
         except OSError as exc:
             print("- {name}: {exc}".format(name=stored, exc=exc))
             failed.append(stored)
@@ -241,6 +242,128 @@ def _create_folder(state, parent, name):
     return 0
 
 
+_FILE_CONFLICTS = {
+    "skip": "skip",
+    "replace": "replace",
+    "remove": "replace",
+    "keep-both": "keep-both",
+    "rename": "keep-both",
+}
+
+_DOC_TYPES = ("document", "spreadsheet", "proton-doc")
+
+
+def _parse_download(args):
+    """Return (remote_paths, local_folder, file_strategy) or None.
+
+    Matches `filesystem download [-c|-f|-d STRATEGY] <remote...> <localFolder>`.
+    `-f` / `--file-conflict-strategy` and `-c` / `--conflict-strategy` set the
+    file strategy (`skip`, `replace`/`remove`, `keep-both`/`rename`). `-d` is
+    accepted for folders and ignored for a file download.
+    """
+    file_strategy = None
+    paths = []
+    file_flags = ("-f", "--file-conflict-strategy", "-c", "--conflict-strategy")
+    folder_flags = ("-d", "--folder-conflict-strategy")
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in file_flags or token in folder_flags:
+            if i + 1 >= len(args):
+                return None
+            if token in file_flags:
+                file_strategy = args[i + 1]
+            i += 2
+            continue
+        paths.append(token)
+        i += 1
+    if len(paths) < 2:
+        return None
+    return paths[:-1], paths[-1], file_strategy
+
+
+def _keep_both_name(directory, name):
+    stem, ext = os.path.splitext(name)
+    for number in range(1, 1001):
+        candidate = "{stem} ({n}){ext}".format(stem=stem, n=number, ext=ext)
+        if not os.path.lexists(os.path.join(directory, candidate)):
+            return candidate
+    return None
+
+
+def _write_bytes(directory, name, data):
+    final = os.path.join(directory, name)
+    temporary = final + ".partial"
+    try:
+        with open(temporary, "wb") as handle:
+            handle.write(data)
+        os.replace(temporary, final)
+    except OSError as exc:
+        try:
+            os.remove(temporary)
+        except OSError:
+            pass
+        return exc
+    return None
+
+
+def _download(state, args):
+    """Write each remote file into the destination directory.
+
+    The CLI copies into a folder (the basename is the remote name), not onto
+    an exact local path. An existing file needs a strategy; otherwise the
+    local bytes stay and the command fails. Proton Docs and Sheets are
+    skipped and not written.
+    """
+    parsed = _parse_download(args)
+    if parsed is None:
+        return _fail("fake: unsupported command", 2)
+    remotes, local_folder, file_strategy = parsed
+    if file_strategy is not None and file_strategy not in _FILE_CONFLICTS:
+        return _fail("fake: unknown conflict strategy", 2)
+    strategy = _FILE_CONFLICTS.get(file_strategy)
+    if not os.path.isdir(local_folder):
+        return _fail("not a directory", 1)
+    for remote in remotes:
+        remote = remote_state.normalize(remote_state.unescape_glob(remote))
+        faults = remote_state.consume_faults(state, "download", remote)
+        if faults:
+            fault = faults[0]
+            mode = fault.get("mode") or "fail"
+            if mode == "hang":
+                return _hang(fault)
+            if mode == "perm":
+                return _fail(fault.get("stderr") or "permission denied", 1)
+            return _fail(fault.get("stderr") or "download failed", 1)
+        node = state["nodes"].get(remote)
+        if not isinstance(node, dict) or node.get("trashed"):
+            return _fail("not found", 1)
+        kind = node.get("type")
+        if kind in _DOC_TYPES:
+            print("skipped: {p}".format(p=remote))
+            continue
+        if kind != "file":
+            return _fail("not a file", 1)
+        data = remote_state.file_bytes(state, remote)
+        if data is None:
+            return _fail("not found", 1)
+        name = os.path.basename(remote)
+        destination = os.path.join(local_folder, name)
+        if os.path.lexists(destination):
+            if strategy is None:
+                return _fail("conflict strategy required", 1)
+            if strategy == "skip":
+                continue
+            if strategy == "keep-both":
+                name = _keep_both_name(local_folder, name)
+                if not name:
+                    return _fail("download failed", 1)
+        error = _write_bytes(local_folder, name, data)
+        if error is not None:
+            return _fail(str(error), 1)
+    return 0
+
+
 def _trash(state, path):
     path = remote_state.normalize(path)
     if remote_state.consume_faults(state, "trash", path):
@@ -274,6 +397,8 @@ def dispatch(state, argv):
             return _create_folder(state, positionals[0], positionals[1])
     if verb == "upload":
         return _upload(state, argv[2:])
+    if verb == "download":
+        return _download(state, argv[2:])
     if verb == "trash" and rest:
         return _trash(state, rest[0])
     return _fail("fake: unsupported command", 2)

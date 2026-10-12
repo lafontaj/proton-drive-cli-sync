@@ -158,6 +158,18 @@ def test_exit_4_on_account_change(fake_drive, local_tree, write_mappings, engine
     assert fake_drive.content("/my-files/Backups/Docs/a.txt") is None
 
 
+def test_live_subpath_syncs_without_a_full_pass(
+        fake_drive, local_tree, write_mappings, engine):
+    src = local_tree({"Docs/sub/a.txt": (b"hello", 1_000_000_000)})
+    cfg = write_mappings([_mapping(
+        src / "Docs", live=True, direction="twoway")])
+    result = engine(
+        cfg, "--subpath", str(src / "Docs" / "sub"), "--mapping-source", str(src / "Docs"))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[subpath-cold]" not in result.stdout
+    assert fake_drive.content("/my-files/Backups/Docs/sub/a.txt") == b"hello"
+
+
 def test_subpath_cold_exits_3(fake_drive, local_tree, write_mappings, engine):
     src = local_tree({"Docs/sub/a.txt": (b"hello", 1_000_000_000)})
     cfg = write_mappings([_mapping(src / "Docs")])

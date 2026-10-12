@@ -121,8 +121,8 @@ def claimed_modification_time(mtime):
         return None
     if isinstance(mtime, str):
         return mtime
-    stamp = datetime.datetime.fromtimestamp(int(mtime), datetime.timezone.utc)
-    return stamp.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    stamp = datetime.datetime.fromtimestamp(float(mtime), datetime.timezone.utc)
+    return stamp.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def list_item(name, node, account):
@@ -132,6 +132,9 @@ def list_item(name, node, account):
         "type": {"ok": True, "value": node.get("type", "file")},
         "keyAuthor": {"ok": True, "value": account},
     }
+    uid = node.get("uid")
+    if isinstance(uid, str) and uid:
+        item["uid"] = uid
     if node.get("type") != "file":
         return item
     raw = base64.b64decode(node.get("content_b64") or "")
@@ -198,7 +201,7 @@ def store_file(state, remote_path, data, mtime):
     state["nodes"][remote_path] = {
         "type": "file",
         "content_b64": base64.b64encode(data).decode("ascii"),
-        "mtime": int(mtime),
+        "mtime": float(mtime),
         "revisions": revisions,
         "trashed": False,
     }

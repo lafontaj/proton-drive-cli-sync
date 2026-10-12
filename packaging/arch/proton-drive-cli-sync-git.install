@@ -1,0 +1,37 @@
+post_install() {
+  cat <<'EOF'
+==> proton-drive-cli-sync: folder sync to Proton Drive. Not affiliated with Proton AG.
+
+ 1. Install Proton's official CLI (the `proton-drive` command), then sign in:
+      AUR: proton-drive-cli-bin, or download from
+      https://proton.me/download/drive/cli/index.html
+    Put it on your PATH, or set its path in the GUI / PROTON_DRIVE_CLI.
+ 2. Create mappings: run `proton-drive-sync-gui`, or write a mappings file
+    (see /usr/share/doc/proton-drive-cli-sync-git/mappings.example.json).
+    Try a throwaway folder first. Keep independent backups.
+ 3. Schedule a nightly run from the GUI (Schedule). That window writes the
+    service and the timer. systemctl --user enable only re-enables a timer
+    that has already been written.
+ 4. Unattended runs need the credential store to be unlocked. `loginctl
+    enable-linger $USER` keeps your user services running while you are logged
+    out, but it does NOT unlock a keyring: with a locked keyring the run exits
+    with code 2 and nothing is uploaded.
+ 5. For a bug report, run `proton-drive-sync-doctor --redact`.
+ 6. File-manager marks follow the schedule's mappings file. Saving the
+    schedule starts a user service that publishes status on the session bus.
+    Nautilus shows a cloud-provider entry, and per-file emblems when
+    `nautilus` and `nautilus-python` are installed. Dolphin shows per-file
+    marks when `proton-drive-cli-sync-dolphin` is installed.
+EOF
+}
+
+post_upgrade() {
+  cat <<'EOF'
+==> proton-drive-cli-sync updated. Rewrite your systemd units once so they use the
+    stable launcher and current options: open the GUI Schedule tab and save.
+    To add the current options without moving the engine or CLI path, run:
+    python3 /usr/lib/proton-drive-cli-sync/schedule_manager.py --refresh-units
+    then: systemctl --user daemon-reload
+    That rewrite also installs the file-manager status service.
+EOF
+}

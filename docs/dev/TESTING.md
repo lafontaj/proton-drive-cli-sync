@@ -41,8 +41,9 @@ the `fake_drive` fixture: `seed_file`, `seed_folder`, `content`, `listing`,
 
 Supported commands are the ones the engine sends: `--version`,
 `filesystem list` (with and without `-j`), `filesystem info`,
-`filesystem create-folder`, `filesystem upload`, and `filesystem trash`.
-Anything else exits 2 with `fake: unsupported command` on stderr.
+`filesystem create-folder`, `filesystem upload`, `filesystem download` and
+`filesystem trash`. Anything else exits 2 with `fake: unsupported command`
+on stderr.
 
 `filesystem list /` without `-j` is the auth probe. A fault `{"cmd": "auth"}`
 makes that probe exit 1. `filesystem list <path> -j` returns a JSON array of
@@ -60,6 +61,14 @@ calls the CLI. Glob escapes are undone first (`a[[]b.txt` is the file
 stdout, `N item(s) failed to upload` on stderr, exit 1, and the other names
 in the batch are stored. `filesystem trash` marks the node and its
 descendants trashed, and listings hide them.
+
+`filesystem download [-f STRATEGY] <remote...> <localFolder>` writes each
+remote file into the folder under its remote name, as the CLI does. An
+existing local file needs a strategy (`skip`, `replace`, `keep-both`);
+without one the command fails and the local bytes stay. Proton documents
+and spreadsheets are skipped. Faults use `cmd="download"`. Modification
+times keep their fraction of a second, and a node's `uid` is listed, so
+two-way tests can compare dates and node ids.
 
 `add_fault(cmd=..., match=..., mode=..., times=..., stderr=...)` injects a
 failure. `times` defaults to every call; `times=1` fires once. `mode` is
@@ -94,6 +103,12 @@ on translated sentences.
 
 Import `proton_sync` in-process only when a test has to observe a helper
 the subprocess cannot show, such as whether a file was hashed.
+`sync_folder` remembers remote folders on the module (`_REMOTE_KNOWN`): an
+in-process test clears it before and after, so the next test starts clean.
+
+`tests/test_twoway.py` drives two-way mappings through the engine.
+`tests/test_ui_shell.py` builds the Qt window on the `offscreen` platform
+and is skipped when PySide6 cannot be imported.
 `tests/test_equal_size.py` covers the v1.17.0 upload rule through the
 engine: an equal-size edit is sent, an identical rewrite is not, a file
 that still matches the last pass is not read, a failed batch does not

@@ -23,7 +23,7 @@ L'applet se termine de lui-même si le réglage « tray_enabled » passe à Fals
 
 Clic gauche : ouvre l'éditeur de mappings. Clic droit : menu (Ouvrir / Quitter).
 """
-__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.4.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -50,7 +50,20 @@ except ImportError:
 
 STATUS_FILE = (appconfig.STATUS_FILE if _HAS_CONFIG
                else os.path.expanduser("~/.proton-drive-sync/status.json"))
+# La fenêtre Qt (`python -m ui`) quand PySide6 est installé ; sinon l'éditeur
+# Tk, comme avant. Une installation existante sans PySide6 ne change donc pas.
 EDITOR = os.path.join(APP_DIR, "proton_mapping_editor.py")
+
+
+def _editor_base_cmd():
+    try:
+        import importlib.util
+        has_qt = importlib.util.find_spec("PySide6") is not None
+    except (ImportError, ValueError):
+        has_qt = False
+    if has_qt:
+        return [sys.executable, "-m", "ui"]
+    return [sys.executable, EDITOR]
 
 ICONS = {
     "ok":            os.path.join(APP_DIR, "tray_connected.png"),
@@ -145,7 +158,7 @@ def build_editor_cmd(status, fallback_path=None):
     (typiquement le fichier du service planifié) s'il existe — sinon, ouverture
     simple. Fonction pure (testable sans GTK) : la résolution du repli est faite
     par l'appelant, pas ici."""
-    cmd = [sys.executable, EDITOR]
+    cmd = _editor_base_cmd()
     if isinstance(status, dict):
         mp = status.get("mappings_path")
         if isinstance(mp, str) and mp and os.path.isfile(mp):

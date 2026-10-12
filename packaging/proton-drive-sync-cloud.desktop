@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Proton Drive Sync status
+NoDisplay=true
+Implements=org.freedesktop.CloudProviders
+
+[org.freedesktop.CloudProviders]
+BusName=org.protondrivesync.CloudProviders
+ObjectPath=/org/protondrivesync/CloudProviders

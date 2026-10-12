@@ -3,7 +3,7 @@
 Watcher inotify LOCAL de la machine locale (couche 3) pour la synchro Proton Drive.
 
 Surveille les dossiers déclarés dans les mappings de l'utilisateur courant et
-dépose un marqueur dans la file locale (~/.proton_sync/queue/) à chaque
+dépose un marqueur dans la file locale (~/.proton-drive-sync/queue/) à chaque
 changement détecté. Le démon consommateur (couche 2) prend ensuite le relais.
 
 Décisions de conception (validées) :
@@ -30,7 +30,7 @@ La PARTIE LOGIQUE (marker_for_event, classify, ...) est pure et testable sans
 pyinotify. La PARTIE BRANCHEMENT (WatchManager, boucle d'événements) nécessite
 pyinotify et de vrais dossiers — testée sur la machine locale.
 """
-__version__ = "1.1.2"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.2.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import sys
@@ -61,7 +61,7 @@ if _HAS_CONFIG:
     BASE_DIR = appconfig.DATA_DIR
     LOCAL_QUEUE = appconfig.QUEUE_DIR
 else:
-    BASE_DIR = os.path.expanduser("~/.proton_sync")
+    BASE_DIR = os.path.expanduser("~/.proton-drive-sync")
     LOCAL_QUEUE = os.path.join(BASE_DIR, "queue")
 
 # mount_check est requis pour classer local vs NAS.
@@ -123,11 +123,16 @@ def select_targets(mappings):
     Les mappings de type 'file' restent EXCLUS du temps réel (balayage).
     """
     nas_on = (appconfig.nas_enabled() if _HAS_CONFIG else True)
+    # Un mapping marqué live est le dossier ouvert par « Proton Drive ».
+    # S'il y en a un, les autres dossiers du fichier ne sont pas surveillés.
+    live_only = any(isinstance(m, dict) and m.get("live") is True for m in mappings)
     targets = []
     for m in mappings:
         source = m.get("source", "")
         mtype = m.get("type", "folder")
         if mtype != "folder":
+            continue
+        if live_only and m.get("live") is not True:
             continue
         kind = source_kind_of(source)
         if kind == "missing":
@@ -402,6 +407,14 @@ def run_watcher(config_path, log=None, rescan_interval=30, fast_interval=3,
                     return
 
             try:
+                if not want_delete and not is_dir:
+                    # Le fichier change avant le passage : l'overlay peut
+                    # l'afficher tout de suite, sans attendre la fin de l'envoi.
+                    try:
+                        import volume as volume_mod
+                        volume_mod.note_local_change(config_path, mappings, path)
+                    except (OSError, ValueError):
+                        pass
                 write_marker(LOCAL_QUEUE, target_dir, want_delete)
                 tag = "DEL" if want_delete else "ADD"
                 log(_("  {t} {p} -> marker on {d}").format(t=tag, p=path, d=target_dir))

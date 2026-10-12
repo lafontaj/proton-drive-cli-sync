@@ -1,5 +1,5 @@
 {
-  "_comment": "Example settings.json — copy next to the scripts as 'settings.json' and adjust. Every key is optional: a missing key falls back to the default shown here. The file is also written by the GUI (Language… and Configuration… dialogs), which preserves unknown keys.",
+  "_comment": "Example settings.json — the file in use is ~/.config/proton-drive-sync/settings.json ($XDG_CONFIG_HOME/proton-drive-sync/settings.json when that variable is set), not a copy beside the scripts. Every key is optional: a missing key falls back to the default shown here. The file is also written by the GUI (Language… and Configuration… dialogs), which preserves unknown keys.",
 
   "language": "auto",
 
@@ -11,6 +11,10 @@
 
   "rename_ext_enabled": true,
   "rename_ext_collision_suffix": "_ProtonEditExt",
+
+  "mass_delete_guard": false,
+  "max_delete_min": 20,
+  "max_delete_ratio": 0.5,
 
   "tray_enabled": false
 }

@@ -653,3 +653,72 @@ def test_detailed_keeps_blank_lines():
     assert shown == lines[:-1]
     assert shown[1] == "\n"
     assert shown[-2] == "\n"
+
+
+def test_dry_run_new_file_mapping_is_not_a_failure(
+        fake_drive, local_tree, write_mappings, engine):
+    src = local_tree({"notes.txt": (b"hello", 1_000_000_000)})
+    cfg = write_mappings([{
+        "type": "file",
+        "source": str(src / "notes.txt"),
+        "dest_parent": "/my-files/Backups/New",
+    }])
+    dry = engine(cfg, "--dry-run")
+    assert dry.returncode == 0, dry.stdout + dry.stderr
+    payload = _run_result(dry.stdout)
+    assert payload["folders_listing_failed"] == 0
+    assert payload["files_would_upload"] == 1
+
+
+def test_refresh_units_keeps_quoted_paths_and_the_launcher(tmp_path, monkeypatch):
+    service = _unit_files(tmp_path, monkeypatch, (
+        "[Service]\n"
+        "Environment=\"PROTON_DRIVE_CLI=/opt/my tools/proton-drive\"\n"
+        "ExecStart=/usr/bin/python3 \"/opt/my prod/proton_sync.py\" "
+        "\"/data/my mappings.json\" --delete\n"))
+    assert schedule_manager.refresh_units()[0]
+    rewritten = service.read_text(encoding="utf-8")
+    assert ("ExecStart=/usr/bin/python3 \"/opt/my prod/proton_sync.py\" "
+            "\"/data/my mappings.json\" --delete\n") in rewritten
+    assert "Environment=\"PROTON_DRIVE_CLI=/opt/my tools/proton-drive\"\n" in rewritten
+
+    service.write_text(
+        "[Service]\nExecStart=/usr/bin/proton-drive-sync /data/mappings.json\n",
+        encoding="utf-8")
+    assert schedule_manager.refresh_units()[0]
+    rewritten = service.read_text(encoding="utf-8")
+    assert "ExecStart=/usr/bin/proton-drive-sync /data/mappings.json\n" in rewritten
+    assert "PROTON_DRIVE_CLI=" not in rewritten
+
+
+def test_install_still_uses_the_running_folder(tmp_path, monkeypatch):
+    service = _unit_files(tmp_path, monkeypatch, (
+        "[Service]\n"
+        "Environment=PROTON_DRIVE_CLI=/opt/prod/proton-drive\n"
+        "ExecStart=/usr/bin/python3 /opt/prod/proton_sync.py /data/mappings.json\n"))
+    ok, _message = schedule_manager.install_or_update("/data/mappings.json", enable=False)
+    assert ok
+    rewritten = service.read_text(encoding="utf-8")
+    assert "/opt/prod/" not in rewritten
+    assert schedule_manager.DEFAULT_ENGINE in rewritten
+
+
+def test_editor_errors_only_skips_the_healthy_mount_verdict():
+    show = _editor_lines()
+    ok = "    [delete-guard] OK local : /home/u/Docs\n"
+    refused = "    [delete-guard] refusing to trash 9 of 10 remote item(s)\n"
+    assert show([ok, refused], verbose=True, errors_only=True) == [refused]
+
+
+def _unit_files(tmp_path, monkeypatch, service_text):
+    unit_dir = tmp_path / "user"
+    unit_dir.mkdir()
+    service = unit_dir / schedule_manager.SERVICE_NAME
+    timer = unit_dir / schedule_manager.TIMER_NAME
+    monkeypatch.setattr(schedule_manager, "SYSTEMD_USER_DIR", str(unit_dir))
+    monkeypatch.setattr(schedule_manager, "SERVICE_PATH", str(service))
+    monkeypatch.setattr(schedule_manager, "TIMER_PATH", str(timer))
+    service.write_text(service_text, encoding="utf-8")
+    timer.write_text("[Timer]\nOnCalendar=*-*-* 03:00:00\n", encoding="utf-8")
+    monkeypatch.setattr(schedule_manager, "_run", lambda args: (0, "inactive\n", ""))
+    return service

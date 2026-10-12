@@ -3,7 +3,10 @@
 # Installation — Temps réel (couche 5)
 
 > **Sauvegarde à sens unique** : les watchers détectent les changements **locaux**
-> pour les envoyer vers Proton Drive. Rien n'est jamais téléchargé depuis Proton.
+> pour les envoyer vers Proton Drive. Rien n'est jamais téléchargé depuis Proton,
+> sauf pour un mapping réglé en deux sens (`"direction": "twoway"`) : le même
+> consommateur liste aussi ce mapping sur Proton environ toutes les 5 minutes et
+> rapatrie les changements distants.
 
 Complément à `INSTALLATION-systemd.fr.md`. Le temps réel ajoute **trois démons** au
 timer nocturne déjà en place : deux sur la **machine locale** (pilotés depuis le GUI) et
@@ -94,10 +97,12 @@ Sur le NAS :
 ```bash
 # Fichiers requis dans /home/nasuser/proton-sync/ (à copier ensemble) :
 #   nas_watcher.py, local_watcher.py (helpers partagés), mount_check.py,
-#   i18n.py + le dossier locale/ (traductions ; sans eux, logs en anglais).
+#   config.py, paths.py, i18n.py + le dossier locale/
+#   (traductions ; sans eux, logs en anglais).
 # pyinotify installé (python3-pyinotify ou pip).
 # Langue des logs : suit LANG du NAS ; pour forcer :
-#   echo '{"language": "fr"}' > /home/nasuser/proton-sync/settings.json
+#   echo '{"language": "fr"}' > ~/.config/proton-drive-sync/settings.json
+#   (un ancien settings.json à côté des scripts y est copié une fois)
 sudo cp proton-nas-watch.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now proton-nas-watch.service

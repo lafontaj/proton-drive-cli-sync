@@ -14,7 +14,7 @@ Périmètre (décidé en conception) :
     systemd, et le GUI ne fait que lire son activité via la file NFS (pas de SSH,
     pas d'identifiants à distance). On affiche un voyant honnête, sans bouton qui
     prétendrait le contrôler.
-  - Règle le délai de debounce/cycle en écrivant ~/.proton_sync/realtime.conf,
+  - Règle le délai de debounce/cycle en écrivant ~/.proton-drive-sync/realtime.conf,
     relu À CHAUD par le consommateur à chaque cycle.
   - Pousse la copie des mappings vers le NAS (config/) avec un hash de version,
     et calcule la « dérive » local <-> NAS.
@@ -24,10 +24,11 @@ Tout est centré sur l'utilisateur courant et son fichier de mappings actif.
 Conçu pour tourner SANS privilèges (session utilisateur). Le linger (sudo) est
 seulement LU et rappelé, jamais modifié ici.
 """
-__version__ = "1.6.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.7.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 import re
+import sys
 import json
 import glob
 import time
@@ -45,6 +46,8 @@ try:
 except ImportError:
     def _(s):
         return s
+
+import unitexec  # guillemets/échappement systemd
 
 # Réglages d'installation (chemins, présence NAS...) : une SEULE source de
 # vérité partagée par le moteur, le GUI et les démons. Import tolérant : si
@@ -87,7 +90,11 @@ def proton_cli():
     """Chemin du binaire CLI, relu à chaque appel (voir la note ci-dessus)."""
     if _HAS_CONFIG:
         return appconfig.resolve_proton_cli()
-    return os.environ.get("PROTON_DRIVE_CLI", os.path.join(APP_DIR, "proton-drive"))
+    try:
+        import paths
+        return paths.resolve_cli(APP_DIR, None)
+    except ImportError:
+        return os.environ.get("PROTON_DRIVE_CLI", os.path.join(APP_DIR, "proton-drive"))
 
 # État local du temps réel — dossier de données UNIFIÉ (config.py), avec
 # migration automatique et sûre depuis l'ancien ~/.proton_sync (voir config.py).
@@ -96,7 +103,7 @@ if _HAS_CONFIG:
     LOCAL_QUEUE = appconfig.QUEUE_DIR
     CONFIG_FILE = appconfig.REALTIME_CONF
 else:
-    BASE_DIR = os.path.expanduser("~/.proton_sync")
+    BASE_DIR = os.path.expanduser("~/.proton-drive-sync")
     LOCAL_QUEUE = os.path.join(BASE_DIR, "queue")
     CONFIG_FILE = os.path.join(BASE_DIR, "realtime.conf")
 
@@ -118,7 +125,8 @@ NAS_QUEUE_DIR = os.path.join(NAS_BASE, "queue")     # queue/<user>/
 # l'écart sans copier). Les deux fonctions doivent rester alignées : ne jamais
 # dupliquer cette liste ailleurs.
 _NAS_SCRIPT_FILES = ["nas_watcher.py", "local_watcher.py", "config.py", "i18n.py",
-                     "mount_check.py", "nas_selftest.py", "nas_selftest_watcher.py"]
+                     "paths.py", "mount_check.py", "nas_selftest.py",
+                     "nas_selftest_watcher.py"]
 
 # systemd --user (mêmes conventions que schedule_manager).
 SYSTEMD_USER_DIR = os.path.expanduser("~/.config/systemd/user")
@@ -176,7 +184,7 @@ def user_from_mappings_path(mappings_path):
 #  1) Réglage du délai (debounce / cycle) — realtime.conf
 # ─────────────────────────────────────────────────────────────────────────
 def read_config():
-    """Lit ~/.proton_sync/realtime.conf. Toujours un dict valide (valeurs par
+    """Lit ~/.proton-drive-sync/realtime.conf. Toujours un dict valide (valeurs par
     défaut si fichier absent/invalide), pour ne jamais faire échouer le GUI."""
     cfg = {
         "debounce_seconds": DEFAULT_DEBOUNCE_SECONDS,
@@ -696,14 +704,22 @@ def drift_state(mappings_path):
 def _service_text(description, script, mappings_path):
     """Génère un .service --user simple, qui RESTE actif (Restart=on-failure)
     et redémarre à l'ouverture de session (WantedBy=default.target)."""
+    exec_line = unitexec.exec_line(script, [mappings_path], app_dir=H_ENGINE_DIR)
+    cli_value = appconfig.cli_unit_value(DEFAULT_CLI) if _HAS_CONFIG else (
+        DEFAULT_CLI if os.path.isfile(DEFAULT_CLI) and os.access(DEFAULT_CLI, os.X_OK)
+        else None)
+    if not cli_value or (unitexec.is_packaged(H_ENGINE_DIR) and cli_value == DEFAULT_CLI):
+        env_line = ""  # chemin absent ou paquet : proton-drive via PATH
+    else:
+        env_line = "Environment=" + unitexec.quote_environment(
+            "PROTON_DRIVE_CLI", cli_value) + "\n"
     return f"""[Unit]
 Description={description}
 After=network-online.target
 
 [Service]
 Type=simple
-Environment=PROTON_DRIVE_CLI={appconfig.cli_env_value(DEFAULT_CLI) if _HAS_CONFIG else DEFAULT_CLI}
-ExecStart=/usr/bin/python3 {script} {mappings_path}
+{env_line}{exec_line}
 Restart=on-failure
 RestartSec=5
 
@@ -755,8 +771,10 @@ def read_units_mappings_path():
             content = f.read()
     except OSError:
         return None
-    m = re.search(r"^ExecStart=.*realtime_consumer\.py\s+(\S+)", content, re.MULTILINE)
-    return m.group(1) if m else None
+    m = re.search(r"^ExecStart=(.*)$", content, re.MULTILINE)
+    if not m:
+        return None
+    return unitexec.mappings_arg_from_exec(m.group(1), "realtime_consumer.py")
 
 
 def mappings_ready_count(mappings_path):
@@ -784,7 +802,8 @@ def mappings_ready_count(mappings_path):
     if total == 0:
         return (0, 0)
     # Cache correspondant.
-    cache_dir = appconfig.CACHE_DIR if _HAS_CONFIG else os.path.expanduser("~/.proton_sync_cache")
+    cache_dir = (appconfig.CACHE_DIR if _HAS_CONFIG
+                 else os.path.expanduser("~/.proton-drive-sync/cache"))
     name = os.path.basename(mappings_path).replace(".json", "") + ".cache"
     try:
         with open(os.path.join(cache_dir, name), "r", encoding="utf-8") as f:
@@ -934,21 +953,34 @@ def journal_follow_command(lines=500):
 # ─────────────────────────────────────────────────────────────────────────
 #  Authentification Proton Drive (session du CLI)
 # ─────────────────────────────────────────────────────────────────────────
+def auth_status():
+    """(ok, détail). Le détail est la dernière ligne du CLI, pas un motif inventé."""
+    try:
+        env = dict(os.environ)
+        env["PROTON_DRIVE_CLI"] = proton_cli()
+        r = subprocess.run(
+            [sys.executable, ENGINE, "--check-auth"],
+            capture_output=True, text=True, timeout=60, env=env)
+    except Exception as exc:
+        return False, str(exc)
+    if r.returncode == 0:
+        return True, ""
+    line = ""
+    for raw in ((r.stdout or "") + "\n" + (r.stderr or "")).splitlines():
+        raw = raw.strip()
+        if raw:
+            line = raw
+    return False, line or _("Session unavailable")
+
+
 def check_auth():
     """True si le CLI Proton est authentifié (session valide, trousseau accessible).
     Réutilise EXACTEMENT le préflight du moteur (`proton_sync.py --check-auth`,
     code 0 = OK, code 2 = indisponible) — aucune logique d'auth dupliquée ici. Ne
     prend pas le verrou, ne synchronise rien. Tolérant : en cas d'erreur, retourne
     False (on considère l'auth indisponible plutôt que de faire échouer le GUI)."""
-    try:
-        env = dict(os.environ)
-        env["PROTON_DRIVE_CLI"] = proton_cli()
-        r = subprocess.run(
-            ["python3", ENGINE, "--check-auth"],
-            capture_output=True, text=True, timeout=60, env=env)
-        return r.returncode == 0
-    except Exception:
-        return False
+    ok, _detail = auth_status()
+    return ok
 
 
 def auth_login_command():

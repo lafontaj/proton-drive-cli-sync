@@ -724,9 +724,6 @@ msgstr ""
 msgid "Watch capacity OK (~{t} folders / limit {l})."
 msgstr "Capacité watches OK (~{t} dossiers / limite {l})."
 
-msgid "Proton Drive sync (NAS -> Proton, one-way)"
-msgstr "Synchro Proton Drive (NAS -> Proton, sens unique)"
-
 msgid "Triggers the Proton Drive sync once a day"
 msgstr "Déclenche la synchro Proton Drive une fois par jour"
 
@@ -3542,43 +3539,15 @@ msgstr "Le binaire du CLI Proton Drive est introuvable."
 
 msgid ""
 "This application does not perform the sync itself: it drives the official "
-"`proton-drive` binary, which you download separately. It does not search the "
-"system for it — it looks in this order:"
+"`proton-drive` binary, which you download separately. It looks in this order:"
 msgstr ""
 "Cette application n'effectue pas la synchro elle-même : elle pilote le "
-"binaire officiel `proton-drive`, que vous téléchargez séparément. Elle ne le "
-"cherche pas sur le système — elle le résout dans cet ordre :"
-
-msgid "  1. the PROTON_DRIVE_CLI environment variable, if set;"
-msgstr ""
-"  1. la variable d'environnement PROTON_DRIVE_CLI, si elle est définie ;"
-
-msgid "  2. the “Proton CLI binary path” field in the Configuration window;"
-msgstr ""
-"  2. le champ « Chemin du binaire proton-drive » de la fenêtre "
-"Configuration ;"
-
-msgid ""
-"Simplest fix: place the binary next to the scripts, at the third location "
-"above — nothing to configure. To keep it elsewhere, fill in the "
-"Configuration field."
-msgstr ""
-"Le plus simple : déposer le binaire à côté des scripts, au troisième "
-"emplacement ci-dessus — il n'y a alors rien à régler. Pour le garder "
-"ailleurs, renseignez le champ de la fenêtre Configuration."
-
-msgid ""
-"If you change this path AFTER installing the services, reinstall them: "
-"generated systemd units embed the path when created, and would otherwise "
-"keep pointing at the old one."
-msgstr ""
-"Si vous changez ce chemin APRÈS avoir installé les services, réinstallez-"
-"les : les unités systemd générées embarquent le chemin au moment de leur "
-"création et continueraient sinon à pointer sur l'ancien."
+"binaire officiel `proton-drive`, que vous téléchargez séparément. Elle le "
+"résout dans cet ordre :"
 
 #, python-brace-format
-msgid "  3. failing that: {p}"
-msgstr "  3. à défaut : {p}"
+msgid "  3. {p}, when that file is executable;"
+msgstr "  3. {p}, lorsque ce fichier est exécutable ;"
 
 msgid "Open Configuration…"
 msgstr "Ouvrir la Configuration…"
@@ -4146,9 +4115,60 @@ msgstr ""
 "puis à réserver à une vérification occasionnelle (ex. une fois par mois), "
 "pas au quotidien."
 
+msgid "  4. `proton-drive` on PATH;"
+msgstr "  4. `proton-drive` sur le PATH ;"
+
 #, python-brace-format
-msgid "Summary: uploaded {files_uploaded}, would upload {files_would_upload}, failed {files_failed}, vanished {files_vanished}, listing failed {folders_listing_failed}, unreadable {folders_unreadable}, permission denied {folders_permission_denied}, stall-skipped {folders_stall_skipped}, trashed {items_trashed}, trash failed {trash_failed}, deletions refused {deletions_refused}, sources missing {sources_missing}, mappings {mappings_complete}/{mappings_total}."
-msgstr "Résumé : envoyés {files_uploaded}, enverrait {files_would_upload}, échecs {files_failed}, disparus {files_vanished}, listage échoué {folders_listing_failed}, illisibles {folders_unreadable}, permission refusée {folders_permission_denied}, sautés après blocage {folders_stall_skipped}, à la corbeille {items_trashed}, corbeille échouée {trash_failed}, suppressions refusées {deletions_refused}, sources absentes {sources_missing}, mappings {mappings_complete}/{mappings_total}."
+msgid "Settings copied to {p}. The previous file was left in place."
+msgstr "Réglages copiés vers {p}. L'ancien fichier a été laissé en place."
+
+#, python-brace-format
+msgid "Could not write settings to {p}; reading {legacy} instead."
+msgstr ""
+"Impossible d'écrire les réglages dans {p} ; lecture de {legacy} à la place."
+
+msgid "Settings location"
+msgstr "Emplacement des réglages"
+
+msgid "Settings file"
+msgstr "Fichier de réglages"
+
+msgid "Settings file in use:"
+msgstr "Fichier de réglages utilisé :"
+
+#, python-brace-format
+msgid ""
+"Settings now live in {path}.\n"
+"\n"
+"The file beside the scripts is no longer read.\n"
+"\n"
+"A backup of the scripts folder no longer includes the configuration. Add "
+"this folder to your backups: {folder}."
+msgstr ""
+"Les réglages sont maintenant dans {path}.\n"
+"\n"
+"Le fichier à côté des scripts n'est plus lu.\n"
+"\n"
+"Une sauvegarde du dossier des scripts n'inclut plus la configuration. "
+"Ajoutez ce dossier à vos sauvegardes : {folder}."
+
+#, python-brace-format
+msgid ""
+"Summary: uploaded {files_uploaded}, would upload {files_would_upload}, "
+"failed {files_failed}, vanished {files_vanished}, listing failed "
+"{folders_listing_failed}, unreadable {folders_unreadable}, permission denied "
+"{folders_permission_denied}, stall-skipped {folders_stall_skipped}, trashed "
+"{items_trashed}, trash failed {trash_failed}, deletions refused "
+"{deletions_refused}, sources missing {sources_missing}, mappings "
+"{mappings_complete}/{mappings_total}."
+msgstr ""
+"Résumé : envoyés {files_uploaded}, enverrait {files_would_upload}, échecs "
+"{files_failed}, disparus {files_vanished}, listage échoué "
+"{folders_listing_failed}, illisibles {folders_unreadable}, permission "
+"refusée {folders_permission_denied}, sautés après blocage "
+"{folders_stall_skipped}, à la corbeille {items_trashed}, corbeille échouée "
+"{trash_failed}, suppressions refusées {deletions_refused}, sources absentes "
+"{sources_missing}, mappings {mappings_complete}/{mappings_total}."
 
 #, python-brace-format
 msgid "  ⚠  Could not write the last-run file: {e}"
@@ -4177,7 +4197,8 @@ msgid "Finished with failures (code 5)."
 msgstr "Terminé avec des échecs (code 5)."
 
 msgid "Scheduled service updated so a failed pass is not restarted."
-msgstr "Service planifié mis à jour pour qu'un passage en échec ne soit pas relancé."
+msgstr ""
+"Service planifié mis à jour pour qu'un passage en échec ne soit pas relancé."
 
 #, python-brace-format
 msgid "Scheduled service update failed: {e}"
@@ -4193,3 +4214,1020 @@ msgid ""
 msgstr ""
 "  ⚠  [delete-guard] Suppressions désactivées pour le reste de ce mapping, le "
 "contrôle du montage a échoué en cours de passage : {r}"
+
+#, python-brace-format
+msgid "    kept (excluded): {p}"
+msgstr "    conservé (exclu) : {p}"
+
+#, python-brace-format
+msgid "  ⚠  Unknown excluded_remote value {v!r} — using \"prune\"."
+msgstr "  ⚠  Valeur excluded_remote inconnue {v!r} — utilisation de \"prune\"."
+
+msgid ""
+"Keep on Proton the remote copy of names excluded on this mapping. Global "
+"exclusions still remove the remote copy."
+msgstr ""
+"Conserver sur Proton la copie distante des noms exclus sur ce mapping. Les "
+"exclusions globales retirent toujours la copie distante."
+
+#, python-brace-format
+msgid ""
+"refusing to trash {n} of {t} remote item(s) in {p} (limit: at least {m} and "
+"more than {r:.0%}); nothing deleted there. Use --allow-mass-delete for a "
+"deliberate cleanup."
+msgstr ""
+"refus d'envoyer à la corbeille {n} élément(s) distant(s) sur {t} dans {p} "
+"(limite : au moins {m} et plus de {r:.0%}) ; rien n'est supprimé dans ce "
+"dossier. --allow-mass-delete autorise un nettoyage voulu."
+
+msgid ""
+"Mass-deletion guard\n"
+"\n"
+"Off by default. A file you delete locally is still taken as something you "
+"meant to delete, and the Proton trash remains the safety net.\n"
+"\n"
+"Turn this on if you want a pass to stop when one remote folder would lose "
+"too much at once — for example an emptied folder. Nothing in that folder is "
+"trashed, and the next pass looks again.\n"
+"\n"
+"When a pass you start from this window is refused, the app offers to run "
+"that same pass once more and allow the deletion."
+msgstr ""
+"Garde-fou de suppression de masse\n"
+"\n"
+"Éteint par défaut. Un fichier que vous supprimez localement reste considéré "
+"comme une suppression voulue, et la corbeille Proton reste le filet.\n"
+"\n"
+"Allumez-le si vous voulez qu'un passage s'arrête quand un dossier distant "
+"perdrait trop d'éléments d'un coup — par exemple un dossier vidé. Rien n'est "
+"envoyé à la corbeille dans ce dossier, et le passage suivant regardera de "
+"nouveau.\n"
+"\n"
+"Quand un passage que vous lancez depuis cette fenêtre est refusé, "
+"l'application propose de relancer ce même passage une fois et d'autoriser la "
+"suppression."
+
+msgid ""
+"Minimum number of items\n"
+"\n"
+"The guard only steps in when a folder would lose at least this many remote "
+"items AND more than the share set next to it. Both have to be true.\n"
+"\n"
+"20 is a comfortable default: deleting a handful of files still goes through. "
+"A bad value here is ignored and 20 is used instead."
+msgstr ""
+"Nombre minimal d'éléments\n"
+"\n"
+"Le garde-fou n'intervient que si un dossier perdrait au moins ce nombre "
+"d'éléments distants ET plus que la part indiquée à côté. Les deux conditions "
+"doivent être vraies.\n"
+"\n"
+"20 est un défaut confortable : supprimer quelques fichiers passe encore. Une "
+"mauvaise valeur ici est ignorée et 20 est utilisé à la place."
+
+msgid ""
+"Share of the folder\n"
+"\n"
+"Together with the minimum count. 0.5 means “more than half of the items "
+"already on Proton in that one folder”.\n"
+"\n"
+"A mapping can set its own pair of numbers. Leave those fields blank to keep "
+"using these. A value outside 0 to 1 is ignored and 0.5 is used instead."
+msgstr ""
+"Part du dossier\n"
+"\n"
+"Avec le nombre minimal. 0,5 signifie « plus de la moitié des éléments déjà "
+"sur Proton dans ce seul dossier ».\n"
+"\n"
+"Un mapping peut indiquer sa propre paire de nombres. Laissez ces champs "
+"vides pour continuer à utiliser ceux-ci. Une valeur hors de 0 à 1 est "
+"ignorée et 0,5 est utilisé à la place."
+
+msgid ""
+"The mass-deletion guard refused to trash items in a folder. Those items are "
+"still on Proton.\n"
+"\n"
+"Run this same pass again and allow the deletion this time?"
+msgstr ""
+"Le garde-fou de suppression de masse a refusé d'envoyer des éléments à la "
+"corbeille dans un dossier. Ces éléments sont toujours sur Proton.\n"
+"\n"
+"Relancer ce même passage et autoriser la suppression pour cette fois ?"
+
+msgid "Mass deletion refused"
+msgstr "Suppression de masse refusée"
+
+msgid "Allow this run"
+msgstr "Autoriser ce passage"
+
+msgid "Keep them"
+msgstr "Les garder"
+
+msgid "The minimum must be a whole number, 0 or more, or left blank."
+msgstr "Le minimum doit être un nombre entier, 0 ou plus, ou laissé vide."
+
+msgid "The share must be a number from 0 to 1, or left blank."
+msgstr "La part doit être un nombre de 0 à 1, ou laissée vide."
+
+msgid "Mass deletion"
+msgstr "Suppression de masse"
+
+msgid "Thresholds for this mapping only (leave blank to use Configuration):"
+msgstr ""
+"Seuils pour ce mapping seulement (vide = les valeurs de Configuration) :"
+
+msgid "Minimum items: "
+msgstr "Nombre minimal : "
+
+msgid "Share of the folder (0 to 1): "
+msgstr "Part du dossier (0 à 1) : "
+
+msgid "Invalid threshold"
+msgstr "Seuil invalide"
+
+msgid "Turn on the mass-deletion guard"
+msgstr "Allumer le garde-fou de suppression de masse"
+
+msgid "Minimum items in one folder: "
+msgstr "Nombre minimal d'éléments dans un dossier : "
+
+msgid "Share of that folder (0 to 1): "
+msgstr "Part de ce dossier (0 à 1) : "
+
+msgid "  1. the PROTON_DRIVE_CLI environment variable, when that file exists;"
+msgstr ""
+"  1. la variable d'environnement PROTON_DRIVE_CLI, si ce fichier existe ;"
+
+msgid ""
+"  2. the “Proton CLI binary path” field in the Configuration window, when "
+"that file exists;"
+msgstr ""
+"  2. le champ « Chemin du binaire CLI Proton » de la fenêtre Configuration, "
+"si ce fichier existe ;"
+
+msgid "  5. otherwise the first explicit path, so the error can name it."
+msgstr ""
+"  5. sinon le premier chemin explicite, pour que l'erreur puisse le nommer."
+
+msgid ""
+"A path that does not exist is skipped, so `proton-drive` on PATH is still "
+"used. Simplest fix: install that binary on PATH (/usr/bin/proton-drive)."
+msgstr ""
+"Un chemin qui n'existe pas est ignoré : `proton-drive` sur le PATH reste "
+"utilisé. Solution la plus simple : installer ce binaire sur le PATH (/usr/"
+"bin/proton-drive)."
+
+msgid ""
+"Reinstall the services after you change a path that does exist: generated "
+"systemd units embed that path."
+msgstr ""
+"Réinstallez les services après avoir changé un chemin qui existe : les "
+"unités systemd générées contiennent ce chemin."
+
+msgid "  ⛔ Remote wipe REFUSED: a volume is the account root."
+msgstr "  ⛔ Effacement distant REFUSÉ : un volume est la racine du compte."
+
+#, python-brace-format
+msgid ""
+"{n} file(s) could not be sent or downloaded. The lines marked ❌, [upload-"
+"failed] or [download-failed] name them. They are tried again on the next "
+"pass."
+msgstr ""
+"{n} fichier(s) n'ont pas pu être envoyés ou téléchargés. Les lignes marquées "
+"❌, [upload-failed] ou [download-failed] les nomment. Ils seront retentés au "
+"prochain passage."
+
+#, python-brace-format
+msgid ""
+"{n} folder(s) on Proton Drive could not be read (network or Proton problem). "
+"Nothing was sent or deleted there this pass. See the [list-skipped] or "
+"“Could not list” lines."
+msgstr ""
+"{n} dossier(s) sur Proton Drive n'ont pas pu être lus (problème réseau ou "
+"Proton). Rien n'y a été envoyé ni supprimé lors de ce passage. Voir les "
+"lignes [list-skipped] ou « Impossible de lister »."
+
+#, python-brace-format
+msgid ""
+"{n} folder(s) on this computer could not be read, often a permission "
+"problem. See the [unreadable] lines."
+msgstr ""
+"{n} dossier(s) sur cet ordinateur n'ont pas pu être lus, souvent un problème "
+"de permissions. Voir les lignes [unreadable]."
+
+#, python-brace-format
+msgid ""
+"{n} shared folder(s) on Proton Drive do not let you write. Ask the owner for "
+"write access."
+msgstr ""
+"{n} dossier(s) partagé(s) sur Proton Drive ne vous permettent pas d'écrire. "
+"Demandez un accès en écriture au propriétaire."
+
+#, python-brace-format
+msgid "{n} folder(s) were skipped because earlier attempts froze."
+msgstr ""
+"{n} dossier(s) ont été sautés parce que des tentatives précédentes ont gelé."
+
+#, python-brace-format
+msgid "{n} item(s) could not be moved to the Proton Drive trash."
+msgstr "{n} élément(s) n'ont pas pu être mis à la corbeille Proton Drive."
+
+#, python-brace-format
+msgid ""
+"{n} deletion(s) were held back for safety. Nothing was deleted. The [delete-"
+"guard] lines say why."
+msgstr ""
+"{n} suppression(s) retenue(s) par sécurité. Rien n'a été supprimé. Les "
+"lignes [delete-guard] disent pourquoi."
+
+#, python-brace-format
+msgid "{n} local folder(s) in the mappings do not exist on this computer."
+msgstr ""
+"{n} dossier(s) local(aux) des mappings n'existent pas sur cet ordinateur."
+
+msgid "Some items were not synced. The lines marked ❌ or ⚠ above name them."
+msgstr ""
+"Certains éléments n'ont pas été synchronisés. Les lignes marquées ❌ ou ⚠ ci-"
+"dessus les nomment."
+
+msgid "Not everything was synced:"
+msgstr "Tout n'a pas été synchronisé :"
+
+msgid "remote poll postponed, Proton is not ready"
+msgstr "relevé distant reporté, Proton n'est pas prêt"
+
+msgid "remote poll postponed, another pass holds the lock"
+msgstr "relevé distant reporté, un autre passage détient le verrou"
+
+#, python-brace-format
+msgid "checking {p} for remote changes (every {n} min, not instant)"
+msgstr ""
+"recherche de changements distants dans {p} (toutes les {n} min, pas "
+"instantané)"
+
+#, python-brace-format
+msgid "folder not fully indexed yet, remote poll deferred: {p}"
+msgstr "dossier pas encore entièrement indexé, relevé distant différé : {p}"
+
+#, python-brace-format
+msgid "remote poll finished with code {c} for {p}"
+msgstr "relevé distant terminé avec le code {c} pour {p}"
+
+msgid "Proton Drive sync"
+msgstr "Synchro Proton Drive"
+
+msgid "Proton Drive Sync file-manager status"
+msgstr "État Proton Drive Sync pour les gestionnaires de fichiers"
+
+#, python-brace-format
+msgid ""
+"Schedule installed and timer enabled, but the file-manager status service "
+"failed: {e}"
+msgstr ""
+"Planification installée et minuterie activée, mais le service d'état des "
+"gestionnaires de fichiers a échoué : {e}"
+
+#, python-brace-format
+msgid "The file-manager status service failed: {e}"
+msgstr "Le service d'état des gestionnaires de fichiers a échoué : {e}"
+
+msgid "Session unavailable"
+msgstr "Session indisponible"
+
+msgid "Direction"
+msgstr "Sens"
+
+msgid ""
+"Upload only — local files are backed up. Remote changes are not downloaded"
+msgstr ""
+"Envoi seul — les fichiers locaux sont sauvegardés. Les changements distants "
+"ne sont pas téléchargés"
+
+msgid "Two-way — for this mapping only"
+msgstr "Deux sens — pour ce mapping seulement"
+
+msgid ""
+"If both sides change, both copies are kept and nothing is deleted. Changes "
+"made on Proton Drive come down when a sync runs: Run sync, the schedule, or "
+"real time (about every 5 minutes)."
+msgstr ""
+"Si les deux côtés changent, les deux copies sont gardées et rien n'est "
+"supprimé. Les changements faits sur Proton Drive descendent quand une "
+"synchro tourne : Lancer la synchro, la planification ou le temps réel "
+"(environ toutes les 5 minutes)."
+
+#, python-brace-format
+msgid ""
+"Could not list {p} — file skipped this pass (nothing sent, nothing deleted)."
+msgstr ""
+"Impossible de lister {p} — fichier sauté pour ce passage (rien envoyé, rien "
+"supprimé)."
+
+#, python-brace-format
+msgid ""
+"Could not list {p} — folder skipped this pass (nothing sent, nothing "
+"deleted)."
+msgstr ""
+"Impossible de lister {p} — dossier sauté pour ce passage (rien envoyé, rien "
+"supprimé)."
+
+#, python-brace-format
+msgid "deleted here but changed on Proton since, downloading it again: {p}"
+msgstr ""
+"supprimé ici mais modifié sur Proton depuis, nouveau téléchargement : {p}"
+
+#, python-brace-format
+msgid "refusing to trash {n} of {t} remote item(s) in {p}"
+msgstr ""
+"refus de mettre à la corbeille {n} élément(s) distant(s) sur {t} dans {p}"
+
+#, python-brace-format
+msgid "[DRY-RUN] would download: {p}"
+msgstr "[DRY-RUN] téléchargerait : {p}"
+
+#, python-brace-format
+msgid "downloaded {p}"
+msgstr "téléchargé {p}"
+
+#, python-brace-format
+msgid "the Proton CLI finished but wrote {n} files instead of one"
+msgstr "le CLI Proton a terminé mais a écrit {n} fichiers au lieu d'un"
+
+#, python-brace-format
+msgid "download failed, local file kept: {p}"
+msgstr "échec du téléchargement, fichier local conservé : {p}"
+
+#, python-brace-format
+msgid "could not download {p}"
+msgstr "impossible de télécharger {p}"
+
+#, python-brace-format
+msgid "Proton CLI said: {r}"
+msgstr "Le CLI Proton a répondu : {r}"
+
+#, python-brace-format
+msgid "[DRY-RUN] both sides changed, would keep both: {p}"
+msgstr "[DRY-RUN] les deux côtés ont changé, garderait les deux : {p}"
+
+#, python-brace-format
+msgid ""
+"both sides changed. Your file is kept; the Proton version is saved as {c}"
+msgstr ""
+"les deux côtés ont changé. Votre fichier est conservé ; la version Proton "
+"est enregistrée sous {c}"
+
+#, python-brace-format
+msgid ""
+"To finish: keep the version you want under the name {n} and delete the "
+"\"(proton conflict)\" copy. The next pass sends your choice to Proton."
+msgstr ""
+"Pour terminer : gardez la version voulue sous le nom {n} et supprimez la "
+"copie « (proton conflict) ». Le prochain passage envoie votre choix à Proton."
+
+#, python-brace-format
+msgid "no Proton copy any more, sending yours: {p}"
+msgstr "plus de copie sur Proton, envoi de la vôtre : {p}"
+
+#, python-brace-format
+msgid "both versions are the same now: {p}"
+msgstr "les deux versions sont maintenant identiques : {p}"
+
+#, python-brace-format
+msgid "waiting for you to choose a version: {p}"
+msgstr "en attente de votre choix de version : {p}"
+
+#, python-brace-format
+msgid "conflict copy removed, sending your version: {p}"
+msgstr "copie de conflit supprimée, envoi de votre version : {p}"
+
+#, python-brace-format
+msgid "removed on Proton but changed here since, sending it again: {p}"
+msgstr "supprimé sur Proton mais modifié ici depuis, nouvel envoi : {p}"
+
+#, python-brace-format
+msgid ""
+"removed on Proton; local file kept because deletions are off for this pass: "
+"{p}"
+msgstr ""
+"supprimé sur Proton ; fichier local conservé car les suppressions sont "
+"désactivées pour ce passage : {p}"
+
+#, python-brace-format
+msgid "[DRY-RUN] would move aside: {p}"
+msgstr "[DRY-RUN] mettrait de côté : {p}"
+
+#, python-brace-format
+msgid "could not move aside {p}: {e}"
+msgstr "impossible de mettre de côté {p} : {e}"
+
+msgid ""
+"deletion is off until you confirm this folder with 🔄 Live sync… in the "
+"window"
+msgstr ""
+"suppression désactivée tant que vous n'avez pas confirmé ce dossier avec 🔄 "
+"Synchro en direct… dans la fenêtre"
+
+#, python-brace-format
+msgid "mount check failed, remote file kept: {r}"
+msgstr "échec du contrôle du montage, fichier distant conservé : {r}"
+
+#, python-brace-format
+msgid "Proton document or spreadsheet left unchanged: {p}"
+msgstr "Document ou feuille de calcul Proton laissé inchangé : {p}"
+
+msgid "Proton Drive Sync"
+msgstr "Proton Drive Sync"
+
+msgid "Two-way"
+msgstr "Deux sens"
+
+msgid "File, upload only"
+msgstr "Fichier, envoi seul"
+
+msgid "Upload only"
+msgstr "Envoi seul"
+
+msgid "Two-way is on for those mappings only"
+msgstr "Les deux sens sont activés pour ces mappings seulement"
+
+msgid "Upload only. Two-way can be turned on per mapping."
+msgstr "Envoi seul. Les deux sens peuvent être activés par mapping."
+
+msgid "Folder sync to Proton Drive"
+msgstr "Synchro de dossiers vers Proton Drive"
+
+#, python-brace-format
+msgid "Sync finished with problems: {r}"
+msgstr "Synchro terminée avec des problèmes : {r}"
+
+msgid "Mappings"
+msgstr "Mappings"
+
+msgid "Settings moved"
+msgstr "Réglages déplacés"
+
+#, python-brace-format
+msgid "Could not update the scheduled service: {e}"
+msgstr "Impossible de mettre à jour le service planifié : {e}"
+
+msgid "Signed in."
+msgstr "Connecté."
+
+msgid "Browse Proton…"
+msgstr "Parcourir Proton…"
+
+msgid ""
+"If both sides change, both copies are kept and nothing is deleted. Changes "
+"made on Proton Drive come down when a sync runs: ▶ Run sync, the schedule, "
+"or 🔄 Live sync… (about every 30 seconds while this app is open, about every "
+"5 minutes in the background)."
+msgstr ""
+"Si les deux côtés changent, les deux copies sont gardées et rien n'est "
+"supprimé. Les changements faits sur Proton Drive descendent quand une "
+"synchro tourne : ▶ Lancer la synchro, la planification ou 🔄 Synchro en "
+"direct… (environ toutes les 30 secondes quand cette application est ouverte, "
+"environ toutes les 5 minutes en arrière-plan)."
+
+msgid ""
+"Leave this off and a file you delete on this computer stays on Proton. Turn "
+"it on and the next sync removes that file from Proton. Files are never "
+"removed while this is off."
+msgstr ""
+"Laissez cette case décochée et un fichier supprimé sur cet ordinateur reste "
+"sur Proton. Cochez-la et la synchro suivante retire ce fichier de Proton. "
+"Aucun fichier n'est jamais retiré tant qu'elle est décochée."
+
+msgid "Where a removed file goes"
+msgstr "Où va un fichier retiré"
+
+msgid ""
+"The file moves to your Proton trash. You can restore it from the Proton "
+"website or app. This window does not offer permanent deletion."
+msgstr ""
+"Le fichier va dans votre corbeille Proton. Vous pouvez le restaurer depuis "
+"le site ou l'application Proton. Cette fenêtre ne propose pas de suppression "
+"définitive."
+
+msgid "Where this folder is stored"
+msgstr "Où se trouve ce dossier"
+
+msgid ""
+"The folder is on a network drive. Deletion runs only while that drive is "
+"still mounted. If it disconnects and the folder looks empty, nothing is "
+"deleted on Proton."
+msgstr ""
+"Le dossier est sur un lecteur réseau. La suppression n'a lieu que tant que "
+"ce lecteur est monté. S'il se déconnecte et que le dossier paraît vide, rien "
+"n'est supprimé sur Proton."
+
+msgid ""
+"The folder is on a disk in this computer. Deletion runs only while the "
+"folder is still there and can be read."
+msgstr ""
+"Le dossier est sur un disque de cet ordinateur. La suppression n'a lieu que "
+"tant que le dossier est là et lisible."
+
+msgid "minimum, blank = global"
+msgstr "minimum, vide = global"
+
+msgid "fraction, blank = global"
+msgstr "part, vide = global"
+
+msgid "Mass-delete minimum"
+msgstr "Minimum de suppression de masse"
+
+msgid "Mass-delete fraction"
+msgstr "Part de suppression de masse"
+
+#, python-brace-format
+msgid ""
+"On Proton Drive: {p}\n"
+"Files and folders you add there come down to this computer."
+msgstr ""
+"Sur Proton Drive : {p}\n"
+"Les fichiers et dossiers que vous y ajoutez descendent sur cet ordinateur."
+
+#, python-brace-format
+msgid "On Proton Drive: {p}"
+msgstr "Sur Proton Drive : {p}"
+
+msgid ""
+"\n"
+"\n"
+"Two-way is on for this mapping. The same confirmation is required before a "
+"file that disappeared locally can be trashed."
+msgstr ""
+"\n"
+"\n"
+"Les deux sens sont activés pour ce mapping. La même confirmation est requise "
+"avant qu'un fichier disparu localement puisse être mis à la corbeille."
+
+msgid "Copy URL"
+msgstr "Copier l'URL"
+
+msgid "Sign-in failed."
+msgstr "Échec de la connexion."
+
+msgid "🔄 Live sync…"
+msgstr "🔄 Synchro en direct…"
+
+msgid "Folder on Proton Drive"
+msgstr "Dossier sur Proton Drive"
+
+msgid ""
+"🔄 Automatic sync is off: changes sync when you press ▶ Run sync. To keep a "
+"folder in sync on its own, both ways, press the 🔄 Live sync… button. To "
+"sync at set times, open ⏰ Sync schedule."
+msgstr ""
+"🔄 La synchro automatique est désactivée : les changements se synchronisent "
+"quand vous appuyez sur ▶ Lancer la synchro. Pour garder un dossier "
+"synchronisé tout seul, dans les deux sens, appuyez sur 🔄 Synchro en "
+"direct…. Pour synchroniser à heures fixes, ouvrez ⏰ Synchro planifiée."
+
+#, python-brace-format
+msgid ""
+"🔄 Live sync is on for {s}. Changes here go up within seconds. Changes on "
+"Proton Drive come down about every 30 seconds while this app is open, and "
+"about every 5 minutes in the background."
+msgstr ""
+"🔄 La synchro en direct est active pour {s}. Les changements faits ici "
+"montent en quelques secondes. Ceux faits sur Proton Drive descendent environ "
+"toutes les 30 secondes quand cette application est ouverte, et environ "
+"toutes les 5 minutes en arrière-plan."
+
+msgid ""
+"The mass-delete minimum is a whole number and the fraction is between 0 and "
+"1. Leave both blank to use Configuration."
+msgstr ""
+"Le minimum de suppression de masse est un nombre entier et la part est entre "
+"0 et 1. Laissez les deux vides pour utiliser la Configuration."
+
+msgid "The mass-delete fraction has to be between 0 and 1."
+msgstr "La part de suppression de masse doit être entre 0 et 1."
+
+msgid "Add a folder mapping first. Proton Drive opens that folder."
+msgstr "Ajoutez d'abord un mapping de dossier. Proton Drive ouvre ce dossier."
+
+msgid "Live sync"
+msgstr "Synchro en direct"
+
+msgid "The mappings file has unsaved changes. Save them before choosing?"
+msgstr ""
+"Le fichier de mappings a des modifications non enregistrées. Les enregistrer "
+"avant de choisir ?"
+
+#, python-brace-format
+msgid "Stop live sync for {s}"
+msgstr "Arrêter la synchro en direct pour {s}"
+
+msgid ""
+"Pick the folder to keep in sync on its own. Proton Drive in Dolphin opens ~/"
+"Proton Drive, which shows each two-way folder, like My files on the website. "
+"The rest of the account is not downloaded. You confirm on the next screen."
+msgstr ""
+"Choisissez le dossier à garder synchronisé tout seul. Proton Drive dans "
+"Dolphin ouvre ~/Proton Drive, qui montre chaque dossier à deux sens, comme "
+"Mes fichiers sur le site. Le reste du compte n'est pas téléchargé. Vous "
+"confirmez à l'écran suivant."
+
+#, python-brace-format
+msgid "{s} will stay in sync with Proton Drive ({d}):"
+msgstr "{s} restera synchronisé avec Proton Drive ({d}) :"
+
+msgid "• Files you add or change here are sent to Proton Drive."
+msgstr ""
+"• Les fichiers que vous ajoutez ou modifiez ici sont envoyés sur Proton "
+"Drive."
+
+msgid "• Files added or changed on Proton Drive are downloaded here."
+msgstr ""
+"• Les fichiers ajoutés ou modifiés sur Proton Drive sont téléchargés ici."
+
+msgid ""
+"• If the same file changed on both sides, both versions are kept and you "
+"choose."
+msgstr ""
+"• Si le même fichier a changé des deux côtés, les deux versions sont gardées "
+"et vous choisissez."
+
+msgid ""
+"• This window opens when you log in and keeps watching the folder from the "
+"tray."
+msgstr ""
+"• Cette fenêtre s'ouvre à la connexion et continue de surveiller le dossier "
+"depuis la zone de notification."
+
+msgid "This folder is upload-only now. It becomes two-way."
+msgstr "Ce dossier est en envoi seul pour l'instant. Il passe en deux sens."
+
+msgid "You can stop at any time with 🔄 Live sync… → Stop live sync."
+msgstr ""
+"Vous pouvez arrêter à tout moment avec 🔄 Synchro en direct… → Arrêter la "
+"synchro en direct."
+
+msgid "Start live sync"
+msgstr "Démarrer la synchro en direct"
+
+msgid ""
+"Also move files I delete here to the Proton Drive trash (they can be "
+"restored from the trash on the Proton website)"
+msgstr ""
+"Mettre aussi à la corbeille Proton Drive les fichiers que je supprime ici "
+"(ils peuvent être restaurés depuis la corbeille sur le site Proton)"
+
+#, python-brace-format
+msgid ""
+"Stop live sync for {s}?\n"
+"\n"
+"No file is moved or deleted. The mapping stays in the list and Run sync "
+"still syncs it. The window no longer opens when you log in."
+msgstr ""
+"Arrêter la synchro en direct pour {s} ?\n"
+"\n"
+"Aucun fichier n'est déplacé ni supprimé. Le mapping reste dans la liste et "
+"Lancer la synchro le synchronise toujours. La fenêtre ne s'ouvre plus à la "
+"connexion."
+
+msgid "Stop live sync"
+msgstr "Arrêter la synchro en direct"
+
+msgid "Also stop real-time sync in the background"
+msgstr "Arrêter aussi la synchro temps réel en arrière-plan"
+
+msgid "Live sync stopped. No file was changed."
+msgstr "Synchro en direct arrêtée. Aucun fichier n'a été modifié."
+
+#, python-brace-format
+msgid ""
+"An earlier test version picked this folder for live sync by itself:\n"
+"{s}\n"
+"\n"
+"It made the folder two-way and turned on \"move files I delete here to the "
+"Proton Drive trash\". This version does not start it, and does not trash "
+"anything from it, until you decide.\n"
+"\n"
+"Keep live sync for this folder? You will see what it does before it starts."
+msgstr ""
+"Une version de test antérieure avait choisi ce dossier pour la synchro en "
+"direct toute seule :\n"
+"{s}\n"
+"\n"
+"Elle l'avait passé en deux sens et avait activé « mettre à la corbeille "
+"Proton Drive les fichiers que je supprime ici ». Cette version ne la démarre "
+"pas, et ne met rien à la corbeille depuis ce dossier, tant que vous n'avez "
+"pas décidé.\n"
+"\n"
+"Garder la synchro en direct pour ce dossier ? Vous verrez ce qu'elle fait "
+"avant qu'elle démarre."
+
+msgid "Review and keep…"
+msgstr "Revoir et garder…"
+
+msgid "Turn it off"
+msgstr "La désactiver"
+
+#, python-brace-format
+msgid ""
+"Live sync and deletion are off for {s}. No file was changed. The mapping is "
+"still two-way; use Edit to make it upload-only. Background real-time sync "
+"was stopped too. 🔄 Live sync… turns it back on if you change your mind."
+msgstr ""
+"La synchro en direct et la suppression sont désactivées pour {s}. Aucun "
+"fichier n'a été modifié. Le mapping est toujours en deux sens ; utilisez "
+"Modifier pour le passer en envoi seul. La synchro temps réel en arrière-plan "
+"a aussi été arrêtée. 🔄 Synchro en direct… la réactive si vous changez "
+"d'avis."
+
+msgid ""
+"This pass refused to trash most of a remote folder. Run the same command "
+"again and allow that deletion?"
+msgstr ""
+"Ce passage a refusé de mettre à la corbeille la majeure partie d'un dossier "
+"distant. Relancer la même commande en autorisant cette suppression ?"
+
+msgid "Run again"
+msgstr "Relancer"
+
+msgid "Leave it"
+msgstr "Laisser"
+
+msgid "Proton CLI"
+msgstr "CLI Proton"
+
+msgid "Proton CLI binary unusable."
+msgstr "Binaire du CLI Proton inutilisable."
+
+msgid "every hour"
+msgstr "toutes les heures"
+
+#, python-brace-format
+msgid "every {d} at {h:02d}:00"
+msgstr "chaque {d} à {h:02d}:00"
+
+#, python-brace-format
+msgid "every day at {h:02d}:00"
+msgstr "chaque jour à {h:02d}:00"
+
+msgid ""
+"Scheduled sync is not set up. Pick when to sync below and press Save "
+"schedule."
+msgstr ""
+"La synchro planifiée n'est pas configurée. Choisissez quand synchroniser ci-"
+"dessous et appuyez sur Enregistrer la planification."
+
+#, python-brace-format
+msgid "Scheduled sync is on: {w}."
+msgstr "La synchro planifiée est active : {w}."
+
+msgid "Scheduled sync is on."
+msgstr "La synchro planifiée est active."
+
+#, python-brace-format
+msgid "Next sync: {t}"
+msgstr "Prochaine synchro : {t}"
+
+#, python-brace-format
+msgid "Scheduled sync is off. Turn on starts it again ({w})."
+msgstr "La synchro planifiée est désactivée. Activer la redémarre ({w})."
+
+msgid "Scheduled sync is off."
+msgstr "La synchro planifiée est désactivée."
+
+#, python-brace-format
+msgid "Mappings file: {p}"
+msgstr "Fichier de mappings : {p}"
+
+msgid "Deletions are sent to Proton Drive, for folders that allow it."
+msgstr ""
+"Les suppressions sont envoyées sur Proton Drive, pour les dossiers qui "
+"l'autorisent."
+
+msgid "It runs while you are logged in, even with this window closed."
+msgstr ""
+"Elle tourne tant que vous êtes connecté, même avec cette fenêtre fermée."
+
+msgid ""
+"Syncs every mapping in the open file at set times, both ways for two-way "
+"folders. It does not need this window to be open."
+msgstr ""
+"Synchronise chaque mapping du fichier ouvert à heures fixes, dans les deux "
+"sens pour les dossiers à deux sens. N'a pas besoin que cette fenêtre soit "
+"ouverte."
+
+msgid "When to sync"
+msgstr "Quand synchroniser"
+
+msgid "Every hour"
+msgstr "Toutes les heures"
+
+msgid "Every day"
+msgstr "Tous les jours"
+
+msgid "Every week"
+msgstr "Toutes les semaines"
+
+msgid "on"
+msgstr "le"
+
+msgid "at"
+msgstr "à"
+
+msgid "Also remove from Proton Drive what I delete here"
+msgstr "Retirer aussi de Proton Drive ce que je supprime ici"
+
+msgid ""
+"Only folders whose Edit allows deletion. Removed files go to the Proton "
+"trash, where you can restore them."
+msgstr ""
+"Seulement les dossiers dont Modifier autorise la suppression. Les fichiers "
+"retirés vont dans la corbeille Proton, où vous pouvez les restaurer."
+
+msgid "💾 Save schedule"
+msgstr "💾 Enregistrer la planification"
+
+msgid "Turn on"
+msgstr "Activer"
+
+msgid "Turn off"
+msgstr "Désactiver"
+
+msgid "▶ Sync now"
+msgstr "▶ Synchroniser maintenant"
+
+msgid "Show last scheduled sync"
+msgstr "Voir la dernière synchro planifiée"
+
+msgid "Last scheduled sync"
+msgstr "Dernière synchro planifiée"
+
+msgid "Save the mappings file first, then set the schedule."
+msgstr ""
+"Enregistrez d'abord le fichier de mappings, puis réglez la planification."
+
+msgid ""
+"The mappings file has unsaved changes. The schedule reads the saved file, so "
+"those changes are not synced until you save.\n"
+"\n"
+"Save the schedule anyway?"
+msgstr ""
+"Le fichier de mappings a des modifications non enregistrées. La "
+"planification lit le fichier enregistré, donc ces modifications ne sont pas "
+"synchronisées tant que vous n'enregistrez pas.\n"
+"\n"
+"Enregistrer quand même la planification ?"
+
+msgid "Save schedule"
+msgstr "Enregistrer la planification"
+
+msgid ""
+"Scheduled syncs will also remove from Proton Drive what you delete on this "
+"computer, with nobody watching.\n"
+"\n"
+"Only folders whose Edit allows deletion are affected, and removed files go "
+"to the Proton trash, where you can restore them until you empty it. With the "
+"mass-deletion guard on (Configuration), a large deletion is held back and "
+"reported instead.\n"
+"\n"
+"Tip: run ▶ Run sync with Test (dry-run) and Propagate deletions first to see "
+"what would go.\n"
+"\n"
+"Continue?"
+msgstr ""
+"Les synchros planifiées retireront aussi de Proton Drive ce que vous "
+"supprimez sur cet ordinateur, sans que personne ne regarde.\n"
+"\n"
+"Seuls les dossiers dont Modifier autorise la suppression sont concernés, et "
+"les fichiers retirés vont dans la corbeille Proton, où vous pouvez les "
+"restaurer tant que vous ne la videz pas. Avec le garde-fou de suppression de "
+"masse activé (Configuration), une grosse suppression est retenue et "
+"signalée.\n"
+"\n"
+"Conseil : lancez d'abord ▶ Lancer la synchro avec Test (dry-run) et Propager "
+"suppressions pour voir ce qui partirait.\n"
+"\n"
+"Continuer ?"
+
+msgid "Remove deleted files on schedule?"
+msgstr "Retirer les fichiers supprimés lors des synchros planifiées ?"
+
+msgid "Yes, remove them"
+msgstr "Oui, les retirer"
+
+#, python-brace-format
+msgid ""
+"The schedule currently syncs:\n"
+"  {old}\n"
+"You are switching it to:\n"
+"  {new}\n"
+"\n"
+"Only one mappings file can be scheduled. Continue?"
+msgstr ""
+"La planification synchronise actuellement :\n"
+"  {old}\n"
+"Vous la passez à :\n"
+"  {new}\n"
+"\n"
+"Un seul fichier de mappings peut être planifié. Continuer ?"
+
+msgid "Switch to this file"
+msgstr "Passer à ce fichier"
+
+msgid ""
+"A sync started in the background. Show last scheduled sync tells how it went."
+msgstr ""
+"Une synchro a démarré en arrière-plan. Voir la dernière synchro planifiée "
+"dit comment elle s'est passée."
+
+msgid "SIGNED IN"
+msgstr "CONNECTÉ"
+
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+msgid "Stop a pass that would trash most of a remote folder"
+msgstr ""
+"Arrêter un passage qui mettrait à la corbeille la majeure partie d'un "
+"dossier distant"
+
+msgid ""
+"Off by default: a file you delete locally is taken as meant, and the Proton "
+"trash is the safety net. When on, a folder is left untouched when the pass "
+"would trash at least the minimum and more than the fraction of its remote "
+"children. The window can run that pass again if you meant it."
+msgstr ""
+"Désactivé par défaut : un fichier supprimé localement est considéré comme "
+"voulu, et la corbeille Proton sert de filet. Activé, un dossier est laissé "
+"intact quand le passage mettrait à la corbeille au moins le minimum et plus "
+"que la part de ses enfants distants. La fenêtre peut relancer ce passage si "
+"c'était voulu."
+
+msgid "Minimum"
+msgstr "Minimum"
+
+msgid "Fraction"
+msgstr "Part"
+
+msgid "Automatic"
+msgstr "Automatique"
+
+msgid "Add a correspondence"
+msgstr "Ajouter une correspondance"
+
+msgid "Rename extensions to lowercase"
+msgstr "Renommer les extensions en minuscules"
+
+msgid "Collision suffix"
+msgstr "Suffixe de collision"
+
+msgid "Extensions, separated by spaces"
+msgstr "Extensions, séparées par des espaces"
+
+msgid "Status icon in the tray"
+msgstr "Icône d'état dans la zone de notification"
+
+msgid "Applications menu launcher"
+msgstr "Lanceur dans le menu des applications"
+
+msgid "Desktop shortcut"
+msgstr "Raccourci sur le bureau"
+
+msgid "Open the current mappings file"
+msgstr "Ouvrir le fichier de mappings actuel"
+
+msgid "Open this window when I log in"
+msgstr "Ouvrir cette fenêtre à la connexion"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "The mass-delete minimum has to be a whole number, 0 or more."
+msgstr ""
+"Le minimum de suppression de masse doit être un nombre entier, 0 ou plus."
+
+msgid ""
+"Saved. The interface language applies the next time you open the window."
+msgstr ""
+"Enregistré. La langue de l'interface s'applique à la prochaine ouverture de "
+"la fenêtre."
+
+msgid "not yet"
+msgstr "pas encore"
+
+msgid "not scheduled"
+msgstr "non planifié"
+
+#, python-brace-format
+msgid "{folder} — last pass {last} — next remote check {next}"
+msgstr "{folder} — dernier passage {last} — prochain relevé distant {next}"
+
+msgid "Open"
+msgstr "Ouvrir"
+
+msgid "Proton Drive Sync — synced"
+msgstr "Proton Drive Sync — synchronisé"
+
+msgid "Proton Drive Sync — syncing"
+msgstr "Proton Drive Sync — synchronisation en cours"
+
+msgid "Proton Drive Sync — needs attention"
+msgstr "Proton Drive Sync — demande votre attention"
