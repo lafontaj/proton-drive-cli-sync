@@ -5,7 +5,7 @@ download does not replace the local file and does not rewrite its sync row.
 A failed remote listing does not update the sync database for that folder.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import os
 import re
@@ -68,6 +68,117 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                    global_ex=global_ex, delete=delete)
     with ctx.db:
         return _sync_dir(source, mapping.get("dest_parent") or "", ctx)
+
+
+_CONFLICT_TEXT = {
+    "local-same": "same local folder as {o}",
+    "local-parent": "its local folder contains the one of {o}",
+    "local-child": "its local folder is inside the one of {o}",
+    "arrival-same": "same Proton folder as {o}: {d}",
+    "arrival-inside": "its Proton folder is inside the one of {o}: {d}",
+    "arrival-contains": "its Proton folder contains the one of {o}: {d}",
+}
+
+
+def plan(sync_mappings, upload_mappings):
+    """Split the ``sync_mappings`` entries into (runnable, skipped).
+
+    skipped is a list of (mapping, log line). Nothing here runs an entry: an
+    unknown direction or type, or an overlap with another mapping, only
+    produces a line. Checked on every load of the file."""
+    import mapping_keys
+    skipped, ok = [], []
+    for m in sync_mappings:
+        if not isinstance(m, dict):
+            skipped.append((m, _("Two-way entry skipped: not a mapping object")))
+        elif m.get("direction") not in mapping_keys.SYNC_DIRECTIONS:
+            skipped.append((m, _("Sync mapping skipped: unknown direction {d!r}: {s}")
+                            .format(d=m.get("direction"), s=m.get("source", ""))))
+        elif m.get("type") not in mapping_keys.SYNC_TYPES:
+            skipped.append((m, _("Sync mapping skipped: unknown type {t!r}: {s}")
+                            .format(t=m.get("type"), s=m.get("source", ""))))
+        elif not m.get("source") or not m.get("dest_parent"):
+            skipped.append((m, _("Sync mapping skipped: source or destination missing: {s}")
+                            .format(s=m.get("source", ""))))
+        else:
+            ok.append(m)
+    conflicts = mapping_keys.sync_mapping_conflicts(ok, upload_mappings)
+    runnable = []
+    for i, m in enumerate(ok):
+        hit = conflicts.get(i)
+        if hit:
+            reason, other, detail = hit
+            why = _(_CONFLICT_TEXT[reason]).format(o=other.get("source", "?"), d=detail)
+            skipped.append((m, _("Two-way mapping not run: {s} ({w})")
+                            .format(s=m["source"], w=why)))
+        else:
+            runnable.append(m)
+    return runnable, skipped
+
+
+def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
+             only_source=None, trigger_name="none", runner=None, dry_run=False,
+             verbose=False, allow_mass_delete=False, delete=False,
+             full_check=False, blocked=None):
+    """Run the two-way pass of one engine run. Returns a list of
+    (source, complete, unreadable) for the health report.
+
+    ``runner`` is a trigger's own function; None means no events probe, so
+    the whole Proton side would be listed (``sync_mapping``); that is only
+    done when ``full_check`` is set (--twoway-full-check), otherwise each
+    mapping is paused with one line and counted in ``twoway_paused``.
+    ``upload_mappings`` is the full ``mappings`` list, for the overlap check;
+    ``blocked`` maps id(mapping) to (reason, other, detail, file) for the
+    mappings that overlap a mapping of the other service's file."""
+    if runner is None and trigger_name != "none":
+        print(_("Two-way trigger {t!r} unknown: listing the whole Proton side")
+              .format(t=trigger_name))
+    runnable, skipped = plan(sync_mappings, upload_mappings)
+    if blocked:
+        still = []
+        for m in runnable:
+            hit = blocked.get(id(m))
+            if hit:
+                reason, other, detail, where = hit
+                why = _(_CONFLICT_TEXT[reason]).format(o=other.get("source", "?"), d=detail)
+                skipped.append((m, _("Two-way mapping not run: {s} ({w}, in the "
+                                     "mappings file {f})").format(
+                                         s=m["source"], w=why, f=where)))
+            else:
+                still.append(m)
+        runnable = still
+    for _skipped, line in skipped:
+        print("  \u23ed " + line)
+    if only_source:
+        wanted = {os.path.normpath(s) for s in only_source}
+        runnable = [m for m in runnable
+                    if os.path.normpath(m["source"]) in wanted]
+    out = []
+    if runner is None and not full_check:
+        for m in runnable:
+            print("  \u23f8 " + _("Two-way sync paused for {s}: there is no events "
+                                  "probe, so a pass would have to list the whole "
+                                  "Proton side. Run with --twoway-full-check to "
+                                  "do that once.").format(s=m["source"]))
+            _ps._RUN.add("twoway_paused")
+        return out
+    for m in runnable:
+        print(_("\n\u25b6 Two-way mapping: {s}  =>  {d}").format(
+            s=m["source"], d=m["dest_parent"]))
+        _ps._RUN.mappings_total += 1
+        if not os.path.exists(m["source"]):
+            print(_("  \u274c Source not found, skipped: {s}").format(s=m["source"]))
+            _ps._RUN.add("sources_missing")
+            continue
+        complete = (runner or sync_mapping)(
+            m, config_path, cache, _ps.mapping_exclusions(m, global_ex),
+            dry_run=dry_run, verbose=verbose, allow_mass_delete=allow_mass_delete,
+            global_ex=global_ex, delete=delete)
+        if complete:
+            _ps._RUN.add("mappings_complete")
+        out.append((m["source"], bool(complete), _ps._take_unreadable()))
+        cache.save()
+    return out
 
 
 def sync_tree(mapping, local_dir, remote_parent, config_path, cache, exclusions,
@@ -286,8 +397,8 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
             "refusing to trash {n} of {t} remote item(s) in {p}").format(
                 n=len(gone), t=len(listing), p=remote_folder))
         _ps._RUN.add("deletions_refused")
-        for local_path, remote_path, info, row in gone:
-            _set_state(row, "pending-down", ctx)
+        # The rows stay as they are (synced): the next pass decides again
+        # from scratch, so a refused deletion is never turned into a restore.
         return False
 
     for local_path, remote_path, info, row in gone:
@@ -299,7 +410,13 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
             else:
                 ok = False
         else:
-            _set_state(row, "pending-down", ctx)
+            if not _deletion_switched_on(ctx):
+                # Deletion is simply off: the documented behaviour, the file
+                # comes back on the next pass.
+                _set_state(row, "pending-down", ctx)
+            # Otherwise a guard refused it (mount, source_kind, shared
+            # folder): the row stays synced and the next pass decides again,
+            # so a refused deletion is never turned into a restore.
             if ctx.opts.get("mount_lost"):
                 ok = False
 
@@ -408,7 +525,7 @@ def _fetch(remote_path, directory):
     back.
     """
     result = _ps.run_cli(
-        ["filesystem", "download", "-f", "replace", remote_path, directory])
+        ["filesystem", "download", "-f", "skip", remote_path, directory])
     text = (result.stdout or "") + "\n" + (result.stderr or "")
     if "skipped:" in text:
         return None, True, ""
@@ -629,6 +746,10 @@ def _flush_holds(queue, local_count, remote_folder, ctx):
         if not _hold(local_path, ctx):
             ok = False
     return ok
+
+
+def _deletion_switched_on(ctx):
+    return bool(ctx.delete and ctx.mapping.get("allow_delete"))
 
 
 def _can_trash(ctx, remote_path):

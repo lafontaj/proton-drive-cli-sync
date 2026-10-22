@@ -165,7 +165,7 @@ def test_download_writes_the_remote_file_into_the_directory(fake_drive, tmp_path
     dest = tmp_path / "down"
     dest.mkdir()
     result = fake_drive.run(
-        "filesystem", "download", "-f", "replace",
+        "filesystem", "download", "-f", "skip",
         "/my-files/a.txt", str(dest),
     )
     assert result.returncode == 0, result.stderr
@@ -185,9 +185,9 @@ def test_download_skip_leaves_the_local_file(fake_drive, tmp_path):
     assert (dest / "a.txt").read_bytes() == b"LOCAL"
 
 
-def test_download_replace_and_remove_overwrite(fake_drive, tmp_path):
+def test_download_remove_overwrites(fake_drive, tmp_path):
     fake_drive.seed_file("/my-files/a.txt", b"REMOTE", mtime=1_000_000_000)
-    for strategy in ("replace", "remove"):
+    for strategy in ("remove", "rem"):
         dest = tmp_path / strategy
         dest.mkdir()
         (dest / "a.txt").write_bytes(b"LOCAL")
@@ -199,14 +199,14 @@ def test_download_replace_and_remove_overwrite(fake_drive, tmp_path):
         assert (dest / "a.txt").read_bytes() == b"REMOTE"
 
 
-def test_download_keep_both_and_rename_write_a_second_name(fake_drive, tmp_path):
+def test_download_rename_writes_a_second_name(fake_drive, tmp_path):
     fake_drive.seed_file("/my-files/a.txt", b"REMOTE", mtime=1_000_000_000)
-    for strategy in ("keep-both", "rename"):
+    for strategy in ("rename",):
         dest = tmp_path / strategy
         dest.mkdir()
         (dest / "a.txt").write_bytes(b"LOCAL")
         result = fake_drive.run(
-            "filesystem", "download", "--conflict-strategy", strategy,
+            "filesystem", "download", "--file-conflict-strategy", strategy,
             "/my-files/a.txt", str(dest),
         )
         assert result.returncode == 0, result.stderr
@@ -232,9 +232,39 @@ def test_failed_download_writes_nothing(fake_drive, tmp_path):
     dest = tmp_path / "down"
     dest.mkdir()
     result = fake_drive.run(
-        "filesystem", "download", "-f", "replace",
+        "filesystem", "download", "-f", "skip",
         "/my-files/a.txt", str(dest),
     )
     assert result.returncode == 1
     assert not (dest / "a.txt").exists()
     assert list(dest.iterdir()) == []
+
+
+def test_fake_download_rejects_what_the_real_cli_rejects(fake_drive, tmp_path):
+    """`replace` and `keep-both` exist only for uploads; `-c` does not exist."""
+    fake_drive.seed_file("/my-files/a.txt", b"REMOTE", mtime=1_000_000_000)
+    dest = tmp_path / "down"
+    dest.mkdir()
+    for flag, value in (("-f", "replace"), ("-f", "keep-both"),
+                        ("-d", "replace"), ("-c", "skip")):
+        result = fake_drive.run(
+            "filesystem", "download", flag, value, "/my-files/a.txt", str(dest))
+        assert result.returncode != 0, (flag, value)
+        assert list(dest.iterdir()) == []
+    result = fake_drive.run(
+        "filesystem", "download", "-f", "replace", "/my-files/a.txt", str(dest))
+    assert 'Invalid conflict strategy "replace"' in result.stderr
+    assert "rename, remove, skip" in result.stderr
+
+
+def test_fake_upload_rejects_an_unknown_strategy(fake_drive, tmp_path):
+    (tmp_path / "a.txt").write_bytes(b"A")
+    result = fake_drive.run(
+        "filesystem", "upload", "-f", "keep-both", "-d", "merge",
+        str(tmp_path / "a.txt"), "/my-files")
+    assert result.returncode != 0
+    assert "Invalid conflict strategy" in result.stderr
+    result = fake_drive.run(
+        "filesystem", "upload", "-f", "replace", "-d", "remove",
+        str(tmp_path / "a.txt"), "/my-files")
+    assert result.returncode != 0

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Moteur de synchro Proton Drive (NAS -> Proton, à sens unique).
+Moteur de synchro Proton Drive (NAS -> Proton, à sens unique). Les entrées
+de la clé "sync_mappings" (direction "twoway") se synchronisent dans les deux
+sens (twoway.py).
 
 Lit un fichier JSON de mappings (voir proton_mapping_editor.py) et, pour
 chaque entrée, n'envoie que les fichiers nouveaux ou modifiés plutôt que
@@ -29,7 +31,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (sinon : réglage, binaire à côté des scripts, puis PATH)
 """
-__version__ = "1.21.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.22.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -133,6 +135,7 @@ class RunStats:
         "sources_missing",
         "mappings_total",
         "mappings_complete",
+        "twoway_paused",
     )
     # Un de ces compteurs > 0 => le passage est allé au bout, mais incomplet.
     _FAILURES = (
@@ -817,12 +820,34 @@ def load_config(path):
     raise ValueError("Format de config non reconnu (ni liste, ni objet).")
 
 
-# Déclencheurs du deux sens, par nom. None = aucun moyen de savoir ce qui a
-# changé côté Proton : les mappings deux sens sont alors ignorés (pas de
-# parcours périodique de l'arbre distant). Une valeur appelable remplace le
-# parcours : fn(mapping, config_path, cache, exclusions, **opts) -> complet.
+def load_sync_mappings(path):
+    """Mappings deux sens : la clé "sync_mappings" du fichier de mappings.
+
+    "mappings" reste à sens unique, inchangé. Ancien format (liste), clé
+    absente ou valeur qui n'est pas une liste : aucun mapping deux sens."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict):
+        found = data.get("sync_mappings", [])
+        if isinstance(found, list):
+            return found
+    return []
+
+
+# Déclencheurs du deux sens, par nom. None = aucune sonde d'événements : le
+# moteur liste tout le côté Proton à chaque passage (premier passage, nouveau
+# balayage, sonde absente ou en échec) ; il fonctionne pleinement ainsi. Une
+# valeur appelable remplace ce parcours :
+# fn(mapping, config_path, cache, exclusions, **opts) -> complet.
 # Seul "none" existe pour l'instant ; la sonde d'événements viendra ensuite.
 TWOWAY_TRIGGERS = {"none": None}
+
+
+def twoway_runner():
+    """(nom, exécuteur) du déclencheur. Exécuteur None = aucune sonde
+    d'événements : le deux sens est en pause, sauf --twoway-full-check."""
+    name = "none"
+    return name, TWOWAY_TRIGGERS.get(name)
 
 
 def mapping_exclusions(mapping, global_ex):
@@ -2584,6 +2609,26 @@ def _hold_arrival_conflicts(mappings):
     return held
 
 
+def _hold_sync_conflicts(mappings, sync_mappings, held):
+    """Retient les suppressions des mappings à sens unique qui chevauchent un
+    mapping deux sens du même fichier (les six relations de
+    mapping_keys.sync_mapping_conflicts), même règle que _hold_arrival_conflicts :
+    en mémoire seulement, pour tout le passage, le vidage distant est refusé
+    pour eux. Le mapping deux sens, lui, est écarté par twoway.plan.
+
+    Complète `held` (6e place : True, conflit avec un mapping deux sens)."""
+    if not _HAS_MAPPING_KEYS or not sync_mappings:
+        return
+    for i, (twoway_m, _reason, _detail) in mapping_keys.upload_sync_holds(
+            mappings, sync_mappings).items():
+        m = mappings[i]
+        if id(m) in held:
+            continue
+        held[id(m)] = (twoway_m.get("source", "?"), mapping_keys.arrival_folder(m),
+                       bool(m.get("allow_delete")), False, None, True)
+        m["allow_delete"] = False
+
+
 def _running_mappings_files():
     """Fichiers de mappings des services en service : celui de la planification
     et celui du temps réel (None quand le service est absent ou désactivé). Lus
@@ -2593,7 +2638,8 @@ def _running_mappings_files():
     return realtime_manager.services_mappings_files()
 
 
-def _hold_cross_file_conflicts(config_path, mappings, held):
+def _hold_cross_file_conflicts(config_path, mappings, held, sync_mappings=(),
+                               blocked=None):
     """Même retenue que _hold_arrival_conflicts, mais contre les mappings des
     AUTRES fichiers en service (planification, temps réel) : un mapping d'un
     fichier et un mapping de l'autre qui arrivent dans le même dossier du
@@ -2607,6 +2653,13 @@ def _hold_cross_file_conflicts(config_path, mappings, held):
     Si les fichiers en service ne peuvent pas être connus (gestionnaire absent,
     erreur en le chargeant), on ne peut pas savoir : toutes les suppressions
     sont refusées, comme sans mount_check.
+
+    Les entrées "sync_mappings" de l'autre fichier comptent aussi : un mapping
+    à sens unique de ce fichier qui en chevauche un voit ses suppressions
+    retenues (6e place de `held` : True), et un mapping deux sens de ce
+    fichier qui chevauche un mapping quelconque de l'autre fichier n'est pas
+    lancé : il est consigné dans `blocked` ({id(mapping deux sens): (raison,
+    autre mapping, détail, autre fichier)}), que twoway.run_pass applique.
 
     Complète `held` (mêmes entrées, l'autre fichier en 5e position) et
     retourne False seulement si le contrôle n'a pas pu se faire."""
@@ -2631,6 +2684,27 @@ def _hold_cross_file_conflicts(config_path, mappings, held):
         if doc is None:
             continue
         theirs, global_theirs = doc
+        theirs_sync = mapping_keys.read_sync_mappings(other_path)
+        if theirs_sync:
+            for i, (twoway_m, _r, _d) in mapping_keys.upload_sync_holds(
+                    mappings, theirs_sync).items():
+                m = mappings[i]
+                if id(m) in held:
+                    continue
+                held[id(m)] = (twoway_m.get("source", "?"),
+                               mapping_keys.arrival_folder(m),
+                               bool(m.get("allow_delete")), False, other_path, True)
+                m["allow_delete"] = False
+        if blocked is not None:
+            pool = list(theirs) + mapping_keys.runnable_sync_mappings(theirs_sync)
+            for t in mapping_keys.runnable_sync_mappings(sync_mappings):
+                if id(t) in blocked:
+                    continue
+                for o in pool:
+                    hit = mapping_keys.sync_overlap(t, o)
+                    if hit:
+                        blocked[id(t)] = (hit[0], o, hit[1], other_path)
+                        break
         for i, j, kind, folder, _f in mapping_keys.cross_conflicts(
                 mappings, global_mine, theirs, global_theirs):
             m = mappings[i]
@@ -2649,7 +2723,16 @@ def _print_arrival_holds(scope, held, delete):
         return
     for m in scope:
         info = held.get(id(m))
-        if info and info[2] and info[4]:
+        if info and info[2] and len(info) > 5 and info[5]:
+            if info[4]:
+                text = _("deletions held for {s}: it overlaps the two-way mapping "
+                         "{o}, in the mappings file {f}; files are still sent.")
+            else:
+                text = _("deletions held for {s}: it overlaps the two-way mapping "
+                         "{o}; files are still sent.")
+            print("  ⚠  [twoway-conflict] " + text.format(
+                s=m.get("source", "?"), o=info[0], f=info[4]))
+        elif info and info[2] and info[4]:
             if info[3]:
                 text = _("deletions held for {s}: {o}, in the mappings file {f}, "
                          "puts its content in the same Proton folder, {r}; files "
@@ -3511,7 +3594,7 @@ def _pass_mode(args):
 
 def _summary_line():
     """Une ligne traduite, juste avant le JSON machine [run-result]."""
-    return _("Summary: uploaded {files_uploaded}, would upload {files_would_upload}, "
+    line = _("Summary: uploaded {files_uploaded}, would upload {files_would_upload}, "
              "failed {files_failed}, vanished {files_vanished}, "
              "listing failed {folders_listing_failed}, unreadable {folders_unreadable}, "
              "permission denied {folders_permission_denied}, "
@@ -3519,6 +3602,10 @@ def _summary_line():
              "trash failed {trash_failed}, deletions refused {deletions_refused}, "
              "sources missing {sources_missing}, "
              "mappings {mappings_complete}/{mappings_total}.").format(**_RUN.to_dict())
+    paused = _RUN.to_dict().get("twoway_paused", 0)
+    if paused:
+        line += " " + _("Two-way sync paused: {n} mapping(s), no events probe.").format(n=paused)
+    return line
 
 
 # ── Reprise des vérifications SHA1 déjà faites, d'après les journaux ─────────
@@ -3720,6 +3807,13 @@ def main():
              "'keep'. Les exclusions globales nettoient toujours. Si le garde-fou "
              "de masse est allumé (éteint par défaut), un dossier trop vidé d'un "
              "coup n'est pas touché (voir --allow-mass-delete).",
+    )
+    parser.add_argument(
+        "--twoway-full-check", action="store_true",
+        help="Lance les mappings deux sens (clé sync_mappings) par un parcours "
+             "complet du côté Proton. Sans sonde d'événements (le seul cas "
+             "aujourd'hui), ils sont en pause à chaque passage : ce parcours "
+             "n'a lieu que sur demande explicite.",
     )
     parser.add_argument(
         "--allow-mass-delete", action="store_true",
@@ -3947,6 +4041,7 @@ def main():
         _finish_pass(2, _pass_mode(args), args.dry_run, completed=False)
 
     mappings, global_ex = load_config(args.config)
+    sync_mappings = load_sync_mappings(args.config)
     # Liste COMPLÈTE, avant toute restriction (--only-source, --reset-source) :
     # la reprise des vérifications d'après les journaux porte sur tous les
     # mappings du fichier, pas seulement sur ceux de ce passage.
@@ -3954,7 +4049,10 @@ def main():
     # Conflits de dossiers d'arrivée : suppressions retenues en mémoire pour
     # tout le passage, AVANT toute restriction de portée.
     arrival_held = _hold_arrival_conflicts(mappings)
-    cross_checked = _hold_cross_file_conflicts(args.config, mappings, arrival_held)
+    _hold_sync_conflicts(mappings, sync_mappings, arrival_held)
+    twoway_blocked = {}
+    cross_checked = _hold_cross_file_conflicts(args.config, mappings, arrival_held,
+                                               sync_mappings, twoway_blocked)
 
     # Le cache est indexé par le nom du fichier de mappings (sans son chemin).
     # Comme ça, déplacer le JSON ne casse pas le cache.
@@ -4164,6 +4262,14 @@ def main():
                 target = m
                 break
         if target is None:
+            for m in sync_mappings:
+                if isinstance(m, dict) and os.path.normpath(m.get("source", "")) == target_source:
+                    # Pas de sous-arbre en temps réel pour le deux sens : il
+                    # est traité par un passage complet.
+                    print(_("  ⏭ Two-way mapping skipped (not handled by a "
+                            "single-subtree pass): {s}").format(s=m["source"]))
+                    _finish_pass(0, "subpath", args.dry_run, completed=True)
+        if target is None:
             print(_("❌ No mapping with source = {s}").format(s=args.mapping_source))
             sys.exit(1)
         if target["type"] != "folder":
@@ -4245,7 +4351,10 @@ def main():
                     # Vider ce dossier jetterait aussi ce qu'un autre mapping y
                     # a déposé : même règle que les suppressions.
                     info = arrival_held[id(m)]
-                    if info[4]:
+                    if len(info) > 5 and info[5]:
+                        print(_("  ⛔ Remote wipe REFUSED: this mapping overlaps the "
+                                "two-way mapping {o}.").format(o=info[0]))
+                    elif info[4]:
                         print(_("  ⛔ Remote wipe REFUSED: this mapping's Proton "
                                 "folder is the same as the one of {o}, in the "
                                 "mappings file {f}, or nested with it.").format(
@@ -4331,6 +4440,20 @@ def main():
         # mappings déjà entièrement traités. L'écriture atomique (tmp+rename)
         # garantit qu'on ne se retrouve jamais avec un cache corrompu.
         cache.save()
+
+    # Mappings deux sens (clé "sync_mappings") : jamais lancés comme envois.
+    # Les conflits de chevauchement et les directions inconnues sont écartés
+    # avec une ligne de journal ; le reste passe par twoway.run_pass.
+    if sync_mappings and not args.reset_source:
+        import twoway
+        trigger_name, runner = twoway_runner()
+        for src, complete, unreadable in twoway.run_pass(
+                sync_mappings, all_mappings, args.config, cache, global_ex,
+                only_source=args.only_source, trigger_name=trigger_name,
+                runner=runner, dry_run=args.dry_run, verbose=args.verbose,
+                allow_mass_delete=args.allow_mass_delete, delete=args.delete,
+                full_check=args.twoway_full_check, blocked=twoway_blocked):
+            health.append((src, complete, unreadable))
 
     # Publication de l'état de santé : ce que ce passage a constaté, réécrit
     # même quand tout va bien (une liste vide EST l'information « plus rien

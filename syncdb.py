@@ -4,7 +4,7 @@ The path comes from ``config.DATA_DIR`` (or an explicit directory). This
 module does not call the Proton CLI and does not decide uploads or downloads.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 import os
 import sqlite3
@@ -122,6 +122,13 @@ class SyncDB:
         self.path = os.fspath(path)
         self._conn = sqlite3.connect(self.path, timeout=5)
         try:
+            # Several processes (engine pass, editor, watcher) may open the
+            # same file: WAL lets readers and one writer work together, and
+            # busy_timeout waits instead of failing with "database is locked".
+            # Every write below commits on its own and stays short; callers
+            # never hold a transaction open across a Proton CLI call.
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
             self._ensure()
         except Exception:
             self._conn.close()

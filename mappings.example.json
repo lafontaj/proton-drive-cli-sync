@@ -83,5 +83,13 @@
       "delete_mode": "trash",
       "source_kind": "nfs"
     }
+  ],
+  "sync_mappings": [
+    {
+      "type": "folder",
+      "source": "/home/myuser/Shared",
+      "dest_parent": "/my-files",
+      "direction": "twoway"
+    }
   ]
 }

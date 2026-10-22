@@ -125,3 +125,18 @@ def test_load_warns_once_about_a_shared_arrival_folder(tmp_path, monkeypatch):
     ed.MappingEditor._load(stub, str(path))
     assert len(shown) == 1
     assert "/my-files/S/Photos" in shown[0] and "/n/Photos" in shown[0]
+
+
+def test_upload_sync_holds_and_read_sync_mappings(tmp_path):
+    up = [{"type": "folder", "source": "/a/Docs", "dest_parent": "/my-files/B"},
+          {"type": "folder", "source": "/a/Other", "dest_parent": "/my-files/C"}]
+    tw = [{"type": "folder", "source": "/a/Docs", "dest_parent": "/my-files/B",
+           "direction": "twoway"}]
+    holds = mk.upload_sync_holds(up, tw)
+    assert list(holds) == [0]
+    assert holds[0][0] is tw[0]
+    assert mk.upload_sync_holds(up, []) == {}
+    f = tmp_path / "m.json"
+    f.write_text(json.dumps({"mappings": up, "sync_mappings": tw + ["junk"]}))
+    assert mk.read_sync_mappings(str(f)) == tw
+    assert mk.read_sync_mappings(str(tmp_path / "missing.json")) == []

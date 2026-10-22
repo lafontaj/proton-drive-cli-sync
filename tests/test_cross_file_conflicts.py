@@ -198,3 +198,61 @@ def test_disabled_service_does_not_count(
     out = result.stdout + result.stderr
     assert "[arrival-conflict]" not in out, out
     assert fake_drive.trashed("/my-files/Backups/Photos/old.jpg"), out
+
+
+def _write_sync(path, mappings, sync_mappings):
+    path.write_text(json.dumps({"mappings": mappings,
+                                "sync_mappings": sync_mappings}), encoding="utf-8")
+    return path
+
+
+def _two_way(source, dest, **extra):
+    return _mapping(source, dest, direction="twoway", **extra)
+
+
+def test_upload_mapping_overlapping_a_two_way_of_the_other_file_holds_deletions(
+        fake_drive, local_tree, isolated_home, tmp_path, engine):
+    root = _photos(local_tree)
+    sched = _write(tmp_path / "mappings-sched.json",
+                   [_mapping(root / "here" / "Photos", "/my-files/Backups")])
+    rt = _write_sync(tmp_path / "mappings-rt.json", [],
+                     [_two_way(root / "nas" / "Photos", "/my-files/Backups")])
+    _services(isolated_home, schedule=sched, realtime=rt)
+    assert engine(sched).returncode == 0
+    result = engine(sched, "--delete")
+    out = result.stdout + result.stderr
+    assert result.returncode == 0, out
+    assert _trash_calls(fake_drive) == [], out
+    assert "[twoway-conflict]" in out and "mappings-rt.json" in out, out
+    assert "old.jpg" in fake_drive.listing("/my-files/Backups/Photos")
+
+
+def test_two_way_mapping_overlapping_a_mapping_of_the_other_file_does_not_run(
+        fake_drive, local_tree, isolated_home, tmp_path, engine):
+    root = _photos(local_tree)
+    sched = _write(tmp_path / "mappings-sched.json",
+                   [_mapping(root / "here" / "Photos", "/my-files/Backups")])
+    rt = _write_sync(tmp_path / "mappings-rt.json", [],
+                     [_two_way(root / "nas" / "Photos", "/my-files/Backups")])
+    _services(isolated_home, schedule=sched, realtime=rt)
+    fake_drive.seed_file("/my-files/Backups/Photos/web.jpg", b"W")
+    result = engine(rt)
+    out = result.stdout + result.stderr
+    assert result.returncode == 0, out
+    assert "Two-way mapping not run" in out and "mappings-sched.json" in out, out
+    assert not (root / "nas" / "Photos" / "web.jpg").exists()
+    assert "b.jpg" not in fake_drive.listing("/my-files/Backups/Photos")
+
+
+def test_two_way_mapping_overlapping_a_two_way_of_the_other_file_does_not_run(
+        fake_drive, local_tree, isolated_home, tmp_path, engine):
+    root = _photos(local_tree)
+    sched = _write_sync(tmp_path / "mappings-sched.json", [],
+                        [_two_way(root / "here" / "Photos", "/my-files/Backups")])
+    rt = _write_sync(tmp_path / "mappings-rt.json", [],
+                     [_two_way(root / "nas" / "Photos", "/my-files/Backups")])
+    _services(isolated_home, schedule=sched, realtime=rt)
+    result = engine(rt)
+    out = result.stdout + result.stderr
+    assert "Two-way mapping not run" in out and "mappings-sched.json" in out, out
+    assert "b.jpg" not in fake_drive.listing("/my-files/Backups/Photos")

@@ -280,6 +280,21 @@ Other top-level keys, written by a newer version of the application, are kept as
 - `source_kind`: `"nfs"` or `"local"`. Auto-detected by the GUI, confirmed when editing. Used by the safety guard: an `nfs` source only deletes if the network mount is alive.
 - `excluded_remote`: absent (the default) or `"prune"` sends the already-uploaded remote copy of a name excluded **on this mapping** to the Proton trash on the next `--delete` pass. `"keep"` is opt-in — the checkbox in the mapping dialog — and covers only exclusions written on that mapping. A name that matches a **global** exclusion is still trashed. Any other value is treated as `"prune"` with a warning. Applies to full passes, resets and `--subpath`.
 
+### Two-way mappings (`sync_mappings`)
+
+A second top-level key, `sync_mappings`, lists folders that sync both ways. `mappings` stays upload-only and is unchanged.
+
+```json
+"sync_mappings": [
+  {"type": "folder", "source": "/home/me/Shared", "dest_parent": "/my-files", "direction": "twoway"}
+]
+```
+
+- `direction`: `"twoway"` is the only value for now. An entry with any other direction (or an unknown `type`) is skipped with one log line; it is never run as an upload.
+- **No overlaps.** A two-way mapping may not overlap any other mapping, upload or two-way: not the same local folder, not a parent, not a subfolder. On the Proton side the arrival-folder rule above applies too. This is checked each time the file is loaded; a two-way mapping in conflict does not run, and the engine logs one line naming it and the reason. Upload mappings keep their behaviour. The check is `mapping_keys.sync_mapping_conflicts(sync_mappings, upload_mappings)`.
+- **Paused by default.** There is no events probe, so a two-way mapping does not run on a normal pass. Each pass logs one line per mapping saying two-way sync is paused, and the run result counts them in `twoway_paused`. `--twoway-full-check` lists the whole Proton side and runs the mappings once.
+- **Upload mappings that overlap a two-way mapping** (in this file or in the other service's file) run with deletions held, in memory only, with a `[twoway-conflict]` log line; a remote wipe is refused for them. A two-way mapping that overlaps any mapping of the other service's file does not run.
+
 ### Exclusions
 
 Two combined mechanisms, applying to **folders AND files**, by **name** (not full path):

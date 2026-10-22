@@ -65,10 +65,14 @@ def _split_options(args):
     return options, positionals, None
 
 
+def _unknown_option_text(token):
+    return ("Unknown option '%s'. To specify a positional argument starting "
+            "with a '-', place it at the end of the command after '--'"
+            % token.lstrip("-")[:1])
+
+
 def _unknown_option(token):
-    return _fail("Unknown option '%s'. To specify a positional argument starting "
-                 "with a '-', place it at the end of the command after '--'"
-                 % token.lstrip("-")[:1], 1)
+    return _fail(_unknown_option_text(token), 1)
 
 
 def _parse_upload(args):
@@ -124,6 +128,12 @@ def _upload(state, args):
     names, remote_parent, unknown = _parse_upload(args)
     if unknown:
         return _unknown_option(unknown)
+    options, _rest, _u = _split_options(args)
+    for k in range(0, len(options)):
+        if options[k] in ("-f", "-d") and k + 1 < len(options):
+            error = _check_strategy("upload", options[k], options[k + 1])
+            if error:
+                return _fail(error, 1)
     if not names or not remote_parent:
         return _fail("fake: unsupported command", 2)
     remote_parent = remote_state.normalize(remote_parent)
@@ -244,44 +254,76 @@ def _create_folder(state, parent, name):
     return 0
 
 
-_FILE_CONFLICTS = {
-    "skip": "skip",
-    "replace": "replace",
-    "remove": "replace",
-    "keep-both": "keep-both",
-    "rename": "keep-both",
+# Strategies the real CLI (0.9.0) accepts, per subcommand and option. Read from
+# `filesystem <verb> --help`; tests/test_real_cli_contract.py compares them
+# with the installed CLI. The CLI also accepts unique abbreviations.
+_STRATEGIES = {
+    ("upload", "-f"): ("create-new-revision", "rename", "replace", "skip"),
+    ("upload", "-d"): ("merge", "rename", "replace", "skip"),
+    ("download", "-f"): ("rename", "remove", "skip"),
+    ("download", "-d"): ("merge", "rename", "remove", "skip"),
 }
+_LONG_OPTIONS = {
+    "--file-conflict-strategy": "-f",
+    "--folder-conflict-strategy": "-d",
+}
+
+
+def _check_strategy(verb, flag, value):
+    """Return an error message when the real CLI would reject ``value``."""
+    flag = _LONG_OPTIONS.get(flag, flag)
+    allowed = _STRATEGIES[(verb, flag)]
+    if value in allowed:
+        return None
+    matches = [name for name in allowed if name.startswith(value)]
+    if value and len(matches) == 1:
+        return None
+    return ('Invalid conflict strategy "%s". Expected one of: %s '
+            "(unique abbreviations are allowed)." % (value, ", ".join(allowed)))
+
+
+def _canonical(verb, flag, value):
+    flag = _LONG_OPTIONS.get(flag, flag)
+    allowed = _STRATEGIES[(verb, flag)]
+    if value in allowed:
+        return value
+    return [name for name in allowed if name.startswith(value)][0]
+
 
 _DOC_TYPES = ("document", "spreadsheet", "proton-doc")
 
 
 def _parse_download(args):
-    """Return (remote_paths, local_folder, file_strategy) or None.
+    """Return (remote_paths, local_folder, file_strategy, error) or None.
 
-    Matches `filesystem download [-c|-f|-d STRATEGY] <remote...> <localFolder>`.
-    `-f` / `--file-conflict-strategy` and `-c` / `--conflict-strategy` set the
-    file strategy (`skip`, `replace`/`remove`, `keep-both`/`rename`). `-d` is
-    accepted for folders and ignored for a file download.
+    Matches `filesystem download [-f STRATEGY] [-d STRATEGY] <remote...>
+    <localFolder>` as the real CLI 0.9.0 does: `-f` takes rename, remove or
+    skip, `-d` takes merge, rename, remove or skip, anything else is
+    rejected. There is no `-c` on this command. `-d` is accepted and ignored
+    for a file download.
     """
     file_strategy = None
     paths = []
-    file_flags = ("-f", "--file-conflict-strategy", "-c", "--conflict-strategy")
-    folder_flags = ("-d", "--folder-conflict-strategy")
     i = 0
     while i < len(args):
         token = args[i]
-        if token in file_flags or token in folder_flags:
+        if token in ("-f", "-d", *_LONG_OPTIONS):
             if i + 1 >= len(args):
                 return None
-            if token in file_flags:
-                file_strategy = args[i + 1]
+            error = _check_strategy("download", token, args[i + 1])
+            if error:
+                return None, None, None, error
+            if _LONG_OPTIONS.get(token, token) == "-f":
+                file_strategy = _canonical("download", token, args[i + 1])
             i += 2
             continue
+        if token.startswith("-") and token != "-":
+            return None, None, None, _unknown_option_text(token)
         paths.append(token)
         i += 1
     if len(paths) < 2:
         return None
-    return paths[:-1], paths[-1], file_strategy
+    return paths[:-1], paths[-1], file_strategy, None
 
 
 def _keep_both_name(directory, name):
@@ -320,10 +362,10 @@ def _download(state, args):
     parsed = _parse_download(args)
     if parsed is None:
         return _fail("fake: unsupported command", 2)
-    remotes, local_folder, file_strategy = parsed
-    if file_strategy is not None and file_strategy not in _FILE_CONFLICTS:
-        return _fail("fake: unknown conflict strategy", 2)
-    strategy = _FILE_CONFLICTS.get(file_strategy)
+    remotes, local_folder, file_strategy, error = parsed
+    if error:
+        return _fail(error, 1)
+    strategy = file_strategy
     if not os.path.isdir(local_folder):
         return _fail("not a directory", 1)
     for remote in remotes:
@@ -356,7 +398,7 @@ def _download(state, args):
                 return _fail("conflict strategy required", 1)
             if strategy == "skip":
                 continue
-            if strategy == "keep-both":
+            if strategy == "rename":
                 name = _keep_both_name(local_folder, name)
                 if not name:
                     return _fail("download failed", 1)
