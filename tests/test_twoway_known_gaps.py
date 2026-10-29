@@ -1,8 +1,8 @@
 """Two known gaps of the two-way reconcile, written as the behaviour we want.
 
-Both are strict xfail: they fail today and must start passing when the
-folder baseline (folder deleted on Proton) and node-id rename handling
-(file renamed on Proton) land. Remove the marker in the PR that fixes each.
+The rename gap is strict xfail: it fails today and must start passing when
+node-id rename handling (file renamed on Proton) lands. Remove the marker in
+the PR that fixes it. The folder gap was fixed by the folder baseline.
 """
 
 import os
@@ -36,8 +36,6 @@ def _remote_nodes(fake_drive):
     return holder["nodes"]
 
 
-@pytest.mark.xfail(strict=True, reason="no folder baseline yet: a folder "
-                   "deleted on Proton is re-created there, empty")
 def test_folder_deleted_on_proton_stays_deleted(fake_drive, local_tree,
                                                 write_mappings, engine):
     src = local_tree({"Docs/sub/b.txt": (b"BBBB", 1_000_000_000),
@@ -55,7 +53,7 @@ def test_folder_deleted_on_proton_stays_deleted(fake_drive, local_tree,
     fake_drive._update(delete_on_proton)
 
     assert engine(cfg, "--delete").returncode == 0
-    # Today: the folder comes back on Proton, and an empty folder stays here.
+    # The folder stays gone on Proton and is removed here once its files are held.
     assert sub not in _remote_nodes(fake_drive)
     assert not (src / "Docs" / "sub").exists()
     # The file itself is kept aside, never destroyed (holding).

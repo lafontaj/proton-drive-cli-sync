@@ -599,7 +599,7 @@ def test_a_failed_download_names_the_cli_error_and_the_new_file(
     result = engine(cfg)
     assert result.returncode == 5, result.stdout
     failed = [line for line in result.stdout.splitlines()
-              if line.startswith("[download-failed]")]
+              if line.startswith("  ❌ [download-failed]")]
     assert failed, result.stdout
     # The file was only on Proton: nothing local was "kept".
     assert "could not download" in failed[0]

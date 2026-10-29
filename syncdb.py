@@ -4,7 +4,7 @@ The path comes from ``config.DATA_DIR`` (or an explicit directory). This
 module does not call the Proton CLI and does not decide uploads or downloads.
 """
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 import os
 import sqlite3
@@ -272,4 +272,19 @@ class SyncDB:
             "DELETE FROM files WHERE local_path = ?",
             (local_path,),
         )
+        self._conn.commit()
+
+    def forget_tree(self, local_dir):
+        """Drop every file and folder row at or below ``local_dir``.
+
+        The match is on whole path parts: ``/a/b`` does not match ``/a/bc``.
+        """
+        base = local_dir.rstrip(os.sep)
+        prefix = base + os.sep
+        for table in ("files", "folders"):
+            self._conn.execute(
+                "DELETE FROM {t} WHERE local_path = ? "
+                "OR substr(local_path, 1, ?) = ?".format(t=table),
+                (base, len(prefix), prefix),
+            )
         self._conn.commit()
