@@ -10,7 +10,6 @@ __version__ = "1.0.0"
 
 import os
 import shutil
-import sqlite3  # noqa: F401  (kept for parity with the other two-way tests)
 
 import pytest
 
@@ -518,3 +517,39 @@ def test_the_mapping_root_is_never_moved(
     engine(cfg, "--delete")
     assert (src / "Docs").is_dir()
     assert _verbs(fake_drive, start, "rename", "move") == []
+
+
+def test_a_symlink_to_a_moved_file_is_not_a_move(
+        fake_drive, local_tree, write_mappings, engine):
+    src, cfg = _start(local_tree, write_mappings, engine, FILES)
+    start = len(fake_drive.calls())
+    os.rename(src / "Docs" / "a.txt", src / "outside.txt")
+    os.symlink(src / "outside.txt", src / "Docs" / "link.txt")
+    result = engine(cfg, "--delete")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _verbs(fake_drive, start, "rename", "move") == []
+    assert "[moved]" not in result.stdout
+
+
+def test_a_file_moved_here_into_a_folder_renamed_on_proton(
+        fake_drive, local_tree, write_mappings, engine):
+    src, cfg = _start(local_tree, write_mappings, engine, {
+        "Docs/a.txt": (b"AAAA", 1_000_000_000),
+        "Docs/sub/other.txt": (b"OTHER", 1_000_000_000)})
+    start = len(fake_drive.calls())
+    os.rename(src / "Docs" / "a.txt", src / "Docs" / "sub" / "a.txt")
+    fake_drive._update(lambda s: remote_state.relocate(
+        s, REMOTE + "/Docs/sub", REMOTE + "/Docs/sub2"))
+    result = engine(cfg, "--delete")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not _live(fake_drive, REMOTE + "/Docs/sub")
+    assert fake_drive.content(REMOTE + "/Docs/sub2/other.txt") == b"OTHER"
+    for _ in range(3):
+        result = engine(cfg, "--delete")
+        assert result.returncode == 0, result.stdout + result.stderr
+    assert (src / "Docs" / "sub2" / "a.txt").read_bytes() == b"AAAA"
+    assert (src / "Docs" / "sub2" / "other.txt").read_bytes() == b"OTHER"
+    assert not (src / "Docs" / "sub").exists()
+    assert fake_drive.content(REMOTE + "/Docs/sub2/a.txt") == b"AAAA"
+    assert not _live(fake_drive, REMOTE + "/Docs/a.txt")
+    _quiet(engine, fake_drive, cfg)

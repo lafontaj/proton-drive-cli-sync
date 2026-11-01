@@ -330,7 +330,7 @@ class _LocalScan:
                         continue
                     path = os.path.join(parent, name)
                     try:
-                        self._by_inode.setdefault(os.stat(path).st_ino, []).append(path)
+                        self._by_inode.setdefault(os.lstat(path).st_ino, []).append(path)
                     except OSError:
                         continue
         return self._by_inode.get(inode, ())
@@ -357,7 +357,9 @@ def _local_file_moves(ctx, files, scan):
         for path in scan.at(row["local_inode"]):
             if path in used or ctx.db.get(path) is not None:
                 continue
-            if scan.same(path, row["sha1"]):
+            # The scan is from the start of the pass: a folder renamed since
+            # may have taken this path away. The next pass finds the file.
+            if os.path.lexists(path) and scan.same(path, row["sha1"]):
                 used.add(path)
                 found[row["local_path"]] = path
                 break
