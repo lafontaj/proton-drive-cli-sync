@@ -103,6 +103,21 @@ def test_plain_list_stays_a_plain_list(ed, shown, tmp_path):
     assert isinstance(_save(ed, stub, path), list)
 
 
+@pytest.mark.parametrize("wrap", [lambda m: m, lambda m: {"mappings": m}],
+                         ids=["plain list", "object"])
+def test_direction_under_mappings_stays_an_upload(ed, shown, tmp_path, wrap):
+    # The engine runs everything under "mappings" as an upload, whatever its
+    # "direction" says, so opening and saving must not turn it into two-way.
+    entry = {"type": "folder", "source": "/h/Docs", "dest_parent": "/my-files"}
+    stub = _stub(ed)
+    path = tmp_path / "mappings.json"
+    _load(ed, stub, path, wrap([dict(entry, direction="twoway")]))
+    assert [ed.sync_mode(m) for m in stub.mappings] == ["upload"]
+    saved = _save(ed, stub, path)
+    assert "sync_mappings" not in saved
+    assert (saved if isinstance(saved, list) else saved["mappings"]) == [entry]
+
+
 def test_two_way_entries_are_shown_after_the_upload_ones(ed, shown, tmp_path):
     stub = _stub(ed)
     _load(ed, stub, tmp_path / "m.json", _DOCS["unknown direction, malformed entries"])

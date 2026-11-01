@@ -418,6 +418,14 @@ def _editable_sync_entry(entry):
             and all(k in entry for k in ("source", "dest_parent")))
 
 
+def _uploads(entries):
+    """Entrées lues sous "mappings" : toujours à sens unique, comme le moteur
+    les lance, même avec une clé "direction" égale à "twoway" (retirée ici :
+    l'enregistrement ne doit pas en faire un mapping deux sens en silence)."""
+    return [{k: v for k, v in e.items() if k != "direction"}
+            if sync_mode(e) == "twoway" else e for e in entries]
+
+
 def split_loaded(data):
     """(mappings, exclusions globales, extras) d'un fichier chargé. `mappings`
     contient les envois puis les entrées deux sens de "sync_mappings" (clé
@@ -426,13 +434,13 @@ def split_loaded(data):
     sens montrées (la liste d'origine, avec SHOWN à la place des montrées) ou
     n'est pas une liste (valeur d'origine)."""
     if isinstance(data, list):
-        return list(data), {"names": [], "patterns": []}, {}
+        return _uploads(data), {"names": [], "patterns": []}, {}
     if not isinstance(data, dict):
         raise ValueError("The file must contain a list or an object.")
     ex = data.get("exclusions", {}) or {}
     global_ex = {"names": list(ex.get("names", []) or []),
                  "patterns": list(ex.get("patterns", []) or [])}
-    mappings = list(data.get("mappings", []))
+    mappings = _uploads(data.get("mappings", []))
     extras = {k: v for k, v in unknown_top_level(data).items() if k != "sync_mappings"}
     if "sync_mappings" in data:
         found = data["sync_mappings"]
