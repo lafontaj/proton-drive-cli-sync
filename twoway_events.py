@@ -150,6 +150,9 @@ def read_changes(mapping, keep):
         return Result(False, _(
             "the events probe {n} was not found (set PROTON_SYNC_EVENTS, put it "
             "next to the scripts or on the PATH)").format(n=PROBE_NAME))
+    if not os.path.isfile(probe) or not os.access(probe, os.X_OK):
+        return Result(False, _(
+            "the events probe {p} was not found or cannot be run").format(p=probe))
     folder = remote_folder(mapping)
     cmd = [probe, "events", "changes", "-j"]
     if keep:

@@ -13,10 +13,10 @@ only sets the starting point (and saves it even with --keep, like the real one).
 
 Test controls, all in the environment:
   FAKE_PROBE_LOG      file; one JSON line per run with the arguments and data dir
-  FAKE_PROBE_FAULT    "<fault>[:<run number>]" with fault one of fail, nosession,
-                      hang, badjson, escape, killparent; without a number it
-                      applies to every run
-  FAKE_PROBE_SCRIPT   JSON file {"<run number>": [{"op": "write", "path": "/my-files/x",
+  FAKE_PROBE_FAULT    "<fault>[:<run number>|:ack]" with fault one of fail, nosession,
+                      hang, badjson, escape, killparent; ":ack" applies to the
+                      runs without --keep only, without a suffix to every run
+  FAKE_PROBE_SCRIPT   JSON file {"<run number>" or "ack": [{"op": "write", "path": "/my-files/x",
                       "text": "..."}, {"op": "trash", "path": ...},
                       {"op": "move", "from": ..., "to": ...}]} applied to the
                       fake Drive just before that run, to model a change that
@@ -59,6 +59,11 @@ def _fail(message, code=1):
     sys.exit(code)
 
 
+def _ack_run(argv):
+    """True for a run that moves the bookmark (no --keep)."""
+    return not any(t in ("-k", "--keep") for t in argv)
+
+
 def _count_run(data_dir):
     path = os.path.join(data_dir, "run-count")
     try:
@@ -71,23 +76,26 @@ def _count_run(data_dir):
     return number
 
 
-def _fault_for(run_number):
+def _fault_for(run_number, ack):
     raw = os.environ.get("FAKE_PROBE_FAULT", "")
     if not raw:
         return None
     name, _sep, number = raw.partition(":")
+    if number == "ack":
+        return name if ack else None
     if number and int(number) != run_number:
         return None
     return name
 
 
-def _apply_script(run_number):
+def _apply_script(run_number, ack):
     path = os.environ.get("FAKE_PROBE_SCRIPT")
     if not path or not os.path.exists(path):
         return
     with open(path, "r", encoding="utf-8") as handle:
         script = json.load(handle)
-    steps = script.get(str(run_number)) or []
+    steps = (script.get(str(run_number)) or []) + (
+        script.get("ack") or [] if ack else [])
     if not steps:
         return
     drive = os.environ["FAKE_PROTON_STATE"]
@@ -224,7 +232,8 @@ def main(argv):
         with open(log, "a", encoding="utf-8") as handle:
             handle.write(json.dumps({"args": argv, "data_dir": data_dir,
                                      "run": run_number}) + "\n")
-    fault = _fault_for(run_number)
+    ack = _ack_run(argv)
+    fault = _fault_for(run_number, ack)
     if fault == "fail":
         _fail("Error: the Proton service did not answer")
     if fault == "nosession":
@@ -235,7 +244,7 @@ def main(argv):
         os.kill(os.getppid(), signal.SIGKILL)
         time.sleep(5)
         return 1
-    _apply_script(run_number)
+    _apply_script(run_number, ack)
 
     drive = os.environ.get("FAKE_PROTON_STATE")
     state = remote_state.load(drive)
