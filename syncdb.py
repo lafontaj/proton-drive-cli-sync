@@ -4,7 +4,7 @@ The path comes from ``config.DATA_DIR`` (or an explicit directory). This
 module does not call the Proton CLI and does not decide uploads or downloads.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 import os
 import sqlite3
@@ -265,6 +265,23 @@ class SyncDB:
                 1 if row.get("remote_seen") else 0,
             ),
         )
+        self._conn.commit()
+
+    def get_meta(self, key):
+        """A value of the ``meta`` table, or None."""
+        row = self._conn.execute(
+            "SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return None if row is None else row[0]
+
+    def set_meta(self, key, value):
+        self._conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, str(value)))
+        self._conn.commit()
+
+    def delete_meta(self, key):
+        self._conn.execute("DELETE FROM meta WHERE key = ?", (key,))
         self._conn.commit()
 
     def delete(self, local_path):

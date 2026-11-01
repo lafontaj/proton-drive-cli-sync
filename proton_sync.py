@@ -31,7 +31,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (sinon : réglage, binaire à côté des scripts, puis PATH)
 """
-__version__ = "1.23.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.24.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -843,14 +843,25 @@ def load_sync_mappings(path):
 # balayage, sonde absente ou en échec) ; il fonctionne pleinement ainsi. Une
 # valeur appelable remplace ce parcours :
 # fn(mapping, config_path, cache, exclusions, **opts) -> complet.
-# Seul "none" existe pour l'instant ; la sonde d'événements viendra ensuite.
-TWOWAY_TRIGGERS = {"none": None}
+# "events" : la sonde d'événements (twoway_events.py) ne sert qu'à choisir les
+# dossiers à regarder ; la liste Proton reste la vérité.
+def _events_runner(*args, **kwargs):
+    import twoway_events
+    return twoway_events.run_mapping(*args, **kwargs)
+
+
+TWOWAY_TRIGGERS = {"none": None, "events": _events_runner}
 
 
 def twoway_runner():
-    """(nom, exécuteur) du déclencheur. Exécuteur None = aucune sonde
-    d'événements : le deux sens est en pause, sauf --twoway-full-check."""
+    """(nom, exécuteur) du déclencheur choisi (réglage ``twoway_trigger``).
+    Exécuteur None = aucune sonde d'événements : le deux sens est en pause,
+    sauf --twoway-full-check. Une valeur inconnue garde le message « inconnu »."""
     name = "none"
+    if _HAS_CONFIG:
+        name = appconfig.get("twoway_trigger", "none")
+    if not isinstance(name, str):
+        name = "none"
     return name, TWOWAY_TRIGGERS.get(name)
 
 
