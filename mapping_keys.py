@@ -1,5 +1,5 @@
 """Pure helpers for mapping dictionaries (no GUI imports, testable without a display)."""
-__version__ = "1.3.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.4.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import os
 
@@ -9,7 +9,7 @@ import os
 DIALOG_KEYS = frozenset({
     "type", "source", "dest_parent", "exclusions",
     "conflict_mode", "allow_delete", "delete_mode", "source_kind",
-    "excluded_remote",
+    "excluded_remote", "direction",
 })
 
 
@@ -375,4 +375,115 @@ def sync_mapping_conflicts(sync_mappings, upload_mappings=()):
                 found = ("arrival-" + rel, other, theirs)
         if found:
             out[i] = found
+    return out
+
+
+# ── Mode de synchro dans l'éditeur ───────────────────────────────────────────
+# L'éditeur montre les mappings à sens unique et deux sens dans UNE liste ; la
+# clé "direction" dit lequel est lequel. À l'enregistrement, chacun retourne
+# sous sa propre clé. Ce que l'éditeur ne montre pas (direction inconnue,
+# entrée incomplète, "sync_mappings" qui n'est pas une liste) est gardé tel
+# quel dans les extras et réécrit à l'identique.
+
+class _Shown:
+    """Place d'une entrée deux sens montrée dans l'éditeur, dans la liste
+    d'origine de "sync_mappings" : garde l'ordre du fichier."""
+
+    def __repr__(self):
+        return "SHOWN"
+
+
+SHOWN = _Shown()
+_MISSING = object()
+
+
+def sync_mode(mapping):
+    """"twoway" ou "upload"."""
+    return "twoway" if isinstance(mapping, dict) and mapping.get("direction") == "twoway" else "upload"
+
+
+def set_sync_mode(mapping, mode):
+    """Pose le mode sur le mapping (en place) et le rend. "upload" retire une
+    direction périmée."""
+    if mode == "twoway":
+        mapping["direction"] = "twoway"
+    else:
+        mapping.pop("direction", None)
+    return mapping
+
+
+def _editable_sync_entry(entry):
+    return (isinstance(entry, dict) and entry.get("direction") == "twoway"
+            and entry.get("type") in SYNC_TYPES
+            and all(k in entry for k in ("source", "dest_parent")))
+
+
+def split_loaded(data):
+    """(mappings, exclusions globales, extras) d'un fichier chargé. `mappings`
+    contient les envois puis les entrées deux sens de "sync_mappings" (clé
+    "direction" gardée). `extras` : clés de premier niveau inconnues, plus
+    "sync_mappings" quand cette clé contient autre chose que des entrées deux
+    sens montrées (la liste d'origine, avec SHOWN à la place des montrées) ou
+    n'est pas une liste (valeur d'origine)."""
+    if isinstance(data, list):
+        return list(data), {"names": [], "patterns": []}, {}
+    if not isinstance(data, dict):
+        raise ValueError("The file must contain a list or an object.")
+    ex = data.get("exclusions", {}) or {}
+    global_ex = {"names": list(ex.get("names", []) or []),
+                 "patterns": list(ex.get("patterns", []) or [])}
+    mappings = list(data.get("mappings", []))
+    extras = {k: v for k, v in unknown_top_level(data).items() if k != "sync_mappings"}
+    if "sync_mappings" in data:
+        found = data["sync_mappings"]
+        if not isinstance(found, list):
+            extras["sync_mappings"] = found
+        else:
+            slots, shown = [], []
+            for entry in found:
+                if _editable_sync_entry(entry):
+                    shown.append(entry)
+                    slots.append(SHOWN)
+                else:
+                    slots.append(entry)
+            if shown:
+                mappings += shown
+            if len(shown) != len(found) or not found:
+                extras["sync_mappings"] = slots
+    return mappings, global_ex, extras
+
+
+def build_output(mappings, global_ex, extras):
+    """Contenu à écrire : liste simple seulement sans exclusion, sans entrée
+    deux sens et sans extras ; sinon objet avec "mappings" (envois) et
+    "sync_mappings" (deux sens)."""
+    upload = [m for m in mappings if sync_mode(m) == "upload"]
+    twoway = [m for m in mappings if sync_mode(m) == "twoway"]
+    extras = dict(extras or {})
+    has_global = bool((global_ex or {}).get("names") or (global_ex or {}).get("patterns"))
+    has_mapping_excl = any(m.get("exclusions") for m in mappings)
+    if not (has_global or has_mapping_excl or twoway or extras):
+        return upload
+    out = {"exclusions": {"names": (global_ex or {}).get("names", []),
+                          "patterns": (global_ex or {}).get("patterns", [])},
+           "mappings": upload}
+    kept = extras.pop("sync_mappings", _MISSING)
+    if isinstance(kept, list):
+        todo = iter(twoway)
+        merged = []
+        for entry in kept:
+            if entry is SHOWN:
+                nxt = next(todo, None)
+                if nxt is not None:
+                    merged.append(nxt)
+            else:
+                merged.append(entry)
+        merged += list(todo)
+        out["sync_mappings"] = merged
+    elif kept is not _MISSING:
+        out["sync_mappings"] = kept
+    elif twoway:
+        out["sync_mappings"] = twoway
+    for key, value in extras.items():
+        out.setdefault(key, value)
     return out
