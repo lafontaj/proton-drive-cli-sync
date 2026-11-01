@@ -408,6 +408,74 @@ def _download(state, args):
     return 0
 
 
+def _strict_positionals(args):
+    """(positionals, unknown option) for a verb that takes no options.
+
+    The real CLI (0.9.0) lists none for `rename` and `move`; only what comes
+    after `--` may start with `-`."""
+    positionals = []
+    for i, token in enumerate(args):
+        if token == "--":
+            return positionals + list(args[i + 1:]), None
+        if token.startswith("-") and token != "-":
+            return None, token
+        positionals.append(token)
+    return positionals, None
+
+
+def _rename(state, args):
+    positionals, unknown = _strict_positionals(args)
+    if unknown:
+        return _unknown_option(unknown)
+    if len(positionals) != 2:
+        return _fail("fake: unsupported command", 2)
+    path = remote_state.normalize(positionals[0])
+    new_name = positionals[1]
+    if remote_state.consume_faults(state, "rename", path):
+        return _fail("rename failed", 1)
+    if path == "/" or remote_state.live_node(state, path) is None:
+        return _fail("Node not found: %s" % os.path.basename(path), 1)
+    parent = os.path.dirname(path)
+    target = (parent.rstrip("/") + "/" + new_name) if parent != "/" else "/" + new_name
+    if remote_state.live_node(state, target) is not None:
+        return _fail("A file or folder with that name already exists", 1)
+    remote_state.relocate(state, path, target)
+    print(json.dumps({"name": new_name}))
+    return 0
+
+
+def _move(state, args):
+    """`move <source>... <targetParent>`: the target comes last.
+
+    An item whose name is already in the target is not moved. The real CLI
+    prints a line with a cross mark for it and still exits 0."""
+    positionals, unknown = _strict_positionals(args)
+    if unknown:
+        return _unknown_option(unknown)
+    if len(positionals) < 2:
+        return _fail("fake: unsupported command", 2)
+    sources = [remote_state.normalize(p) for p in positionals[:-1]]
+    target = remote_state.normalize(positionals[-1])
+    if remote_state.consume_faults(state, "move", sources[0]):
+        return _fail("move failed", 1)
+    folder = remote_state.live_node(state, target)
+    if target != "/" and (folder is None or folder.get("type") != "folder"):
+        return _fail("Node not found: %s" % os.path.basename(target), 1)
+    for source in sources:
+        if source == "/" or remote_state.live_node(state, source) is None:
+            return _fail("Node not found: %s" % os.path.basename(source), 1)
+    for source in sources:
+        name = os.path.basename(source)
+        destination = (target.rstrip("/") + "/" + name) if target != "/" else "/" + name
+        if remote_state.live_node(state, destination) is not None:
+            print("\u274c %s: An item with that name already exists in "
+                  "destination folder" % name)
+            continue
+        remote_state.relocate(state, source, destination)
+        print("\u2705 %s" % name)
+    return 0
+
+
 def _trash(state, path):
     path = remote_state.normalize(path)
     if remote_state.consume_faults(state, "trash", path):
@@ -418,6 +486,7 @@ def _trash(state, path):
 
 
 def dispatch(state, argv):
+    remote_state.assign_uids(state)
     state.setdefault("calls", []).append(list(argv))
     if not argv:
         return _fail("fake: unsupported command", 2)
@@ -445,6 +514,10 @@ def dispatch(state, argv):
         return _download(state, argv[2:])
     if verb == "trash" and rest:
         return _trash(state, rest[0])
+    if verb == "rename":
+        return _rename(state, argv[2:])
+    if verb == "move":
+        return _move(state, argv[2:])
     return _fail("fake: unsupported command", 2)
 
 

@@ -31,7 +31,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (sinon : réglage, binaire à côté des scripts, puis PATH)
 """
-__version__ = "1.22.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.23.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -131,6 +131,8 @@ class RunStats:
         "folders_stall_skipped",
         "items_trashed",
         "trash_failed",
+        "rename_failed",
+        "move_failed",
         "deletions_refused",
         "sources_missing",
         "mappings_total",
@@ -145,6 +147,8 @@ class RunStats:
         "folders_permission_denied",
         "folders_stall_skipped",
         "trash_failed",
+        "rename_failed",
+        "move_failed",
         "deletions_refused",
         "sources_missing",
     )
@@ -2336,6 +2340,56 @@ def remote_trash(remote_path, permanent=False, dry_run=False):
         return False
     print(f"    🗑  " + _("sent to trash") + f" : {remote_path}")
     _RUN.add("items_trashed")
+    return True
+
+
+def _cli_failure_reason(res):
+    """Reason of a failed CLI call: stderr, else the last stdout line."""
+    for stream in (res.stderr, res.stdout):
+        lines = [line.strip() for line in (stream or "").splitlines() if line.strip()]
+        if lines:
+            return lines[-1]
+    return ""
+
+
+def remote_rename(remote_path, new_name, dry_run=False):
+    """Rename a Proton item in place. Returns True if it worked.
+
+    The real CLI (0.9.0) refuses an existing name with exit 1 and replaces
+    nothing. The name goes after `--`, so one that starts with `-` is not read
+    as an option."""
+    if dry_run:
+        print("    [DRY-RUN] " + _("would rename on Proton: {p} -> {n}").format(
+            p=remote_path, n=new_name))
+        return True
+    res = run_cli(["filesystem", "rename", "--", remote_path, new_name])
+    if res.returncode != 0:
+        print(_("    ❌ rename of {p} to {n} failed: {e}").format(
+            p=remote_path, n=new_name, e=_cli_failure_reason(res)))
+        _RUN.add("rename_failed")
+        return False
+    return True
+
+
+def remote_move(remote_paths, target_parent, dry_run=False):
+    """Move Proton items into an existing folder. Returns True if all moved.
+
+    The real CLI (0.9.0) answers exit 0 for an item whose name already exists
+    in the target and prints a line starting with a cross mark instead; that
+    item is not moved and nothing is replaced. Such a line counts as a failure."""
+    if dry_run:
+        for path in remote_paths:
+            print("    [DRY-RUN] " + _("would move on Proton: {p} -> {t}").format(
+                p=path, t=target_parent))
+        return True
+    res = run_cli(["filesystem", "move", "--", *remote_paths, target_parent])
+    refused = [line.strip() for line in (res.stdout or "").splitlines()
+               if line.strip().startswith("\u274c")]
+    if res.returncode != 0 or refused:
+        reason = refused[-1] if refused else _cli_failure_reason(res)
+        print(_("    ❌ move into {t} failed: {e}").format(t=target_parent, e=reason))
+        _RUN.add("move_failed")
+        return False
     return True
 
 
