@@ -5,7 +5,7 @@ download does not replace the local file and does not rewrite its sync row.
 A failed remote listing does not update the sync database for that folder.
 """
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 import os
 import posixpath
@@ -51,7 +51,8 @@ WEB_DOCUMENT_LINE = (
 
 def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                  verbose=False, allow_mass_delete=False, global_ex=None,
-                 delete=False, changes=None, events_read=None):
+                 delete=False, changes=None, events_read=None,
+                 report=None):
     """Reconcile one twoway mapping. Returns True when the tree completed.
 
     ``delete`` is the pass's ``--delete`` switch. Without it nothing is
@@ -60,6 +61,10 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
     ``changes`` (a folder mapping only) is what the events probe reported for
     the Proton folder: the pass then looks only at the folders those changes
     and the local tree point at (``_sync_changes``). None lists everything.
+
+    ``report`` is a dict of the caller's: ``deletions_waiting`` is set in it
+    when a deletion was left for a later pass (deletions off, or a guard
+    refused), so the caller does not mark the events as read.
     """
     source = mapping.get("source") or ""
     if mapping.get("type") == "file":
@@ -71,6 +76,7 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
     ctx = _context(mapping, config_path, cache, exclusions, dry_run,
                    verbose, allow_mass_delete, source_root=source,
                    global_ex=global_ex, delete=delete)
+    ctx.report = report if report is not None else {}
     with ctx.db:
         if changes is not None:
             return _sync_changes(ctx, source, mapping.get("dest_parent") or "",
@@ -223,10 +229,12 @@ def _sync_changes(ctx, source, dest_parent, changes, events_read):
             "events will be read again: {r}").format(r=reason))
         return False
     remote_root = _remote_folder(source, dest_parent, ctx)
+    ctx.scoped = True
     _apply_moves(ctx, remote_root,
                  lambda c, root, files, folders: _event_moves(
                      c, root, files, folders, changes))
-    dirty = _event_folders(ctx, changes) | _local_dirty(ctx)
+    dirty = (_event_folders(ctx, changes) | _local_dirty(ctx)
+             | ctx.moved_parents)
     wanted = set()
     for folder in dirty:
         while folder not in wanted and _inside_or_root(ctx, folder):
@@ -265,7 +273,7 @@ def _row_stale(path, row):
     """True when the file is not the one the row recorded: size, mtime or inode
     differ, or it is gone. Stat only, no hashing."""
     try:
-        st = os.lstat(path)
+        st = os.stat(path)
     except OSError:
         return True
     return (st.st_size != row.get("claimed_size")
@@ -370,6 +378,12 @@ class _Ctx:
         # listed.
         self.wanted = None
         self.looked = 0
+        # True during a scoped pass, also before ``wanted`` is known (the
+        # moves run first); the local folders a move was attempted in.
+        self.scoped = False
+        self.moved_parents = set()
+        # The caller's report (see sync_mapping).
+        self.report = {}
 
 
 def _context(mapping, config_path, cache, exclusions, dry_run, verbose,
@@ -668,6 +682,20 @@ def _remote_entry(ctx, remote_path):
     return True, listing.get(posixpath.basename(remote_path))
 
 
+def _list_parents(ctx, *folders):
+    """In a scoped pass the walk did not list anything: list the Proton
+    folders a move touches into ``prelisted`` (each is still handed out once
+    by _list). False when one cannot be listed."""
+    for folder in folders:
+        if folder in ctx.prelisted:
+            continue
+        listing = _ps.get_remote_listing(folder, verbose=ctx.verbose)
+        if not listing.ok:
+            return False
+        ctx.prelisted[folder] = listing
+    return True
+
+
 def _moved_here(ctx, remote_root, remote, kind, old, new):
     """Renamed or moved here: do the same on Proton, move first, then rename."""
     row = ctx.db.get_folder(old) if kind == "folder" else ctx.db.get(old)
@@ -675,17 +703,23 @@ def _moved_here(ctx, remote_root, remote, kind, old, new):
     new_remote = _remote_for_local(ctx, remote_root, new)
     if new_remote is None:
         return
+    wanted = "folder" if kind == "folder" else "file"
+    old_parent, old_name = posixpath.split(old_remote)
+    new_parent, new_name = posixpath.split(new_remote)
+    if ctx.scoped and not _list_parents(ctx, old_parent, new_parent):
+        return                  # cannot check the names: the normal pass decides
     if _remote_entry(ctx, new_remote)[1] is not None:
         return                  # the name is taken on Proton: the normal pass decides
     listed, entry = _remote_entry(ctx, old_remote)
-    wanted = "folder" if kind == "folder" else "file"
     if listed and (entry is None
                    or (entry.get("type") or "file") != wanted
                    or (row.get("remote_node_id") and entry.get("node_id")
                        and entry["node_id"] != row["remote_node_id"])):
         return                  # no longer there on Proton: the normal pass decides
-    old_parent, old_name = posixpath.split(old_remote)
-    new_parent, new_name = posixpath.split(new_remote)
+    if ctx.scoped:
+        # A move is attempted: both local parents are looked at afterwards.
+        ctx.moved_parents.add(os.path.dirname(old))
+        ctx.moved_parents.add(os.path.dirname(new))
     ok = True
     if not ctx.dry_run and old_parent != new_parent:
         ok = _ps.ensure_remote_path(new_parent)
@@ -1071,6 +1105,7 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
             else:
                 ok = False
         else:
+            ctx.report["deletions_waiting"] = True
             if not _deletion_switched_on(ctx):
                 # Deletion is simply off: the documented behaviour, the file
                 # comes back on the next pass.
@@ -1155,6 +1190,7 @@ def _folder_deleted_here(local_path, remote_path, parent_listing, ctx):
         return False
     if not _can_trash(ctx, remote_path):
         # A guard refused: the rows stay, the next pass decides again.
+        ctx.report["deletions_waiting"] = True
         return not ctx.opts.get("mount_lost")
     if not _ps.remote_trash(remote_path, permanent=False, dry_run=ctx.dry_run):
         return False
@@ -1419,6 +1455,7 @@ def _remote_gone(local_path, remote_folder, remote_info, row, ctx):
         print("[kept] " + _(
             "removed on Proton; local file kept because deletions are off "
             "for this pass: {p}").format(p=local_path))
+        ctx.report["deletions_waiting"] = True
         return True
     if ctx.hold_queue is not None:
         ctx.hold_queue.append(local_path)

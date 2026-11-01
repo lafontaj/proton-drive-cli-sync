@@ -16,6 +16,7 @@ Test controls, all in the environment:
   FAKE_PROBE_FAULT    "<fault>[:<run number>|:ack]" with fault one of fail, nosession,
                       hang, badjson, escape, killparent; ":ack" applies to the
                       runs without --keep only, without a suffix to every run
+  FAKE_PROBE_NOTE     text added to the notes of every run (to model a probe note)
   FAKE_PROBE_SCRIPT   JSON file {"<run number>" or "ack": [{"op": "write", "path": "/my-files/x",
                       "text": "..."}, {"op": "trash", "path": ...},
                       {"op": "move", "from": ..., "to": ...}]} applied to the
@@ -307,6 +308,8 @@ def _print(flags, folder, initialized, events_read, changes, notes, advanced,
     elif fault == "escape":
         changes = [{"action": "created", "type": "file",
                     "path": "../outside.txt", "size": 1, "sha1": "0" * 40}]
+    if os.environ.get("FAKE_PROBE_NOTE"):
+        notes = list(notes) + [os.environ["FAKE_PROBE_NOTE"]]
     out = {"folder": folder, "initialized": initialized,
            "eventsRead": events_read, "changes": changes, "notes": notes,
            "bookmarkAdvanced": advanced}

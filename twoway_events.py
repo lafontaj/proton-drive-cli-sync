@@ -9,7 +9,7 @@ pass is it read again without ``--keep`` to move the bookmark, and what that
 second run reports beyond the first is applied too.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import hashlib
 import json
@@ -40,7 +40,9 @@ _ACTIONS = ("created", "modified", "revised", "moved", "removed")
 _TYPES = ("file", "folder")
 _NO_SESSION = re.compile(
     r"log ?in|sign ?in|session|authenticat|credential|unauthori[sz]ed", re.I)
-_STATE_RESET = re.compile(r"State reset", re.I)
+# The probe says the watched folder was lost ("State reset") or that Proton
+# asked for a full refresh: either way only a full listing can be trusted.
+_STATE_RESET = re.compile(r"State reset|asked for a full refresh", re.I)
 
 
 class Result:
@@ -218,6 +220,18 @@ def _warn(text):
     print("  ⚠  [events] " + text)
 
 
+def _has_history(config_path, mapping):
+    """True when the database holds a file or folder row inside the mapping."""
+    prefix = (mapping.get("source") or "").rstrip(os.sep) + os.sep
+    db = syncdb.SyncDB(syncdb.database_path(config_path))
+    try:
+        return (any(r["local_path"].startswith(prefix) for r in db.rows())
+                or any(r["local_path"].startswith(prefix)
+                       for r in db.folders()))
+    finally:
+        db.close()
+
+
 def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                 verbose=False, allow_mass_delete=False, global_ex=None,
                 delete=False, full_check=False):
@@ -226,15 +240,23 @@ def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
     kw = dict(dry_run=dry_run, verbose=verbose,
               allow_mass_delete=allow_mass_delete, global_ex=global_ex,
               delete=delete)
+    report = {}
 
     def run(changes=None, events_read=None):
+        report.clear()
         return twoway.sync_mapping(
             mapping, config_path, cache, exclusions, changes=changes,
-            events_read=events_read, **kw)
+            events_read=events_read, report=report, **kw)
 
     if mapping.get("type") == "file":
         _say(_("Listing the Proton side: a single-file mapping has no folder "
                "to watch."))
+        return run()
+    if dry_run:
+        # The probe keeps its starting point and its bookmark in its data
+        # folder, so a dry run does not call it at all.
+        _say(_("Listing the whole Proton side: a dry run does not use the "
+               "events probe."))
         return run()
     first = read_changes(mapping, keep=True)
     reason = None
@@ -245,31 +267,47 @@ def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
     elif first.initialized:
         reason = _("the probe has no starting point yet for this folder")
     elif any(_STATE_RESET.search(n) for n in first.notes):
-        reason = _("the probe reports that the watched folder was lost: {n}"
-                   ).format(n=" ".join(first.notes))
+        reason = _("the probe reports that the watched folder was lost or "
+                   "must be read again: {n}").format(n=" ".join(first.notes))
     elif full_check:
         reason = _("a full check was asked for")
     elif _flag(config_path, mapping):
         reason = _("the previous pass did not finish applying the events")
+    elif not _has_history(config_path, mapping):
+        reason = _("nothing is recorded yet for this folder")
     if reason is not None:
         if reason:
             _say(_("Listing the whole Proton side: {r}.").format(r=reason))
+        # Set before the listing, cleared only once it completed: a listing
+        # that stops halfway must not be forgotten.
+        _flag(config_path, mapping, True)
         complete = run()
-        if not complete or dry_run:
+        if not complete:
             return complete
-        _flag(config_path, mapping, False)     # the listing saw everything
+        if report.get("deletions_waiting"):
+            _waiting()
+            return complete                 # the flag stays: list everything again
+        _flag(config_path, mapping, False)  # the listing saw everything
         if first.ok and not first.initialized and first.events_read > 0:
-            _acknowledge(mapping, config_path, first, run)
+            _acknowledge(mapping, config_path, first, run, report)
         return complete
     complete = run(first.changes, first.events_read)
-    if not complete or dry_run:
+    if not complete:
+        return complete
+    if report.get("deletions_waiting"):
+        _waiting()
         return complete
     if first.events_read > 0:
-        _acknowledge(mapping, config_path, first, run)
+        _acknowledge(mapping, config_path, first, run, report)
     return complete
 
 
-def _acknowledge(mapping, config_path, first, run):
+def _waiting():
+    _say(_("A deletion is waiting for a pass that may apply it, so the events "
+           "are not marked as read; they come back until it is applied."))
+
+
+def _acknowledge(mapping, config_path, first, run, report):
     """Move the probe's bookmark after a complete pass and apply what it
     reports beyond the first read. A failure or stop in between leaves the
     rescan flag, so the next pass lists everything."""
@@ -290,5 +328,8 @@ def _acknowledge(mapping, config_path, first, run):
         if not run(extra, second.events_read):
             _warn(_("The late changes were not all applied. The next pass will "
                     "list the whole Proton side."))
+            return
+        if report.get("deletions_waiting"):
+            _waiting()
             return
     _flag(config_path, mapping, False)

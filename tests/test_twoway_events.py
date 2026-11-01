@@ -36,7 +36,7 @@ def probe(tmp_path, monkeypatch):
     log = tmp_path / "probe-log.jsonl"
     monkeypatch.setenv("PROTON_SYNC_EVENTS", str(binary))
     monkeypatch.setenv("FAKE_PROBE_LOG", str(log))
-    for name in ("FAKE_PROBE_FAULT", "FAKE_PROBE_SCRIPT"):
+    for name in ("FAKE_PROBE_FAULT", "FAKE_PROBE_SCRIPT", "FAKE_PROBE_NOTE"):
         monkeypatch.delenv(name, raising=False)
 
     class _Probe:
@@ -517,16 +517,21 @@ def test_a_full_check_lists_everything_and_still_acknowledges(
     _quiet(engine, fake_drive, probe, cfg)
 
 
-def test_a_dry_run_reads_without_acknowledging(
-        fake_drive, local_tree, write_mappings, engine, probe):
-    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
-    fake_drive.seed_file(REMOTE + "/Docs/sub/new.txt", b"NEW")
-    runs = probe.count()
-    result = _events(engine, cfg, "--dry-run")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert not (src / "Docs" / "sub" / "new.txt").exists()
-    ran = probe.runs(runs)
-    assert len(ran) == 1 and "-k" in ran[0]["args"]
+def test_a_dry_run_does_not_call_the_probe_and_writes_no_data_folder(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src = local_tree(FILES)
+    cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_folder(REMOTE + "/Docs")
+    result = _events(engine, cfg, "--dry-run")      # folders missing: exit 5, as before
+    assert "ℹ  [events] Listing the whole Proton side: a dry run does not " \
+        "use the events probe" in result.stdout
+    assert probe.count() == 0
+    assert not (isolated_home / ".proton-drive-sync" / "events").exists()
+    assert _flags(isolated_home, cfg) == []
+    assert "a.txt" not in fake_drive.listing(REMOTE + "/Docs")   # nothing applied
+    # The first real pass still finds the probe without a starting point.
+    result = _events(engine, cfg)
+    assert "the probe has no starting point yet" in result.stdout
 
 
 # ── Two mappings ─────────────────────────────────────────────────────────────
@@ -691,3 +696,141 @@ def test_the_trigger_setting_round_trips_through_settings_json(tmp_path):
     assert editor.read_twoway_trigger() == "none"
     assert not editor.write_twoway_trigger("telepathy")
     assert editor.read_twoway_trigger() == "none"
+
+
+# ── Review fixes ─────────────────────────────────────────────────────────────
+
+_FAIL_ONE_LISTING = (
+    "_real = proton_sync.get_remote_listing\n"
+    "def _listing(path, verbose=False):\n"
+    "    if path.endswith('/Docs/sub'):\n"
+    "        return proton_sync.RemoteListing(ok=False, error='boom')\n"
+    "    return _real(path, verbose)\n"
+    "proton_sync.get_remote_listing = _listing\n")
+
+
+def test_a_first_listing_that_stops_halfway_is_not_forgotten(
+        fake_drive, local_tree, write_mappings, engine, probe, monkeypatch,
+        isolated_home):
+    src = local_tree(FILES)
+    cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_file(REMOTE + "/Docs/sub/missed.txt", b"MISSED")
+    monkeypatch.setenv("ENGINE_TEST_PATCH", _FAIL_ONE_LISTING)
+    result = _events(engine, cfg)          # the probe starts, the listing fails
+    assert "the probe has no starting point yet" in result.stdout
+    assert not (src / "Docs" / "sub" / "missed.txt").exists()
+    assert len(_flags(isolated_home, cfg)) == 1
+    monkeypatch.delenv("ENGINE_TEST_PATCH")
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert "the previous pass did not finish applying the events" in result.stdout
+    assert (src / "Docs" / "sub" / "missed.txt").read_bytes() == b"MISSED"
+    assert REMOTE + "/Docs/other" in _listed(fake_drive, start)
+    assert _flags(isolated_home, cfg) == []
+
+
+def test_a_mapping_without_rows_gets_a_full_listing(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    fake_drive.seed_file(REMOTE + "/Docs/sub/early.txt", b"EARLY")
+    for path in isolated_home.rglob("*.sync.sqlite*"):        # the database is wiped
+        path.unlink()
+    runs = probe.count()
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "nothing is recorded yet for this folder" in result.stdout
+    assert REMOTE + "/Docs/other" in _listed(fake_drive, start)
+    assert (src / "Docs" / "sub" / "early.txt").read_bytes() == b"EARLY"
+    assert len(probe.runs(runs)) >= 1
+
+
+def test_the_probe_note_about_a_full_refresh_means_a_full_listing(
+        fake_drive, local_tree, write_mappings, engine, probe, monkeypatch):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    monkeypatch.setenv("FAKE_PROBE_NOTE", "Proton asked for a full refresh.")
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "must be read again" in result.stdout
+    assert REMOTE + "/Docs/other" in _listed(fake_drive, start)
+
+
+def test_a_deletion_waiting_without_delete_is_not_acknowledged_and_comes_back(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    fake_drive._update(lambda s: remote_state.trash_tree(
+        s, REMOTE + "/Docs/sub/b.txt"))
+    engine.update_settings(twoway_trigger="events")
+    runs = probe.count()
+    result = engine(cfg, full_check=False)            # no --delete
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[kept]" in result.stdout
+    assert "A deletion is waiting" in result.stdout
+    assert (src / "Docs" / "sub" / "b.txt").exists()
+    ran = probe.runs(runs)
+    assert len(ran) == 1 and "-k" in ran[0]["args"]    # no acknowledge
+    # No new event: the same one comes back, and a --delete pass applies it.
+    runs = probe.count()
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (src / "Docs" / "sub" / "b.txt").exists()
+    ran = probe.runs(runs)
+    assert len(ran) == 2 and "-k" not in ran[1]["args"]
+    _quiet(engine, fake_drive, probe, cfg)
+
+
+def test_a_deletion_waiting_in_a_full_listing_keeps_the_rescan_flag(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    fake_drive._update(lambda s: remote_state.trash_tree(
+        s, REMOTE + "/Docs/sub/b.txt"))
+    engine.update_settings(twoway_trigger="events")
+    result = engine(cfg)                    # full check, no --delete
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "A deletion is waiting" in result.stdout
+    assert (src / "Docs" / "sub" / "b.txt").exists()
+    assert len(_flags(isolated_home, cfg)) == 1
+    result = _events(engine, cfg)           # lists everything, applies it
+    assert not (src / "Docs" / "sub" / "b.txt").exists()
+    assert _flags(isolated_home, cfg) == []
+
+
+def test_a_local_rename_is_renamed_on_proton_without_a_transfer(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    os.rename(src / "Docs" / "sub" / "b.txt", src / "Docs" / "sub" / "bb.txt")
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _transfers(fake_drive, start) == []
+    assert len(_verbs(fake_drive, start, "rename")) == 1
+    assert fake_drive.content(REMOTE + "/Docs/sub/bb.txt") == b"BBBB"
+    assert REMOTE + "/Docs/other" not in _listed(fake_drive, start)
+
+
+def test_a_local_rename_onto_a_name_taken_on_proton_makes_no_rename_call(
+        fake_drive, local_tree, write_mappings, engine, probe):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    fake_drive.seed_file(REMOTE + "/Docs/sub/taken.txt", b"THEIRS")
+    os.rename(src / "Docs" / "sub" / "b.txt", src / "Docs" / "sub" / "taken.txt")
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _verbs(fake_drive, start, "rename", "move") == []
+    assert fake_drive.content(REMOTE + "/Docs/sub/taken.txt") == b"THEIRS"
+    names = sorted(os.listdir(src / "Docs" / "sub"))
+    assert any("proton conflict" in n for n in names), names
+
+
+def test_a_symlinked_file_does_not_make_every_pass_dirty(
+        fake_drive, local_tree, write_mappings, engine, probe, tmp_path):
+    target = tmp_path / "elsewhere.txt"
+    target.write_bytes(b"LINKED")
+    os.utime(target, (1_000_000_000, 1_000_000_000))
+    src = local_tree(FILES)
+    os.symlink(target, src / "Docs" / "sub" / "link.txt")
+    cfg = write_mappings([_mapping(src / "Docs")])
+    for _ in range(3):
+        assert _events(engine, cfg).returncode == 0
+    _quiet(engine, fake_drive, probe, cfg)

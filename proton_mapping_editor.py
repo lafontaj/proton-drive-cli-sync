@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.35.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.36.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -40,9 +40,10 @@ except ImportError:
         return s
     _HAS_I18N = False
 
-# Two-way trigger setting (settings.json key "twoway_trigger"): "none" lists the
-# whole Proton side on every pass, "events" looks only at the folders the events
-# probe points at. Kept at module level so a test can round-trip it.
+# Two-way trigger setting (settings.json key "twoway_trigger"): "none" leaves a
+# two-way mapping paused unless a full check is asked for, "events" looks only
+# at the folders the events probe points at. Kept at module level so a test can
+# round-trip it.
 TWOWAY_TRIGGER_CHOICES = (("none", "None"), ("events", "Events"))
 
 
@@ -4785,9 +4786,9 @@ class MappingEditor(tk.Tk):
                 lambda e: trig_var.set(trig_codes[trig_display.get()]))
             ttk.Label(
                 trig_frame, wraplength=480, justify="left",
-                text=_("None lists the whole Proton side on every two-way "
-                       "pass. Events asks the events probe which folders "
-                       "changed and looks only at those; the probe "
+                text=_("None keeps a two-way mapping paused unless a full "
+                       "check is asked for. Events asks the events probe which "
+                       "folders changed and looks only at those; the probe "
                        "(proton-sync-events) must be installed and signed in, "
                        "otherwise each pass falls back to the full listing.")
             ).pack(anchor="w", pady=(4, 0))
