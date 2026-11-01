@@ -96,8 +96,13 @@ def _transfers(fake_drive, start):
 
 
 def _listed(fake_drive, start):
-    """Proton folders listed since ``start``."""
-    return sorted({c[-1] for c in _verbs(fake_drive, start, "list")})
+    """Proton folders listed since ``start``; the engine's own start-up check
+    of "/" and "/my-files" is not a listing of the mapping."""
+    found = set()
+    for call in _verbs(fake_drive, start, "list"):
+        paths = [a for a in call[2:] if a.startswith("/")]
+        found.update(p for p in paths if p.startswith(REMOTE))
+    return sorted(found)
 
 
 def _events(engine, cfg, *args):
@@ -126,7 +131,7 @@ def _quiet(engine, fake_drive, probe, cfg):
     start, runs = len(fake_drive.calls()), probe.count()
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert _verbs(fake_drive, start, "list") == []
+    assert _listed(fake_drive, start) == []
     assert _transfers(fake_drive, start) == []
     assert probe.count() == runs + 1          # read once, with --keep, no ack
     assert "-k" in probe.runs(runs)[0]["args"]
@@ -143,7 +148,7 @@ def test_trigger_none_is_paused_as_before(
     result = engine(cfg, full_check=False)
     assert "Two-way sync paused" in result.stdout
     assert probe.count() == 0
-    assert _verbs(fake_drive, 0, "list") == []
+    assert _listed(fake_drive, 0) == []
 
 
 def test_trigger_none_with_full_check_lists_everything(
@@ -173,6 +178,7 @@ def test_first_run_lists_everything_then_a_quiet_pass_lists_nothing(
         fake_drive, local_tree, write_mappings, engine, probe):
     src = local_tree(FILES)
     cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_folder(REMOTE + "/Docs")
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "ℹ  [events] Listing the whole Proton side: the probe has no " \
@@ -275,7 +281,7 @@ def test_excluded_names_never_count_as_a_change(
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
     assert not (src / "Docs" / "sub" / "skip.tmp").exists()
-    assert _verbs(fake_drive, start, "list") == []
+    assert _listed(fake_drive, start) == []
     assert _transfers(fake_drive, start) == []
 
 
@@ -357,7 +363,7 @@ def test_a_lost_mount_scans_nothing_and_does_not_acknowledge(
     start, runs = len(fake_drive.calls()), probe.count()
     result = _events(engine, cfg)
     assert "mount check failed" in result.stdout
-    assert _verbs(fake_drive, start, "list") == []
+    assert _listed(fake_drive, start) == []
     assert _transfers(fake_drive, start) == []
     assert not (src / "Docs" / "sub" / "new.txt").exists()
     ran = probe.runs(runs)
