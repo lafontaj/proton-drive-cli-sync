@@ -2986,22 +2986,24 @@ class MappingEditor(tk.Tk):
         # Deux sens : dossiers seulement (le moteur ne prend pas un fichier).
         # Les réglages d'envoi que le moteur ignore en deux sens sont grisés par
         # toggle_delete, comme ceux de la suppression.
-        sync_frame = ttk.LabelFrame(body, text=_("Sync mode"), padding=8)
-        sync_frame.pack(fill="x", pady=(0, 8))
+        sync_frame = ttk.LabelFrame(body, text=_("Sync mode"), padding=(8, 2))
+        sync_frame.pack(fill="x", pady=(0, 4))
         sync_var = tk.StringVar(value=sync_mode(mapping) if is_edit else "upload")
-        ttk.Radiobutton(sync_frame, variable=sync_var, value="upload",
+        sync_row = ttk.Frame(sync_frame)
+        sync_row.pack(fill="x")
+        ttk.Radiobutton(sync_row, variable=sync_var, value="upload",
                         text=_("Upload"),
-                        command=lambda: toggle_delete(probe=False)).pack(anchor="w")
+                        command=lambda: toggle_delete(probe=False)
+                        ).pack(side="left", padx=(0, 10))
         twoway_radio = ttk.Radiobutton(
-            sync_frame, variable=sync_var, value="twoway", text=_("Two-way"),
+            sync_row, variable=sync_var, value="twoway", text=_("Two-way"),
             command=lambda: toggle_delete(probe=False))
-        twoway_radio.pack(anchor="w")
+        twoway_radio.pack(side="left", padx=(0, 10))
         if m_type != "folder":
             twoway_radio.configure(state="disabled")
-        ttk.Label(sync_frame, wraplength=600, foreground="#444466", justify="left",
-                  text=_("Two-way copies changes in both directions. Folders only; "
-                         "it may not overlap another mapping.")
-                  ).pack(anchor="w", padx=(22, 0))
+        ttk.Label(sync_row, wraplength=480, foreground="#444466", justify="left",
+                  text=_("Both ways. Folders only; no overlap with another mapping.")
+                  ).pack(side="left", fill="x", expand=True)
 
         # --- Zone Fichiers modifiés (mode de conflit) ---
         conf_frame = ttk.LabelFrame(body, text=_("Modified files"), padding=8)
@@ -3084,7 +3086,7 @@ class MappingEditor(tk.Tk):
             text=_("Keep already-uploaded files and folders on Proton once they "
                    "are excluded"),
             variable=keep_excluded_var)
-        keep_excluded_chk.pack(anchor="w", pady=(6, 0))
+        keep_excluded_chk.pack(anchor="w", pady=(2, 0))
         ttk.Label(del_frame, wraplength=600, foreground="#444466", justify="left",
                   text=_("Only this mapping's exclusions are concerned; a global "
                          "exclusion still removes the copy on Proton.")
@@ -3094,14 +3096,22 @@ class MappingEditor(tk.Tk):
         # suppression y est impossible (limitation CLI) -> mapping en ajout seul.
         shared_note = ttk.Label(del_frame, text="", wraplength=600,
                                 foreground="#7a5c00", justify="left")
-        shared_note.pack(anchor="w", pady=(2, 0))
 
         # Sous-zone activée seulement si allow coché
         sub = ttk.Frame(del_frame)
-        sub.pack(fill="x", pady=(6, 0))
+        sub.pack(fill="x", pady=(2, 0))
+
+        def set_shared_note(text):
+            """La note ne prend de place que quand elle a un texte (le dialogue
+            doit tenir sur un écran de 1024 × 600)."""
+            shared_note.config(text=text)
+            if text:
+                shared_note.pack(anchor="w", pady=(2, 0), before=sub)
+            else:
+                shared_note.pack_forget()
 
         mode_row = ttk.Frame(sub)
-        mode_row.pack(anchor="w", pady=2)
+        mode_row.pack(anchor="w", pady=1)
         ttk.Label(mode_row, text=_("Mode: ")).pack(side="left")
         rb_trash = ttk.Radiobutton(mode_row, text=_("Proton trash (recoverable)"),
                                    variable=mode_var, value="trash")
@@ -3122,10 +3132,10 @@ class MappingEditor(tk.Tk):
         # Détection du type de source
         detect_lbl = ttk.Label(sub, text="", wraplength=600, foreground="#444466",
                                justify="left")
-        detect_lbl.pack(anchor="w", pady=(6, 2))
+        detect_lbl.pack(anchor="w", pady=(2, 0))
 
         kind_row = ttk.Frame(sub)
-        kind_row.pack(anchor="w", pady=2)
+        kind_row.pack(anchor="w", pady=1)
         ttk.Label(kind_row, text=_("Confirmed source type: ")).pack(side="left")
         rb_nfs = ttk.Radiobutton(kind_row, text=_("NFS (network/NAS)"),
                                  variable=srckind_var, value="nfs")
@@ -3136,7 +3146,7 @@ class MappingEditor(tk.Tk):
 
         warn_lbl = ttk.Label(sub, text="", wraplength=600, foreground="#b00020",
                              justify="left")
-        warn_lbl.pack(anchor="w", pady=(4, 0))
+        warn_lbl.pack(anchor="w", pady=(2, 0))
 
         def detect_and_show():
             """Lance la détection sur la source courante et met à jour l'affichage."""
@@ -3220,7 +3230,7 @@ class MappingEditor(tk.Tk):
             if is_shared and not self._shared_delete_capability():
                 allow_var.set(False)
                 allow_chk.config(state="disabled")
-                shared_note.config(text=_(
+                set_shared_note(_(
                     "Deletions can't be propagated to a “Shared with me” "
                     "destination with this Proton CLI version: this mapping is "
                     "upload-only."))
@@ -3240,14 +3250,14 @@ class MappingEditor(tk.Tk):
                 # alors que c'est justement l'information qui borne la portée de
                 # l'avertissement.
                 if target:
-                    shared_note.config(text=_(
+                    set_shared_note(_(
                         "This folder belongs to someone else.\n\n{p}\n\n"
                         "If you enable deletion, anything inside that subfolder "
                         "that is missing locally is deleted and sent to the "
                         "OWNER'S trash. The rest of their shared folder is not "
                         "touched.").format(p=target))
                 else:
-                    shared_note.config(text=_(
+                    set_shared_note(_(
                         "This folder belongs to someone else.\n\n"
                         "Once you pick a source, deletion will only affect the "
                         "subfolder named after it, inside this shared folder.\n\n"
@@ -3256,7 +3266,7 @@ class MappingEditor(tk.Tk):
                         "not touched."))
             else:
                 allow_chk.config(state="normal")
-                shared_note.config(text="")
+                set_shared_note("")
             toggle_delete(probe=False)   # (re)synchronise l'état des sous-contrôles, SANS sonde de montage
             fit_height()
 
