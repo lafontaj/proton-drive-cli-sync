@@ -179,3 +179,80 @@ def test_hang_releases_the_state_lock(fake_drive, tmp_path):
     finally:
         proc.kill()
         proc.wait(timeout=5)
+
+
+def _uid(fake_drive, path):
+    holder = {}
+
+    def look(state):
+        holder["uid"] = state["nodes"][path].get("uid")
+    fake_drive._update(look)
+    return holder["uid"]
+
+
+def test_rename_keeps_the_uid_and_refuses_an_existing_name(fake_drive):
+    fake_drive.seed_file("/my-files/a.txt", b"A", mtime=1_000_000_000)
+    fake_drive.seed_file("/my-files/b.txt", b"B", mtime=1_000_000_000)
+    fake_drive.run("filesystem", "list", "/my-files", "-j")
+    before = _uid(fake_drive, "/my-files/a.txt")
+    assert before
+    result = fake_drive.run("filesystem", "rename", "--", "/my-files/a.txt", "b.txt")
+    assert result.returncode == 1
+    assert "already exists" in result.stderr
+    assert fake_drive.content("/my-files/b.txt") == b"B"
+    result = fake_drive.run("filesystem", "rename", "--", "/my-files/a.txt", "-c.txt")
+    assert result.returncode == 0, result.stderr
+    assert fake_drive.content("/my-files/-c.txt") == b"A"
+    assert _uid(fake_drive, "/my-files/-c.txt") == before
+
+
+def test_rename_of_a_missing_node_fails(fake_drive):
+    result = fake_drive.run("filesystem", "rename", "--", "/my-files/x.txt", "y.txt")
+    assert result.returncode == 1
+    assert "Node not found" in result.stderr
+
+
+def test_rename_and_move_take_no_option(fake_drive):
+    fake_drive.seed_file("/my-files/a.txt", b"A", mtime=1_000_000_000)
+    fake_drive.seed_folder("/my-files/dir")
+    renamed = fake_drive.run("filesystem", "rename", "-f", "skip",
+                             "/my-files/a.txt", "b.txt")
+    moved = fake_drive.run("filesystem", "move", "-f", "skip",
+                           "/my-files/a.txt", "/my-files/dir")
+    for result in (renamed, moved):
+        assert result.returncode != 0 and "Unknown option" in result.stderr
+    assert fake_drive.content("/my-files/a.txt") == b"A"
+
+
+def test_move_takes_several_sources_and_keeps_uids(fake_drive):
+    fake_drive.seed_file("/my-files/a.txt", b"A", mtime=1_000_000_000)
+    fake_drive.seed_file("/my-files/b.txt", b"B", mtime=1_000_000_000)
+    fake_drive.seed_folder("/my-files/dir")
+    fake_drive.run("filesystem", "list", "/my-files", "-j")
+    uid = _uid(fake_drive, "/my-files/b.txt")
+    result = fake_drive.run("filesystem", "move", "--", "/my-files/a.txt",
+                            "/my-files/b.txt", "/my-files/dir")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count("✅") == 2
+    assert fake_drive.content("/my-files/dir/b.txt") == b"B"
+    assert _uid(fake_drive, "/my-files/dir/b.txt") == uid
+    assert fake_drive.listing("/my-files") == ["dir"]
+
+
+def test_move_onto_an_existing_name_reports_it_and_moves_nothing(fake_drive):
+    fake_drive.seed_file("/my-files/a.txt", b"A", mtime=1_000_000_000)
+    fake_drive.seed_file("/my-files/dir/a.txt", b"OLD", mtime=1_000_000_000)
+    result = fake_drive.run("filesystem", "move", "--", "/my-files/a.txt",
+                            "/my-files/dir")
+    assert result.returncode == 0
+    assert "❌ a.txt" in result.stdout or "❌" in result.stdout
+    assert fake_drive.content("/my-files/dir/a.txt") == b"OLD"
+    assert fake_drive.content("/my-files/a.txt") == b"A"
+
+
+def test_move_into_a_missing_folder_fails(fake_drive):
+    fake_drive.seed_file("/my-files/a.txt", b"A", mtime=1_000_000_000)
+    result = fake_drive.run("filesystem", "move", "--", "/my-files/a.txt",
+                            "/my-files/nope")
+    assert result.returncode == 1
+    assert "Node not found" in result.stderr

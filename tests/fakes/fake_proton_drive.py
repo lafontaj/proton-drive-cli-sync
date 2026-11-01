@@ -431,8 +431,9 @@ def _rename(state, args):
         return _fail("fake: unsupported command", 2)
     path = remote_state.normalize(positionals[0])
     new_name = positionals[1]
-    if remote_state.consume_faults(state, "rename", path):
-        return _fail("rename failed", 1)
+    fired = remote_state.consume_faults(state, "rename", path)
+    if fired:
+        return _fail(fired[0].get("stderr") or "rename failed", 1)
     if path == "/" or remote_state.live_node(state, path) is None:
         return _fail("Node not found: %s" % os.path.basename(path), 1)
     parent = os.path.dirname(path)
@@ -456,8 +457,9 @@ def _move(state, args):
         return _fail("fake: unsupported command", 2)
     sources = [remote_state.normalize(p) for p in positionals[:-1]]
     target = remote_state.normalize(positionals[-1])
-    if remote_state.consume_faults(state, "move", sources[0]):
-        return _fail("move failed", 1)
+    fired = remote_state.consume_faults(state, "move", sources[0])
+    if fired:
+        return _fail(fired[0].get("stderr") or "move failed", 1)
     folder = remote_state.live_node(state, target)
     if target != "/" and (folder is None or folder.get("type") != "folder"):
         return _fail("Node not found: %s" % os.path.basename(target), 1)
