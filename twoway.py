@@ -5,9 +5,10 @@ download does not replace the local file and does not rewrite its sync row.
 A failed remote listing does not update the sync database for that folder.
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 import os
+import posixpath
 import re
 import shutil
 import sys
@@ -67,6 +68,7 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                    verbose, allow_mass_delete, source_root=source,
                    global_ex=global_ex, delete=delete)
     with ctx.db:
+        _apply_moves(ctx, _remote_folder(source, mapping.get("dest_parent") or "", ctx))
         return _sync_dir(source, mapping.get("dest_parent") or "", ctx)
 
 
@@ -213,6 +215,9 @@ class _Ctx:
         # Local folder whose whole subtree was cleared by the mass-delete guard.
         self.gone_root = None
         self._children = None
+        # Proton folder -> listing taken by the walk at the start of the pass.
+        # _list hands each one out once, so a folder is still listed once.
+        self.prelisted = {}
 
 
 def _context(mapping, config_path, cache, exclusions, dry_run, verbose,
@@ -229,6 +234,356 @@ def _context(mapping, config_path, cache, exclusions, dry_run, verbose,
                 source_root, config_path, delete=delete)
 
 
+# ── Renames and moves ────────────────────────────────────────────────────────
+# Done once at the start of a pass: a file or folder renamed or moved on one
+# side is renamed or moved on the other, with the same Proton node, so nothing
+# is uploaded, downloaded or trashed for it. Anything not clearly a move is left
+# to the normal pass, which uploads, downloads and (when allowed) trashes.
+
+
+def _mapping_rows(ctx):
+    """File rows and folder rows below the mapping folder. The folder itself
+    is not included, so the mapping root is never moved."""
+    prefix = ctx.source_root.rstrip(os.sep) + os.sep
+    files = [r for r in ctx.db.rows() if r["local_path"].startswith(prefix)]
+    folders = [r for r in ctx.db.folders() if r["local_path"].startswith(prefix)]
+    return files, folders
+
+
+def _name_ignored(ctx, name):
+    return _ps._name_excluded(ctx.exclusions, name) or _is_conflict_copy(name)
+
+
+def _local_for_remote(ctx, remote_root, remote_path):
+    """Local path of a Proton path, or None when it is outside the mapping or
+    has an excluded or conflict-copy name."""
+    base = remote_root.rstrip("/") + "/"
+    if not remote_path.startswith(base):
+        return None
+    parts = remote_path[len(base):].split("/")
+    if not all(parts) or any(_name_ignored(ctx, p) for p in parts):
+        return None
+    return os.path.join(ctx.source_root, *parts)
+
+
+def _remote_for_local(ctx, remote_root, local_path):
+    rel = os.path.relpath(local_path, ctx.source_root)
+    if rel == "." or rel.startswith(".."):
+        return None
+    return remote_root.rstrip("/") + "/" + rel.replace(os.sep, "/")
+
+
+def _walk_remote(ctx, remote_root, files, folders):
+    """List every Proton folder of the mapping once and keep the listings for
+    _list. Returns {node id: (remote path, type, listing entry)}.
+
+    Only runs when a row has a node id; without ids nothing can be told from
+    a listing. A folder that cannot be listed is left to the normal pass."""
+    if not any(r.get("remote_node_id") for r in files + folders):
+        return {}
+    found = {}
+    pending = [remote_root]
+    while pending:
+        folder = pending.pop()
+        listing = _ps.get_remote_listing(folder, verbose=ctx.verbose)
+        if not listing.ok:
+            continue
+        ctx.prelisted[folder] = listing
+        for name, info in listing.items():
+            if _ps._name_excluded(ctx.exclusions, name):
+                continue
+            path = folder.rstrip("/") + "/" + name
+            if info.get("node_id"):
+                found[info["node_id"]] = (path, info.get("type"), info)
+            if info.get("type") == "folder":
+                pending.append(path)
+    return found
+
+
+def _drop_prelisted(ctx, *paths):
+    """Forget the walk's listings at or under these Proton paths and of their
+    parents: a move or rename changed them."""
+    for path in paths:
+        path = path.rstrip("/")
+        parent = posixpath.dirname(path)
+        for key in list(ctx.prelisted):
+            if key == path or key == parent or key.startswith(path + "/"):
+                del ctx.prelisted[key]
+
+
+class _LocalScan:
+    """Files below the mapping folder by inode, read once and only when a
+    synced row has vanished."""
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self._by_inode = None
+        self._sha1 = {}
+
+    def at(self, inode):
+        if self._by_inode is None:
+            self._by_inode = {}
+            for parent, dirs, names in os.walk(self.ctx.source_root):
+                dirs[:] = [d for d in dirs if not _name_ignored(self.ctx, d)]
+                for name in names:
+                    if _name_ignored(self.ctx, name):
+                        continue
+                    path = os.path.join(parent, name)
+                    try:
+                        self._by_inode.setdefault(os.lstat(path).st_ino, []).append(path)
+                    except OSError:
+                        continue
+        return self._by_inode.get(inode, ())
+
+    def same(self, path, sha1):
+        if path not in self._sha1:
+            try:
+                self._sha1[path] = _ps._local_sha1(path)
+            except OSError:
+                self._sha1[path] = None
+        return self._sha1[path] == sha1
+
+
+def _local_file_moves(ctx, files, scan):
+    """{old path: new path} for synced files that are gone from their place
+    and are here under another name: an unrecorded file with the same inode
+    and the same SHA-1. A new path is used once."""
+    vanished = [r for r in files
+                if r.get("state") == "synced" and r.get("sha1")
+                and r.get("local_inode") is not None
+                and not os.path.lexists(r["local_path"])]
+    found, used = {}, set()
+    for row in sorted(vanished, key=lambda r: r["local_path"]):
+        for path in scan.at(row["local_inode"]):
+            if path in used or ctx.db.get(path) is not None:
+                continue
+            # The scan is from the start of the pass: a folder renamed since
+            # may have taken this path away. The next pass finds the file.
+            if os.path.lexists(path) and scan.same(path, row["sha1"]):
+                used.add(path)
+                found[row["local_path"]] = path
+                break
+    return found
+
+
+def _local_folder_moves(ctx, folders, files, file_moves):
+    """{old folder: new folder} for folders gone from their place whose synced
+    files all came back at the same relative place under one new folder."""
+    found = {}
+    for row in folders:
+        old = row["local_path"]
+        if not (row.get("local_seen") and row.get("remote_seen")):
+            continue
+        if os.path.lexists(old):
+            continue
+        under = [r for r in files if r["local_path"].startswith(old + os.sep)]
+        if not under or any(r.get("state") != "synced" for r in under):
+            continue
+        targets = set()
+        for r in under:
+            new = file_moves.get(r["local_path"])
+            rel = os.path.relpath(r["local_path"], old)
+            if new is None or not new.endswith(os.sep + rel):
+                break
+            targets.add(new[:-len(rel) - 1])
+        else:
+            if len(targets) != 1:
+                continue
+            new = targets.pop()
+            if (new != old and os.path.isdir(new) and new != ctx.source_root
+                    and ctx.db.get_folder(new) is None
+                    and _local_inside_mapping(ctx, new)):
+                found[old] = new
+    return found
+
+
+def _local_inside_mapping(ctx, path):
+    rel = os.path.relpath(path, ctx.source_root)
+    if rel == "." or rel.startswith(".."):
+        return False
+    return not any(_name_ignored(ctx, p) for p in rel.split(os.sep))
+
+
+def _remote_moves(ctx, remote_root, remote, rows, kind):
+    """{row path: (new local path, new Proton path)} for rows whose node is now
+    at another place inside the mapping. A file only counts when the listing
+    says its content is the one last synced."""
+    found = {}
+    for row in rows:
+        hit = remote.get(row.get("remote_node_id") or "")
+        if not hit:
+            continue
+        path, rtype, info = hit
+        if path == row["remote_path"]:
+            continue
+        if kind == "file":
+            if (row.get("state") != "synced" or rtype not in (None, "file")
+                    or _remote_changed_since(info, row) is not False):
+                continue
+        elif not (row.get("local_seen") and row.get("remote_seen")
+                  and rtype == "folder"):
+            continue
+        new = _local_for_remote(ctx, remote_root, path)
+        if new is not None:
+            found[row["local_path"]] = (new, path)
+    return found
+
+
+def _tried(old, tried):
+    return any(old == t or old.startswith(t + os.sep) for t in tried)
+
+
+def _next_move(ctx, remote_root, remote, scan, tried):
+    """The next item to move: folders first, shallowest first. Returns
+    (kind, old path, mine, theirs) or None. ``mine`` is the new local path
+    when it was moved here, ``theirs`` is (new local, new Proton path) when
+    it was moved on Proton."""
+    files, folders = _mapping_rows(ctx)
+    mine_files = _local_file_moves(ctx, files, scan)
+    mine_folders = _local_folder_moves(ctx, folders, files, mine_files)
+    sets = (
+        ("folder", mine_folders, _remote_moves(ctx, remote_root, remote, folders, "folder")),
+        ("file", mine_files, _remote_moves(ctx, remote_root, remote, files, "file")),
+    )
+    for kind, mine, theirs in sets:
+        for old in sorted(set(mine) | set(theirs),
+                          key=lambda p: (p.count(os.sep), p)):
+            if not _tried(old, tried):
+                return kind, old, mine.get(old), theirs.get(old)
+    return None
+
+
+def _apply_moves(ctx, remote_root):
+    """Apply what was renamed or moved on one side to the other, then let the
+    normal pass run. A lost mount skips all of it."""
+    if ctx.opts.get("mount_lost"):
+        return
+    files, folders = _mapping_rows(ctx)
+    remote = _walk_remote(ctx, remote_root, files, folders)
+    scan = _LocalScan(ctx)
+    tried = []
+    while True:
+        step = _next_move(ctx, remote_root, remote, scan, tried)
+        if step is None:
+            return
+        kind, old, mine, theirs = step
+        tried.append(old)
+        if mine and theirs:
+            if mine == theirs[0]:
+                _update_row(ctx, kind, old, mine, theirs[1])
+            else:
+                _both_moved(ctx, kind, old, mine, theirs)
+        elif mine:
+            _moved_here(ctx, remote_root, remote, kind, old, mine)
+        else:
+            _moved_on_proton(ctx, kind, old, theirs[0], theirs[1])
+
+
+def _update_row(ctx, kind, old, new, remote_path):
+    """The same move on both sides: both are in place, only the row changes."""
+    if ctx.dry_run:
+        return
+    if kind == "folder":
+        row = ctx.db.get_folder(old)
+        ctx.db.move_tree(old, new, row["remote_path"], remote_path)
+    else:
+        ctx.db.move_file_row(old, new, remote_path)
+
+
+def _both_moved(ctx, kind, old, mine, theirs):
+    print("  ℹ  [moved] " + _(
+        "{old}: renamed to {a} here and to {b} on Proton. Both names are "
+        "kept and nothing is moved or deleted; the old entry is dropped from "
+        "the sync list.").format(old=old, a=mine, b=theirs[1]))
+    if ctx.dry_run:
+        return
+    if kind == "folder":
+        ctx.db.forget_tree(old)
+    else:
+        ctx.db.delete(old)
+
+
+def _remote_entry(ctx, remote_path):
+    """(listed, entry): ``listed`` is False when the walk did not list the
+    folder that holds this path."""
+    listing = ctx.prelisted.get(posixpath.dirname(remote_path))
+    if listing is None:
+        return False, None
+    return True, listing.get(posixpath.basename(remote_path))
+
+
+def _moved_here(ctx, remote_root, remote, kind, old, new):
+    """Renamed or moved here: do the same on Proton, move first, then rename."""
+    row = ctx.db.get_folder(old) if kind == "folder" else ctx.db.get(old)
+    old_remote = row["remote_path"]
+    new_remote = _remote_for_local(ctx, remote_root, new)
+    if new_remote is None:
+        return
+    if _remote_entry(ctx, new_remote)[1] is not None:
+        return                  # the name is taken on Proton: the normal pass decides
+    listed, entry = _remote_entry(ctx, old_remote)
+    wanted = "folder" if kind == "folder" else "file"
+    if listed and (entry is None
+                   or (entry.get("type") or "file") != wanted
+                   or (row.get("remote_node_id") and entry.get("node_id")
+                       and entry["node_id"] != row["remote_node_id"])):
+        return                  # no longer there on Proton: the normal pass decides
+    old_parent, old_name = posixpath.split(old_remote)
+    new_parent, new_name = posixpath.split(new_remote)
+    ok = True
+    if not ctx.dry_run and old_parent != new_parent:
+        ok = _ps.ensure_remote_path(new_parent)
+    if ok and old_parent != new_parent:
+        ok = _ps.remote_move([old_remote], new_parent, dry_run=ctx.dry_run)
+    if ok and old_name != new_name:
+        ok = _ps.remote_rename(new_parent + "/" + old_name, new_name,
+                               dry_run=ctx.dry_run)
+    if ctx.dry_run:
+        return
+    _drop_prelisted(ctx, old_remote, new_remote)
+    if not ok:
+        return
+    if kind == "folder":
+        for known in [k for k in _ps._REMOTE_KNOWN
+                      if k == old_remote or k.startswith(old_remote + "/")]:
+            _ps._REMOTE_KNOWN.discard(known)
+        ctx.db.move_tree(old, new, old_remote, new_remote)
+    else:
+        ctx.db.move_file_row(old, new, new_remote)
+    for node_id, (path, rtype, info) in list(remote.items()):
+        if path == old_remote or path.startswith(old_remote + "/"):
+            remote[node_id] = (new_remote + path[len(old_remote):], rtype, info)
+    print("  ℹ  [moved] " + _(
+        "{old} -> {new}: renamed here, renamed on Proton too, nothing "
+        "uploaded.").format(old=old, new=new))
+
+
+def _moved_on_proton(ctx, kind, old, new, new_remote):
+    """Renamed or moved on Proton: do the same here with os.rename."""
+    present = os.path.isdir(old) if kind == "folder" else os.path.isfile(old)
+    if not present or os.path.lexists(new):
+        return                  # nothing to rename, or the name is taken here
+    if ctx.dry_run:
+        print("  ℹ  [moved] " + _(
+            "[DRY-RUN] {old} -> {new}: would rename here, it was renamed on "
+            "Proton.").format(old=old, new=new))
+        return
+    try:
+        os.makedirs(os.path.dirname(new), exist_ok=True)
+        os.rename(old, new)
+    except OSError as exc:
+        print("  ❌ [move-failed] " + _(
+            "{old} was renamed on Proton but could not be renamed here to "
+            "{new} ({e}); nothing was changed here.").format(
+                old=old, new=new, e=exc))
+        _ps._RUN.add("files_failed")
+        return
+    _update_row(ctx, kind, old, new, new_remote)
+    print("  ℹ  [moved] " + _(
+        "{old} -> {new}: renamed on Proton, renamed here too, nothing "
+        "downloaded.").format(old=old, new=new))
+
+
 def _sync_file(local_file, remote_parent, ctx):
     if not ctx.dry_run and not _ps.ensure_remote_path(remote_parent):
         return False
@@ -241,6 +596,15 @@ def _sync_file(local_file, remote_parent, ctx):
         return False
     name = os.path.basename(local_file)
     return _reconcile_file(local_file, remote_parent, listing.get(name), ctx)
+
+
+def _list(ctx, folder):
+    """The listing of a Proton folder: the one the walk took at the start of
+    the pass (once), else a new call."""
+    listing = ctx.prelisted.pop(folder, None)
+    if listing is not None:
+        return listing
+    return _ps.get_remote_listing(folder, verbose=ctx.verbose)
 
 
 def _remote_folder(local_dir, remote_parent, ctx):
@@ -274,7 +638,7 @@ def _sync_dir(local_dir, remote_parent, ctx, remote_info=None,
             _report_folder_gone(local_dir, remote_folder, ctx)
             return False
         # Top folder of the pass: its own listing tells whether it exists.
-        listing = _ps.get_remote_listing(remote_folder, verbose=ctx.verbose)
+        listing = _list(ctx, remote_folder)
         if not listing.ok and _ps._missing_node_error(listing.error):
             _report_folder_gone(local_dir, remote_folder, ctx)
             return False
@@ -286,7 +650,7 @@ def _sync_dir(local_dir, remote_parent, ctx, remote_info=None,
                 return False
             _now_present(remote_folder, ctx)
         if listing is None:
-            listing = _ps.get_remote_listing(remote_folder, verbose=ctx.verbose)
+            listing = _list(ctx, remote_folder)
     if not listing.ok:
         print("  ⚠  [list-skipped] " + _(
             "Could not list {p} — folder skipped this pass "
@@ -468,6 +832,8 @@ def _remember_folder(local_dir, remote_folder, remote_info, ctx):
     if ctx.dry_run:
         return
     node_id = remote_info.get("node_id") if isinstance(remote_info, dict) else None
+    if not node_id:
+        node_id = (ctx.db.get_folder(local_dir) or {}).get("remote_node_id")
     ctx.db.upsert_folder({
         "local_path": local_dir,
         "remote_path": remote_folder,
@@ -565,7 +931,7 @@ def _unchanged_subtree(local_dir, remote_dir, ctx):
     that Proton has not changed since, or a folder with a row. Excluded names
     are ignored and go to the trash with the folder. Anything else (new,
     changed, a document) is "changed"."""
-    listing = _ps.get_remote_listing(remote_dir, verbose=ctx.verbose)
+    listing = _list(ctx, remote_dir)
     if not listing.ok:
         return "failed", None
     files = []
@@ -1039,6 +1405,8 @@ def _save_synced(local_path, remote_path, remote_info, ctx):
     node_id = None
     if isinstance(remote_info, dict):
         node_id = remote_info.get("node_id")
+    if not node_id:
+        node_id = (ctx.db.get(local_path) or {}).get("remote_node_id")
     ctx.db.upsert({
         "local_path": local_path,
         "remote_path": remote_path,

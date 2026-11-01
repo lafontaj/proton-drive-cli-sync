@@ -14,7 +14,8 @@ import subprocess
 
 import pytest
 
-VERBS = ("upload", "download", "list", "info", "create-folder", "trash")
+VERBS = ("upload", "download", "list", "info", "create-folder", "trash",
+         "rename", "move")
 _STRATEGY_OPTIONS = ("-f", "-d")
 # Every strategy word known to any Proton CLI subcommand, to probe the fake.
 _PROBES = ("create-new-revision", "rename", "replace", "skip", "merge",
@@ -76,6 +77,15 @@ def _engine_calls(fake_drive, local_tree, write_mappings, engine):
     assert engine(cfg).returncode == 0           # a download
     os.remove(src / "Two" / "a.txt")
     assert engine(cfg, "--delete").returncode == 0   # a trash
+    # Node ids are recorded by a listing, then a rename and a move are carried.
+    local_tree({"Two/c.txt": (b"CCCC", 1_000_000_000)})
+    assert engine(cfg).returncode == 0
+    assert engine(cfg).returncode == 0
+    os.rename(src / "Two" / "c.txt", src / "Two" / "c2.txt")    # a rename
+    assert engine(cfg, "--delete").returncode == 0
+    os.makedirs(src / "Two" / "sub")
+    os.rename(src / "Two" / "c2.txt", src / "Two" / "sub" / "c2.txt")  # a move
+    assert engine(cfg, "--delete").returncode == 0
     return fake_drive.calls()
 
 
@@ -107,7 +117,8 @@ def test_the_engine_only_passes_what_the_real_cli_accepts(
                            sorted(help_["values"].get(short, ()))))
                     i += 1
             i += 1
-    assert {"upload", "download", "trash"} <= seen, (seen, calls)
+    assert {"upload", "download", "trash", "rename", "move"} <= seen, (
+        seen, calls)
 
 
 @pytest.mark.parametrize("verb", ("upload", "download"))
@@ -131,3 +142,18 @@ def test_the_fake_cli_rejects_what_the_real_cli_rejects(
         rejected = "Invalid conflict strategy" in result.stderr
         assert rejected == (probe not in real_values), (
             verb, flag, probe, sorted(real_values), result.stderr)
+
+
+@pytest.mark.parametrize("verb", ("rename", "move"))
+def test_the_fake_cli_takes_no_option_the_real_cli_lacks(
+        real_help, fake_drive, verb):
+    assert not (real_help[verb]["options"] - {"-h", "--help"}), real_help[verb]
+    fake_drive.seed_file("/my-files/a.txt", b"R", mtime=1_000_000_000)
+    fake_drive.seed_folder("/my-files/dir")
+    args = (["filesystem", "rename", "-f", "skip", "/my-files/a.txt", "b.txt"]
+            if verb == "rename" else
+            ["filesystem", "move", "-f", "skip", "/my-files/a.txt",
+             "/my-files/dir"])
+    result = fake_drive.run(*args)
+    assert result.returncode != 0
+    assert "Unknown option" in result.stderr, result.stderr

@@ -4,7 +4,7 @@ The path comes from ``config.DATA_DIR`` (or an explicit directory). This
 module does not call the Proton CLI and does not decide uploads or downloads.
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 import os
 import sqlite3
@@ -287,4 +287,51 @@ class SyncDB:
                 "OR substr(local_path, 1, ?) = ?".format(t=table),
                 (base, len(prefix), prefix),
             )
+        self._conn.commit()
+
+    def move_file_row(self, old_path, new_path, new_remote_path):
+        """Point one file row at its new place. Node id, checksum and state stay.
+
+        Returns False when there is no row at ``old_path`` or ``new_path``
+        already has one."""
+        if self.get(old_path) is None or self.get(new_path) is not None:
+            return False
+        self._conn.execute(
+            "UPDATE files SET local_path = ?, remote_path = ? WHERE local_path = ?",
+            (new_path, new_remote_path, old_path),
+        )
+        self._conn.commit()
+        return True
+
+    def move_tree(self, old_dir, new_dir, old_remote, new_remote):
+        """Rewrite every file and folder row at or below ``old_dir``.
+
+        Local paths move from ``old_dir`` to ``new_dir`` and remote paths from
+        ``old_remote`` to ``new_remote``; ids, checksums and states stay. The
+        match is on whole path parts: ``/a/b`` does not match ``/a/bc``."""
+        old_base = old_dir.rstrip(os.sep)
+        new_base = new_dir.rstrip(os.sep)
+        old_prefix = old_base + os.sep
+        old_remote = old_remote.rstrip("/")
+        new_remote = new_remote.rstrip("/")
+        remote_prefix = old_remote + "/"
+        for table in ("files", "folders"):
+            found = self._conn.execute(
+                "SELECT local_path, remote_path FROM {t} WHERE local_path = ? "
+                "OR substr(local_path, 1, ?) = ?".format(t=table),
+                (old_base, len(old_prefix), old_prefix),
+            ).fetchall()
+            for local_path, remote_path in found:
+                local = new_base + local_path[len(old_base):]
+                if remote_path == old_remote:
+                    remote = new_remote
+                elif remote_path.startswith(remote_prefix):
+                    remote = new_remote + remote_path[len(old_remote):]
+                else:
+                    remote = remote_path
+                self._conn.execute(
+                    "UPDATE {t} SET local_path = ?, remote_path = ? "
+                    "WHERE local_path = ?".format(t=table),
+                    (local, remote, local_path),
+                )
         self._conn.commit()

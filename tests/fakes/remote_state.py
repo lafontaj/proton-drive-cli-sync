@@ -87,6 +87,18 @@ def save(path, state):
     os.replace(tmp, path)
 
 
+def assign_uids(state):
+    """Give every node without one a stable `uid`, like Proton's node ids.
+
+    A node keeps its uid when it is renamed, moved or replaced."""
+    for path in sorted(state["nodes"]):
+        node = state["nodes"][path]
+        if isinstance(node, dict) and not node.get("uid"):
+            number = int(state.get("next_uid") or 1)
+            state["next_uid"] = number + 1
+            node["uid"] = "uid-%d" % number
+
+
 def ensure_folders(state, remote_path):
     parts = [p for p in normalize(remote_path).strip("/").split("/") if p]
     current = ""
@@ -199,8 +211,10 @@ def store_file(state, remote_path, data, mtime):
     revisions = 1
     if isinstance(previous, dict) and previous.get("type") == "file":
         revisions = int(previous.get("revisions") or 1) + 1
+    uid = previous.get("uid") if isinstance(previous, dict) else None
     state["nodes"][remote_path] = {
         "type": "file",
+        "uid": uid,
         "content_b64": base64.b64encode(data).decode("ascii"),
         "mtime": float(mtime),
         "revisions": revisions,
@@ -208,6 +222,31 @@ def store_file(state, remote_path, data, mtime):
     }
     state.setdefault("uploads", []).append(remote_path)
     return remote_path
+
+
+def live_node(state, remote_path):
+    """The node at this path unless it is missing or in the trash."""
+    node = state["nodes"].get(normalize(remote_path))
+    if not isinstance(node, dict) or node.get("trashed"):
+        return None
+    return node
+
+
+def relocate(state, old_path, new_path):
+    """Move a node and everything below it; uids and content stay.
+
+    A trashed node that sits at the new path is replaced."""
+    old_path, new_path = normalize(old_path), normalize(new_path)
+    prefix = old_path + "/"
+    moved = {}
+    for path in list(state["nodes"]):
+        if path == old_path or path.startswith(prefix):
+            moved[new_path + path[len(old_path):]] = state["nodes"].pop(path)
+    for path in list(state["nodes"]):
+        if path.startswith(new_path + "/") and state["nodes"][path].get("trashed"):
+            if path not in moved:
+                del state["nodes"][path]
+    state["nodes"].update(moved)
 
 
 def trash_tree(state, remote_path):

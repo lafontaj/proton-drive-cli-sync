@@ -1,8 +1,7 @@
-"""Two known gaps of the two-way reconcile, written as the behaviour we want.
+"""Two gaps of the two-way reconcile, written as the behaviour we want.
 
-The rename gap is strict xfail: it fails today and must start passing when
-node-id rename handling (file renamed on Proton) lands. Remove the marker in
-the PR that fixes it. The folder gap was fixed by the folder baseline.
+Both are fixed: a folder deleted on Proton stays deleted (folder baseline), and
+a file renamed on Proton is renamed here by its node id, not downloaded again.
 """
 
 import os
@@ -60,13 +59,13 @@ def test_folder_deleted_on_proton_stays_deleted(fake_drive, local_tree,
     assert (src / "Docs" / "a.txt").exists()
 
 
-@pytest.mark.xfail(strict=True, reason="renames are not recognised yet: the "
-                   "new name is downloaded in full")
 def test_file_renamed_on_proton_is_renamed_here(fake_drive, local_tree,
                                                 write_mappings, engine):
     src = local_tree({"Docs/a.txt": (b"AAAA", 1_000_000_000)})
     cfg = write_mappings([_mapping(src / "Docs", "/my-files/Backups",
                                    direction="twoway", allow_delete=True)])
+    assert engine(cfg).returncode == 0
+    # The second pass lists the folder and records the node ids.
     assert engine(cfg).returncode == 0
 
     old = remote_state.normalize("/my-files/Backups/Docs/a.txt")
@@ -79,6 +78,6 @@ def test_file_renamed_on_proton_is_renamed_here(fake_drive, local_tree,
     assert engine(cfg, "--delete").returncode == 0
     assert sorted(os.listdir(src / "Docs")) == ["renamed.txt"]
     assert (src / "Docs" / "renamed.txt").read_bytes() == b"AAAA"
-    # Today: the renamed file is fetched again from Proton.
+    # Renamed here by its node id: nothing is fetched again.
     downloads = [c for c in fake_drive.calls() if c[:2] == ["filesystem", "download"]]
     assert downloads == []
