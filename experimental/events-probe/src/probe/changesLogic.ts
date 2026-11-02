@@ -338,11 +338,37 @@ export async function detectChanges(sdk: ProbeSdk, state: ProbeState): Promise<R
                 known[uid] = entry;
                 if (entry.type === 'folder') {
                     const inner = await listSubtree(sdk, uid, entry.path);
+                    const innerMoves: { entry: KnownEntry; from: string; content: ReturnType<typeof compareContent> }[] = [];
                     for (const [innerUid, innerEntry] of Object.entries(inner)) {
-                        if (!known[innerUid]) {
+                        const old = known[innerUid];
+                        if (!old) {
                             changes.push(change('created', innerEntry));
+                        } else if (old.path !== innerEntry.path) {
+                            // Already known at another path: it was moved into this new folder.
+                            innerMoves.push({ entry: innerEntry, from: old.path, content: compareContent(old, innerEntry) });
                         }
                         known[innerUid] = innerEntry;
+                    }
+                    // A moved folder gives one change, not one per child, whatever the listing order.
+                    for (const m of innerMoves) {
+                        const carried = innerMoves.some(
+                            (p) =>
+                                p !== m &&
+                                p.entry.type === 'folder' &&
+                                m.from.startsWith(`${p.from}/`) &&
+                                m.entry.path === p.entry.path + m.from.slice(p.from.length),
+                        );
+                        if (carried) {
+                            if (m.content === 'changed') {
+                                changes.push(change('modified', m.entry));
+                            }
+                            continue;
+                        }
+                        const moved: Change = { ...change('moved', m.entry), from: m.from };
+                        if (m.content === 'changed') {
+                            moved.reason = 'content changed too';
+                        }
+                        changes.push(moved);
                     }
                 }
                 continue;

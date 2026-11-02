@@ -341,6 +341,86 @@ describe('cheap filter on the clear fields of events (0.4)', () => {
         expect(r.changes.map((c) => `${c.action} ${c.path}`)).toEqual(['created new', 'created new/in.txt']);
     });
 
+    for (const order of ['folder first', 'file first']) {
+        test(`a known file moved into a new folder is one moved change (${order})`, async () => {
+            const d = new FakeDrive();
+            d.add({ uid: 'a', parentUid: 'W', name: 'a', type: 'folder' });
+            d.add({ uid: 'f', parentUid: 'a', name: 'f.txt', type: 'file', size: 3, sha1: 'h' });
+            const state = await started(d);
+            d.add({ uid: 'b', parentUid: 'W', name: 'b', type: 'folder' });
+            d.add({ uid: 'c', parentUid: 'b', name: 'c', type: 'folder' });
+            d.nodes.get('f')!.parentUid = 'c';
+            const steps: [string, string][] = [
+                [EVENT.NodeCreated, 'b'],
+                [EVENT.NodeCreated, 'c'],
+                [EVENT.NodeUpdated, 'f'],
+            ];
+            for (const [t, u] of order === 'folder first' ? steps : [...steps].reverse()) {
+                d.emit(t, u);
+            }
+            const r = await detectChanges(d, state);
+            expect(r.changes.map((c) => `${c.action} ${c.from ?? ''}>${c.path}`).sort()).toEqual([
+                'created >b',
+                'created >b/c',
+                'moved a/f.txt>b/c/f.txt',
+            ]);
+            expect(r.newState!.known.f.path).toBe('b/c/f.txt');
+        });
+
+        test(`a folder with children moved into a new folder is one moved change (${order})`, async () => {
+            const d = new FakeDrive();
+            d.add({ uid: 'k', parentUid: 'W', name: 'dir', type: 'folder' });
+            d.add({ uid: 'k1', parentUid: 'k', name: 'in.txt', type: 'file' });
+            d.add({ uid: 'k2', parentUid: 'k', name: 'sub', type: 'folder' });
+            d.add({ uid: 'k3', parentUid: 'k2', name: 'deep.txt', type: 'file' });
+            const state = await started(d);
+            d.add({ uid: 'n', parentUid: 'W', name: 'new', type: 'folder' });
+            d.nodes.get('k')!.parentUid = 'n';
+            const steps: [string, string][] = [
+                [EVENT.NodeCreated, 'n'],
+                [EVENT.NodeUpdated, 'k'],
+            ];
+            for (const [t, u] of order === 'folder first' ? steps : [...steps].reverse()) {
+                d.emit(t, u);
+            }
+            const r = await detectChanges(d, state);
+            expect(r.changes.map((c) => `${c.action} ${c.from ?? ''}>${c.path}`).sort()).toEqual(['created >new', 'moved dir>new/dir']);
+            expect(Object.values(r.newState!.known).map((e) => e.path).sort()).toEqual([
+                'new',
+                'new/dir',
+                'new/dir/in.txt',
+                'new/dir/sub',
+                'new/dir/sub/deep.txt',
+            ]);
+        });
+    }
+
+    test('a file moved into a new folder with new content says so', async () => {
+        const d = new FakeDrive();
+        d.add({ uid: 'f', parentUid: 'W', name: 'f.txt', type: 'file', size: 3, sha1: 'h1', revisionUid: 'r1' });
+        const state = await started(d);
+        d.add({ uid: 'n', parentUid: 'W', name: 'new', type: 'folder' });
+        d.emit(EVENT.NodeCreated, 'n');
+        Object.assign(d.nodes.get('f')!, { parentUid: 'n', sha1: 'h2', revisionUid: 'r2' });
+        d.emit(EVENT.NodeUpdated, 'f');
+        const r = await detectChanges(d, state);
+        expect(r.changes.map((c) => `${c.action} ${c.from ?? ''}>${c.path} (${c.reason})`).sort()).toEqual([
+            'created >new (undefined)',
+            'moved f.txt>new/f.txt (content changed too)',
+        ]);
+    });
+
+    test('really new files in a new folder stay created', async () => {
+        const d = new FakeDrive();
+        const state = await started(d);
+        d.add({ uid: 'n', parentUid: 'W', name: 'new', type: 'folder' });
+        d.emit(EVENT.NodeCreated, 'n');
+        d.add({ uid: 'n1', parentUid: 'n', name: 'x.txt', type: 'file' });
+        d.emit(EVENT.NodeCreated, 'n1');
+        const r = await detectChanges(d, state);
+        expect(r.changes.map((c) => c.action)).toEqual(['created', 'created']);
+    });
+
     test('a file arriving in a known deep subfolder is seen', async () => {
         const d = new FakeDrive();
         d.add({ uid: 's', parentUid: 'W', name: 'sub', type: 'folder' });
