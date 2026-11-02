@@ -319,6 +319,31 @@ def test_a_file_moved_on_proton_is_moved_here_without_a_transfer(
     assert "[moved]" in result.stdout
 
 
+def test_a_file_moved_from_another_folder_into_a_new_folder_is_not_downloaded(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    before, _folders = _rows(isolated_home, cfg)
+    row = before[str(src / "Docs" / "other" / "c.txt")]
+
+    def mutate(state):
+        remote_state.ensure_folders(state, REMOTE + "/Docs/n1/n2/c.txt")
+        remote_state.relocate(state, REMOTE + "/Docs/other/c.txt",
+                              REMOTE + "/Docs/n1/n2/c.txt")
+    fake_drive._update(mutate)
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _transfers(fake_drive, start) == []
+    assert not (src / "Docs" / "other" / "c.txt").exists()
+    assert (src / "Docs" / "n1" / "n2" / "c.txt").read_bytes() == b"CCCC"
+    after, _folders = _rows(isolated_home, cfg)
+    assert after[str(src / "Docs" / "n1" / "n2" / "c.txt")][
+        "remote_node_id"] == row["remote_node_id"]
+    assert "[moved]" in result.stdout
+    assert not [p for p in (src / "Docs").rglob("*") if "holding" in p.name]
+    _quiet(engine, fake_drive, probe, cfg)
+
+
 def test_a_folder_moved_on_proton_is_moved_here_with_what_it_holds(
         fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
