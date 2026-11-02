@@ -24,6 +24,8 @@ Test controls, all in the environment:
                       arrives between two runs
 """
 
+__version__ = "1.0.0"
+
 import base64
 import hashlib
 import json
