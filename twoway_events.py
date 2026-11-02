@@ -9,7 +9,7 @@ pass is it read again without ``--keep`` to move the bookmark, and what that
 second run reports beyond the first is applied too.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.0.0"
 
 import hashlib
 import json
