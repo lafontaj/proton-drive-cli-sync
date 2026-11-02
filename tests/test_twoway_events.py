@@ -7,6 +7,8 @@ full listing: what is looked at, what is never lost, and every way the probe
 can fail.
 """
 
+__version__ = "1.0.0"
+
 import json
 import os
 import shutil
@@ -23,23 +25,33 @@ REMOTE = "/my-files/Backups"
 FAKES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fakes")
 
 
+def _without_probe(monkeypatch, probe):
+    """Take the fake probe's folder off the PATH."""
+    rest = [d for d in os.environ.get("PATH", "").split(os.pathsep)
+            if d != probe.bindir]
+    monkeypatch.setenv("PATH", os.pathsep.join(rest))
+
+
 @pytest.fixture
 def probe(tmp_path, monkeypatch):
-    """Install the fake probe, point PROTON_SYNC_EVENTS at it, and return the
-    log of its runs."""
+    """Install the fake probe as ``proton-sync-events`` in a folder put first on
+    the PATH, and return the log of its runs."""
     target = tmp_path / "probebin"
     target.mkdir()
     for name in ("fake_probe.py", "remote_state.py"):
         shutil.copy(os.path.join(FAKES, name), target / name)
-    binary = target / "fake_probe.py"
+    binary = target / "proton-sync-events"
+    shutil.copy(target / "fake_probe.py", binary)
     binary.chmod(0o755)
     log = tmp_path / "probe-log.jsonl"
-    monkeypatch.setenv("PROTON_SYNC_EVENTS", str(binary))
+    monkeypatch.setenv("PATH", str(target) + os.pathsep + os.environ.get("PATH", ""))
     monkeypatch.setenv("FAKE_PROBE_LOG", str(log))
     for name in ("FAKE_PROBE_FAULT", "FAKE_PROBE_SCRIPT", "FAKE_PROBE_NOTE"):
         monkeypatch.delenv(name, raising=False)
 
     class _Probe:
+        bindir = str(target)
+
         def runs(self, start=0):
             if not log.exists():
                 return []
@@ -425,7 +437,7 @@ def test_a_missing_probe_means_a_full_listing(
         fake_drive, local_tree, write_mappings, engine, probe, monkeypatch):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
     fake_drive.seed_file(REMOTE + "/Docs/sub/new.txt", b"NEW")
-    monkeypatch.setenv("PROTON_SYNC_EVENTS", "/nonexistent/proton-sync-events")
+    _without_probe(monkeypatch, probe)
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "⚠  [events] The events probe could not be used" in result.stdout
@@ -608,8 +620,8 @@ def test_read_changes_parses_what_the_probe_reports(direct, fake_drive):
     assert twoway_events.read_changes(direct, keep=False).changes == []
 
 
-def test_read_changes_missing_probe(direct, monkeypatch):
-    monkeypatch.setenv("PROTON_SYNC_EVENTS", "/nonexistent/probe")
+def test_read_changes_missing_probe(direct, probe, monkeypatch):
+    _without_probe(monkeypatch, probe)
     result = twoway_events.read_changes(direct, keep=True)
     assert not result.ok and "not found" in result.reason
 

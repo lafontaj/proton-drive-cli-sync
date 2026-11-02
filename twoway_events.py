@@ -60,11 +60,8 @@ class Result:
 
 
 def probe_path():
-    """The probe binary: the PROTON_SYNC_EVENTS variable, else next to the
-    scripts, else the PATH. None when there is none."""
-    env = os.environ.get("PROTON_SYNC_EVENTS")
-    if env:
-        return env
+    """The probe binary: next to the scripts, else on the PATH. None when
+    there is none."""
     here = os.path.join(os.path.dirname(os.path.abspath(__file__)), PROBE_NAME)
     if os.path.isfile(here) and os.access(here, os.X_OK):
         return here
@@ -150,8 +147,8 @@ def read_changes(mapping, keep):
     probe = probe_path()
     if not probe:
         return Result(False, _(
-            "the events probe {n} was not found (set PROTON_SYNC_EVENTS, put it "
-            "next to the scripts or on the PATH)").format(n=PROBE_NAME))
+            "the events probe {n} was not found (put it next to the scripts or "
+            "on the PATH)").format(n=PROBE_NAME))
     if not os.path.isfile(probe) or not os.access(probe, os.X_OK):
         return Result(False, _(
             "the events probe {p} was not found or cannot be run").format(p=probe))
@@ -184,7 +181,7 @@ def read_changes(mapping, keep):
                 "there is no signed-in session; run: {n} auth login").format(
                     n=PROBE_NAME))
         return Result(False, _("it failed (exit {c}): {s}").format(
-            c=done.returncode, s=said or "no message"))
+            c=done.returncode, s=said or _("no message")))
     return _parse(done.stdout)
 
 
