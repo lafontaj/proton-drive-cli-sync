@@ -7,7 +7,7 @@ full listing: what is looked at, what is never lost, and every way the probe
 can fail.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import json
 import os
@@ -98,6 +98,20 @@ def _flags(isolated_home, cfg):
             "SELECT key FROM meta WHERE key LIKE 'events_rescan:%'")]
 
 
+def _meta(isolated_home, cfg, like, drop=False):
+    """The meta rows whose key starts with ``like``: {key: value}."""
+    path = syncdb.database_path(
+        os.path.basename(str(cfg)),
+        data_dir=str(isolated_home / ".proton-drive-sync"))
+    with syncdb.SyncDB(path) as database:
+        found = dict(database._conn.execute(
+            "SELECT key, value FROM meta WHERE key LIKE ?", (like + "%",)))
+        if drop:
+            for key in found:
+                database.delete_meta(key)
+        return found
+
+
 def _verbs(fake_drive, start, *verbs):
     return [c for c in fake_drive.calls()[start:]
             if len(c) > 1 and c[0] == "filesystem" and c[1] in verbs]
@@ -119,7 +133,6 @@ def _listed(fake_drive, start):
 
 def _events(engine, cfg, *args):
     """One pass with the events trigger (no --twoway-full-check)."""
-    engine.update_settings(twoway_trigger="events")
     return engine(cfg, "--delete", *args, full_check=False)
 
 
@@ -133,6 +146,7 @@ def _started(fake_drive, local_tree, write_mappings, engine, probe, files=None,
     """Passes until the tree is synced and the probe has nothing left to say."""
     src = local_tree(FILES if files is None else files)
     cfg = write_mappings([_mapping(src / "Docs", **extra)])
+    fake_drive.seed_folder(REMOTE + "/Docs")    # the probe needs the folder
     for _ in range(3):
         result = _events(engine, cfg)
         assert result.returncode == 0, result.stdout + result.stderr
@@ -150,37 +164,20 @@ def _quiet(engine, fake_drive, probe, cfg):
     return result
 
 
-# ── The setting ──────────────────────────────────────────────────────────────
+# ── No trigger setting ───────────────────────────────────────────────────────
 
 
-def test_trigger_none_is_paused_as_before(
+def test_an_old_twoway_trigger_key_is_ignored(
         fake_drive, local_tree, write_mappings, engine, probe):
     src = local_tree(FILES)
     cfg = write_mappings([_mapping(src / "Docs")])
-    result = engine(cfg, full_check=False)
-    assert "Two-way sync paused" in result.stdout
-    assert probe.count() == 0
-    assert _listed(fake_drive, 0) == []
-
-
-def test_trigger_none_with_full_check_lists_everything(
-        fake_drive, local_tree, write_mappings, engine, probe):
-    src = local_tree(FILES)
-    cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_folder(REMOTE + "/Docs")
     engine.update_settings(twoway_trigger="none")
-    assert engine(cfg).returncode == 0
-    assert probe.count() == 0
+    result = engine(cfg, full_check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Two-way sync paused" not in result.stdout
+    assert probe.count() >= 1
     assert fake_drive.content(REMOTE + "/Docs/a.txt") == b"AAAA"
-
-
-def test_unknown_trigger_keeps_the_unknown_line(
-        fake_drive, local_tree, write_mappings, engine, probe):
-    src = local_tree(FILES)
-    cfg = write_mappings([_mapping(src / "Docs")])
-    engine.update_settings(twoway_trigger="telepathy")
-    result = engine(cfg)
-    assert "Two-way trigger 'telepathy' unknown" in result.stdout
-    assert probe.count() == 0
 
 
 # ── What a pass looks at ─────────────────────────────────────────────────────
@@ -275,7 +272,6 @@ def test_a_removed_event_without_delete_does_not_remove_anything_here(
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
     fake_drive._update(lambda s: remote_state.trash_tree(
         s, REMOTE + "/Docs/sub/b.txt"))
-    engine.update_settings(twoway_trigger="events")
     result = engine(cfg, full_check=False)    # no --delete
     assert result.returncode == 0, result.stdout + result.stderr
     assert (src / "Docs" / "sub" / "b.txt").exists()
@@ -286,6 +282,7 @@ def test_excluded_names_never_count_as_a_change(
     src = local_tree(FILES)
     cfg = write_mappings([_mapping(src / "Docs")],
                          exclusions={"names": ["skip.tmp"]})
+    fake_drive.seed_folder(REMOTE + "/Docs")
     for _ in range(3):
         assert _events(engine, cfg).returncode == 0
     fake_drive.seed_file(REMOTE + "/Docs/sub/skip.tmp", b"JUNK")
@@ -416,7 +413,7 @@ def test_a_lost_mount_scans_nothing_and_does_not_acknowledge(
     ("badjson", "not valid JSON"),
     ("escape", "outside the watched folder"),
 ])
-def test_a_failing_probe_means_a_full_listing_and_no_acknowledge(
+def test_a_failing_probe_pauses_the_mapping_and_lists_nothing(
         fake_drive, local_tree, write_mappings, engine, probe, monkeypatch,
         isolated_home, fault, words):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
@@ -425,24 +422,46 @@ def test_a_failing_probe_means_a_full_listing_and_no_acknowledge(
     start, runs = len(fake_drive.calls()), probe.count()
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "⚠  [events] The events probe could not be used" in result.stdout
+    assert "⏸ Two-way sync paused for" in result.stdout
+    assert "the events probe could not be used" in result.stdout
     assert words in result.stdout
-    assert (src / "Docs" / "sub" / "new.txt").read_bytes() == b"NEW"
-    assert REMOTE + "/Docs/other" in _listed(fake_drive, start)  # a full listing
+    assert "\"twoway_paused\": 1" in result.stdout
+    assert not (src / "Docs" / "sub" / "new.txt").exists()
+    assert _listed(fake_drive, start) == []                      # no listing
     ran = probe.runs(runs)
     assert len(ran) == 1 and "-k" in ran[0]["args"]              # no acknowledge
+    monkeypatch.delenv("FAKE_PROBE_FAULT")                       # tried again
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (src / "Docs" / "sub" / "new.txt").read_bytes() == b"NEW"
 
 
-def test_a_missing_probe_means_a_full_listing(
+def test_a_missing_probe_pauses_the_mapping(
         fake_drive, local_tree, write_mappings, engine, probe, monkeypatch):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
     fake_drive.seed_file(REMOTE + "/Docs/sub/new.txt", b"NEW")
     _without_probe(monkeypatch, probe)
+    start = len(fake_drive.calls())
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "⚠  [events] The events probe could not be used" in result.stdout
+    assert "⏸ Two-way sync paused for" in result.stdout
     assert "was not found" in result.stdout
+    assert not (src / "Docs" / "sub" / "new.txt").exists()
+    assert _listed(fake_drive, start) == []
+
+
+def test_a_full_check_with_a_failing_probe_still_lists_everything(
+        fake_drive, local_tree, write_mappings, engine, probe, monkeypatch):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    fake_drive.seed_file(REMOTE + "/Docs/sub/new.txt", b"NEW")
+    monkeypatch.setenv("FAKE_PROBE_FAULT", "fail")
+    start = len(fake_drive.calls())
+    result = engine(cfg, "--delete")                 # --twoway-full-check
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Two-way sync paused" not in result.stdout
+    assert "⚠  [events] The events probe could not be used" in result.stdout
     assert (src / "Docs" / "sub" / "new.txt").read_bytes() == b"NEW"
+    assert REMOTE + "/Docs/other" in _listed(fake_drive, start)
 
 
 def test_the_watched_folder_trashed_gives_a_full_listing_and_loses_nothing(
@@ -455,12 +474,13 @@ def test_the_watched_folder_trashed_gives_a_full_listing_and_loses_nothing(
     assert (src / "Docs" / "a.txt").read_bytes() == b"AAAA"
     assert (src / "Docs" / "sub" / "b.txt").exists()
     assert _verbs(fake_drive, start, "trash") == []
-    # The next run is not initialized either: still a full listing.
+    # The next run: the probe cannot use a trashed folder, so the mapping is
+    # paused and nothing is listed or lost.
     start = len(fake_drive.calls())
     again = _events(engine, cfg)
     assert (src / "Docs" / "a.txt").exists()
     assert _verbs(fake_drive, start, "trash") == []
-    assert "⚠" in again.stdout
+    assert "⏸ Two-way sync paused" in again.stdout
 
 
 def test_a_failed_acknowledge_leaves_the_rescan_flag_and_the_next_pass_lists_all(
@@ -544,7 +564,6 @@ def test_a_full_check_lists_everything_and_still_acknowledges(
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
     fake_drive.seed_file(REMOTE + "/Docs/sub/new.txt", b"NEW")
     start, runs = len(fake_drive.calls()), probe.count()
-    engine.update_settings(twoway_trigger="events")
     result = engine(cfg, "--delete")                 # --twoway-full-check
     assert result.returncode == 0, result.stdout + result.stderr
     assert "a full check was asked for" in result.stdout
@@ -582,6 +601,8 @@ def test_two_mappings_get_two_data_folders_that_never_overlap(
     (other / "Two").mkdir()
     (other / "Two" / "b.txt").write_bytes(b"B")
     cfg = write_mappings([_mapping(one / "One"), _mapping(other / "Two")])
+    fake_drive.seed_folder(REMOTE + "/One")
+    fake_drive.seed_folder(REMOTE + "/Two")
     for _ in range(3):
         result = _events(engine, cfg)
         assert result.returncode == 0, result.stdout + result.stderr
@@ -718,23 +739,6 @@ def test_the_fake_probe_help_lists_exactly_the_real_options(tmp_path):
     assert done.returncode != 0
 
 
-# ── The editor setting ───────────────────────────────────────────────────────
-
-
-def test_the_trigger_setting_round_trips_through_settings_json(tmp_path):
-    pytest.importorskip("tkinter")
-    import proton_mapping_editor as editor
-    assert editor.read_twoway_trigger() == "none"
-    assert editor.write_twoway_trigger("events")
-    assert editor.read_twoway_trigger() == "events"
-    import config
-    assert config.get("twoway_trigger", "none") == "events"
-    assert editor.write_twoway_trigger("none")
-    assert editor.read_twoway_trigger() == "none"
-    assert not editor.write_twoway_trigger("telepathy")
-    assert editor.read_twoway_trigger() == "none"
-
-
 # ── Review fixes ─────────────────────────────────────────────────────────────
 
 _FAIL_ONE_LISTING = (
@@ -793,12 +797,11 @@ def test_the_probe_note_about_a_full_refresh_means_a_full_listing(
     assert REMOTE + "/Docs/other" in _listed(fake_drive, start)
 
 
-def test_a_deletion_waiting_without_delete_is_not_acknowledged_and_comes_back(
+def test_a_deletion_waiting_without_delete_keeps_only_its_folder_in_view(
         fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
     fake_drive._update(lambda s: remote_state.trash_tree(
         s, REMOTE + "/Docs/sub/b.txt"))
-    engine.update_settings(twoway_trigger="events")
     runs = probe.count()
     result = engine(cfg, full_check=False)            # no --delete
     assert result.returncode == 0, result.stdout + result.stderr
@@ -806,31 +809,130 @@ def test_a_deletion_waiting_without_delete_is_not_acknowledged_and_comes_back(
     assert "A deletion is waiting" in result.stdout
     assert (src / "Docs" / "sub" / "b.txt").exists()
     ran = probe.runs(runs)
-    assert len(ran) == 1 and "-k" in ran[0]["args"]    # no acknowledge
-    # No new event: the same one comes back, and a --delete pass applies it.
-    runs = probe.count()
+    assert len(ran) == 2 and "-k" not in ran[1]["args"]   # acknowledged
+    assert list(_meta(isolated_home, cfg, "events_waiting:").values()) == [
+        '["sub"]']
+    assert _flags(isolated_home, cfg) == []
+    # No new event, still no --delete: only the held folder is listed.
+    for _ in range(2):
+        start = len(fake_drive.calls())
+        result = engine(cfg, full_check=False)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert _listed(fake_drive, start) == [REMOTE + "/Docs", REMOTE + "/Docs/sub"]
+        assert (src / "Docs" / "sub" / "b.txt").exists()
+    # A --delete pass applies it, and the next pass is quiet again.
     result = _events(engine, cfg)
     assert result.returncode == 0, result.stdout + result.stderr
     assert not (src / "Docs" / "sub" / "b.txt").exists()
-    ran = probe.runs(runs)
-    assert len(ran) == 2 and "-k" not in ran[1]["args"]
+    assert _meta(isolated_home, cfg, "events_waiting:") == {}
     _quiet(engine, fake_drive, probe, cfg)
 
 
-def test_a_deletion_waiting_in_a_full_listing_keeps_the_rescan_flag(
+def test_a_deletion_waiting_in_a_full_listing_clears_the_flag_and_keeps_its_folder(
         fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
     fake_drive._update(lambda s: remote_state.trash_tree(
         s, REMOTE + "/Docs/sub/b.txt"))
-    engine.update_settings(twoway_trigger="events")
     result = engine(cfg)                    # full check, no --delete
     assert result.returncode == 0, result.stdout + result.stderr
     assert "A deletion is waiting" in result.stdout
     assert (src / "Docs" / "sub" / "b.txt").exists()
-    assert len(_flags(isolated_home, cfg)) == 1
-    result = _events(engine, cfg)           # lists everything, applies it
-    assert not (src / "Docs" / "sub" / "b.txt").exists()
     assert _flags(isolated_home, cfg) == []
+    assert list(_meta(isolated_home, cfg, "events_waiting:").values()) == [
+        '["sub"]']
+    start = len(fake_drive.calls())
+    result = engine(cfg, full_check=False)  # scoped: the held folder only
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert REMOTE + "/Docs/other" not in _listed(fake_drive, start)
+    assert REMOTE + "/Docs/sub" in _listed(fake_drive, start)
+    result = _events(engine, cfg)           # --delete applies it
+    assert not (src / "Docs" / "sub" / "b.txt").exists()
+    assert _meta(isolated_home, cfg, "events_waiting:") == {}
+
+
+# ── The probe's first walk ───────────────────────────────────────────────────
+
+_SHORT_WALK = ("import twoway_events; twoway_events.FIRST_WALK_TIMEOUT = 1; "
+               "twoway_events.SLOW_FAILURE = 0")
+
+
+def test_a_first_walk_that_times_out_pauses_the_mapping_for_a_day(
+        fake_drive, local_tree, write_mappings, engine, probe, monkeypatch,
+        isolated_home):
+    src = local_tree(FILES)
+    cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_folder(REMOTE + "/Docs")
+    monkeypatch.setenv("ENGINE_TEST_PATCH", _SHORT_WALK)
+    monkeypatch.setenv("FAKE_PROBE_FAULT", "hang")
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "⏸ Two-way sync paused for" in result.stdout
+    assert "did not answer within 1 seconds" in result.stdout
+    assert _listed(fake_drive, start) == []
+    assert len(_meta(isolated_home, cfg, "events_first_failed:")) == 1
+    # The next pass does not call the probe again, and says when it will.
+    monkeypatch.delenv("FAKE_PROBE_FAULT")
+    runs = probe.count()
+    result = _events(engine, cfg)
+    assert "first walk failed" in result.stdout
+    assert "It is tried again after" in result.stdout
+    assert probe.count() == runs
+    assert _listed(fake_drive, start) == []
+    # A day later it is tried again, and the failure is forgotten.
+    ((key, value),) = _meta(isolated_home, cfg, "events_first_failed:").items()
+    old = json.loads(value)
+    old["time"] -= 25 * 3600
+    path = syncdb.database_path(
+        os.path.basename(str(cfg)),
+        data_dir=str(isolated_home / ".proton-drive-sync"))
+    with syncdb.SyncDB(path) as database:
+        database.set_meta(key, json.dumps(old))
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert probe.count() > runs
+    assert fake_drive.content(REMOTE + "/Docs/a.txt") == b"AAAA"
+    assert _meta(isolated_home, cfg, "events_first_failed:") == {}
+
+
+def test_a_full_check_tries_a_failed_first_walk_at_once(
+        fake_drive, local_tree, write_mappings, engine, probe, monkeypatch,
+        isolated_home):
+    src = local_tree(FILES)
+    cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_folder(REMOTE + "/Docs")
+    monkeypatch.setenv("ENGINE_TEST_PATCH", _SHORT_WALK)
+    monkeypatch.setenv("FAKE_PROBE_FAULT", "hang:1")
+    _events(engine, cfg)
+    assert len(_meta(isolated_home, cfg, "events_first_failed:")) == 1
+    runs = probe.count()
+    result = engine(cfg, "--delete")                 # --twoway-full-check
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Two-way sync paused" not in result.stdout
+    assert probe.count() > runs
+    assert fake_drive.content(REMOTE + "/Docs/a.txt") == b"AAAA"
+
+
+def test_a_fast_failure_of_the_first_walk_is_tried_on_every_pass(
+        fake_drive, local_tree, write_mappings, engine, probe, monkeypatch,
+        isolated_home):
+    src = local_tree(FILES)
+    cfg = write_mappings([_mapping(src / "Docs")])
+    fake_drive.seed_folder(REMOTE + "/Docs")
+    monkeypatch.setenv("FAKE_PROBE_FAULT", "nosession")
+    for n in (1, 2):
+        result = _events(engine, cfg)
+        assert "⏸ Two-way sync paused for" in result.stdout
+        assert probe.count() == n
+    assert _meta(isolated_home, cfg, "events_first_failed:") == {}
+
+
+def test_the_probe_state_file_tells_a_first_walk(direct):
+    assert not twoway_events.has_state(direct)
+    assert twoway_events.read_changes(direct, keep=True).ok
+    assert twoway_events.has_state(direct)
+    other = dict(direct, dest_parent=REMOTE + "/Elsewhere")
+    assert not twoway_events.has_state(other)       # another folder
 
 
 def test_a_local_rename_is_renamed_on_proton_without_a_transfer(

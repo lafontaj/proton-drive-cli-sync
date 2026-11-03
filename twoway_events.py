@@ -167,13 +167,14 @@ def has_state(mapping):
             and bool(data.get("folderUid")))
 
 
-def read_changes(mapping, keep, timeout=PROBE_TIMEOUT):
+def read_changes(mapping, keep, timeout=None):
     """Run the probe on the mapping's Proton folder. ``keep`` leaves its
     bookmark where it is. Returns a Result; a missing binary, a failure, a
     timeout or output that is not valid is a failure with its reason.
     ``timeout`` is in seconds."""
     started = time.monotonic()
-    result = _read_changes(mapping, keep, timeout)
+    result = _read_changes(
+        mapping, keep, PROBE_TIMEOUT if timeout is None else timeout)
     result.elapsed = time.monotonic() - started
     return result
 

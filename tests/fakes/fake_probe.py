@@ -266,7 +266,7 @@ def main(argv):
     except (OSError, ValueError):
         saved = None
     if node.get("trashed"):
-        if saved is not None and saved.get("folder") == folder:
+        if saved is not None and saved.get("folderPath") == folder:
             os.remove(state_path)
             notes.append("The watched folder %s was trashed or deleted. State "
                          "reset; next run starts over." % folder)
@@ -275,9 +275,9 @@ def main(argv):
     cur = _snapshot(state, folder)
     events_read = 0
     advanced = False
-    if saved is None or saved.get("folder") != folder:
+    if saved is None or saved.get("folderPath") != folder:
         if saved is not None:
-            notes.append("The watched folder changed (was %s)." % saved["folder"])
+            notes.append("The watched folder changed (was %s)." % saved["folderPath"])
         initialized = True
         notes.append("Starting point set: %d item(s) known in %s."
                      % (len(cur), folder))
@@ -296,7 +296,8 @@ def main(argv):
 def _save(path, folder, entries):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as handle:
-        json.dump({"folder": folder, "entries": entries}, handle)
+        json.dump({"folderPath": folder, "folderUid": "fake-uid:" + folder,
+                   "entries": entries}, handle)
     os.replace(tmp, path)
 
 
