@@ -5,7 +5,7 @@ download does not replace the local file and does not rewrite its sync row.
 A failed remote listing does not update the sync database for that folder.
 """
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 import os
 import posixpath
@@ -49,10 +49,23 @@ WEB_DOCUMENT_LINE = (
 )
 
 
+class _Paused:
+    """What a trigger returns for a mapping it did not run this pass."""
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self):
+        return "PAUSED"
+
+
+PAUSED = _Paused()
+
+
 def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                  verbose=False, allow_mass_delete=False, global_ex=None,
                  delete=False, changes=None, events_read=None,
-                 report=None):
+                 report=None, extra_folders=None):
     """Reconcile one twoway mapping. Returns True when the tree completed.
 
     ``delete`` is the pass's ``--delete`` switch. Without it nothing is
@@ -64,7 +77,9 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
 
     ``report`` is a dict of the caller's: ``deletions_waiting`` is set in it
     when a deletion was left for a later pass (deletions off, or a guard
-    refused), so the caller does not mark the events as read.
+    refused), and ``waiting_folders`` holds the Proton folders concerned
+    (relative to the mapping root, "" for the root). ``extra_folders`` is such
+    a list kept from an earlier pass: a scoped pass looks at them too.
     """
     source = mapping.get("source") or ""
     if mapping.get("type") == "file":
@@ -80,7 +95,7 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
     with ctx.db:
         if changes is not None:
             return _sync_changes(ctx, source, mapping.get("dest_parent") or "",
-                                 changes, events_read)
+                                 changes, events_read, extra_folders)
         _apply_moves(ctx, _remote_folder(source, mapping.get("dest_parent") or "", ctx))
         return _sync_dir(source, mapping.get("dest_parent") or "", ctx)
 
@@ -132,22 +147,17 @@ def plan(sync_mappings, upload_mappings):
 
 
 def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
-             only_source=None, trigger_name="none", runner=None, dry_run=False,
-             verbose=False, allow_mass_delete=False, delete=False,
+             only_source=None, dry_run=False, verbose=False, allow_mass_delete=False, delete=False,
              full_check=False, blocked=None):
     """Run the two-way pass of one engine run. Returns a list of
     (source, complete, unreadable) for the health report.
 
-    ``runner`` is a trigger's own function; None means no events probe, so
-    the whole Proton side would be listed (``sync_mapping``); that is only
-    done when ``full_check`` is set (--twoway-full-check), otherwise each
-    mapping is paused with one line and counted in ``twoway_paused``.
+    Every mapping goes through the events trigger (``twoway_events``); one
+    it paused (``PAUSED``) is not counted and not in the health list.
     ``upload_mappings`` is the full ``mappings`` list, for the overlap check;
     ``blocked`` maps id(mapping) to (reason, other, detail, file) for the
     mappings that overlap a mapping of the other service's file."""
-    if runner is None and trigger_name != "none":
-        print(_("Two-way trigger {t!r} unknown: listing the whole Proton side")
-              .format(t=trigger_name))
+    import twoway_events
     runnable, skipped = plan(sync_mappings, upload_mappings)
     if blocked:
         still = []
@@ -169,14 +179,6 @@ def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
         runnable = [m for m in runnable
                     if os.path.normpath(m["source"]) in wanted]
     out = []
-    if runner is None and not full_check:
-        for m in runnable:
-            print("  \u23f8 " + _("Two-way sync paused for {s}: there is no events "
-                                  "probe, so a pass would have to list the whole "
-                                  "Proton side. Run with --twoway-full-check to "
-                                  "do that once.").format(s=m["source"]))
-            _ps._RUN.add("twoway_paused")
-        return out
     for m in runnable:
         print(_("\n\u25b6 Two-way mapping: {s}  =>  {d}").format(
             s=m["source"], d=m["dest_parent"]))
@@ -185,11 +187,13 @@ def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
             print(_("  \u274c Source not found, skipped: {s}").format(s=m["source"]))
             _ps._RUN.add("sources_missing")
             continue
-        extra = {"full_check": full_check} if runner else {}
-        complete = (runner or sync_mapping)(
+        complete = twoway_events.run_mapping(
             m, config_path, cache, _ps.mapping_exclusions(m, global_ex),
             dry_run=dry_run, verbose=verbose, allow_mass_delete=allow_mass_delete,
-            global_ex=global_ex, delete=delete, **extra)
+            global_ex=global_ex, delete=delete, full_check=full_check)
+        if complete is PAUSED:
+            _ps._RUN.mappings_total -= 1
+            continue
         if complete:
             _ps._RUN.add("mappings_complete")
         out.append((m["source"], bool(complete), _ps._take_unreadable()))
@@ -216,7 +220,23 @@ def sync_tree(mapping, local_dir, remote_parent, config_path, cache, exclusions,
 # one of the full pass.
 
 
-def _sync_changes(ctx, source, dest_parent, changes, events_read):
+def _note_waiting(ctx, remote_folder):
+    """Remember, in the report, the Proton folder a held deletion belongs to."""
+    root = _remote_folder(
+        ctx.source_root, ctx.mapping.get("dest_parent") or "", ctx)
+    root = root.rstrip("/")
+    folder = remote_folder.rstrip("/")
+    if folder == root:
+        rel = ""
+    elif folder.startswith(root + "/"):
+        rel = folder[len(root) + 1:]
+    else:
+        return
+    ctx.report.setdefault("waiting_folders", set()).add(rel)
+
+
+def _sync_changes(ctx, source, dest_parent, changes, events_read,
+                  extra_folders=None):
     """A pass limited to the folders ``changes`` and the local tree point at.
 
     A lost mount stops it before any scan: the caller then does not
@@ -233,8 +253,11 @@ def _sync_changes(ctx, source, dest_parent, changes, events_read):
     _apply_moves(ctx, remote_root,
                  lambda c, root, files, folders: _event_moves(
                      c, root, files, folders, changes))
+    held = {os.path.join(ctx.source_root, *rel.split("/")) if rel
+            else ctx.source_root
+            for rel in (extra_folders or ()) if _safe_rel(rel)}
     dirty = (_event_folders(ctx, changes) | _local_dirty(ctx)
-             | ctx.moved_parents)
+             | ctx.moved_parents | held)
     wanted = set()
     for folder in dirty:
         while folder not in wanted and _inside_or_root(ctx, folder):
@@ -247,6 +270,14 @@ def _sync_changes(ctx, source, dest_parent, changes, events_read):
         "at.").format(e=events_read if events_read is not None else "?",
                       c=len(changes), n=ctx.looked))
     return complete
+
+
+def _safe_rel(rel):
+    """A kept folder is "" (the root) or a plain relative path."""
+    if not isinstance(rel, str):
+        return False
+    return rel == "" or not (rel.startswith("/") or any(
+        p in ("", ".", "..") for p in rel.split("/")))
 
 
 def _inside_or_root(ctx, path):
@@ -1106,6 +1137,7 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
                 ok = False
         else:
             ctx.report["deletions_waiting"] = True
+            _note_waiting(ctx, remote_folder)
             if not _deletion_switched_on(ctx):
                 # Deletion is simply off: the documented behaviour, the file
                 # comes back on the next pass.
@@ -1191,6 +1223,7 @@ def _folder_deleted_here(local_path, remote_path, parent_listing, ctx):
     if not _can_trash(ctx, remote_path):
         # A guard refused: the rows stay, the next pass decides again.
         ctx.report["deletions_waiting"] = True
+        _note_waiting(ctx, remote_path.rsplit("/", 1)[0])
         return not ctx.opts.get("mount_lost")
     if not _ps.remote_trash(remote_path, permanent=False, dry_run=ctx.dry_run):
         return False
@@ -1456,6 +1489,7 @@ def _remote_gone(local_path, remote_folder, remote_info, row, ctx):
             "removed on Proton; local file kept because deletions are off "
             "for this pass: {p}").format(p=local_path))
         ctx.report["deletions_waiting"] = True
+        _note_waiting(ctx, remote_folder)
         return True
     if ctx.hold_queue is not None:
         ctx.hold_queue.append(local_path)

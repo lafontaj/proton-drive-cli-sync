@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.35.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.36.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -39,28 +39,6 @@ except ImportError:
     def _(s):
         return s
     _HAS_I18N = False
-
-# Two-way trigger setting (settings.json key "twoway_trigger"): "none" leaves a
-# two-way mapping paused unless a full check is asked for, "events" looks only
-# at the folders the events probe points at. Kept at module level so a test can
-# round-trip it.
-TWOWAY_TRIGGER_CHOICES = (("none", "None"), ("events", "Events"))
-
-
-def read_twoway_trigger():
-    """The saved trigger code; anything unknown reads as "none"."""
-    if not _HAS_I18N:
-        return "none"
-    value = i18n.read_setting("twoway_trigger", "none")
-    return value if value in dict(TWOWAY_TRIGGER_CHOICES) else "none"
-
-
-def write_twoway_trigger(code):
-    """Save the trigger code in settings.json. True when it was written."""
-    if not _HAS_I18N or code not in dict(TWOWAY_TRIGGER_CHOICES):
-        return False
-    return bool(i18n.write_setting("twoway_trigger", code))
-
 
 # Détection du type de source (nfs/local) — module de l'étape 1.
 # Importé de façon tolérante : si le fichier n'est pas là, le GUI fonctionne
@@ -4768,31 +4746,6 @@ class MappingEditor(tk.Tk):
                 "<<ComboboxSelected>>",
                 lambda e: lang_var.set(label_to_code[lang_display.get()]))
 
-        # ---- Section Two-way trigger ----
-        if _HAS_I18N:
-            trig_frame = ttk.LabelFrame(frm, text=_("Two-way trigger"), padding=10)
-            trig_frame.pack(fill="x", pady=(0, 10))
-            trig_labels = {"none": _("None"), "events": _("Events")}
-            trig_codes = {lbl: c for c, lbl in trig_labels.items()}
-            trig_var = tk.StringVar(value=read_twoway_trigger())
-            trig_display = tk.StringVar(value=trig_labels[trig_var.get()])
-            trig_combo = ttk.Combobox(
-                trig_frame, textvariable=trig_display, state="readonly",
-                values=[trig_labels[c] for c, _l in TWOWAY_TRIGGER_CHOICES],
-                width=26)
-            trig_combo.pack(anchor="w")
-            trig_combo.bind(
-                "<<ComboboxSelected>>",
-                lambda e: trig_var.set(trig_codes[trig_display.get()]))
-            ttk.Label(
-                trig_frame, wraplength=480, justify="left",
-                text=_("None keeps a two-way mapping paused unless a full "
-                       "check is asked for. Events asks the events probe which "
-                       "folders changed and looks only at those; the probe "
-                       "(proton-sync-events) must be installed and signed in, "
-                       "otherwise each pass falls back to the full listing.")
-            ).pack(anchor="w", pady=(4, 0))
-
         # ---- Section NAS ----
         if _HAS_CONFIG:
             nas_frame = ttk.LabelFrame(frm, text=_("NAS"), padding=10)
@@ -5312,7 +5265,6 @@ class MappingEditor(tk.Tk):
 
             if _HAS_I18N:
                 i18n.write_language_setting(lang_var.get())
-                write_twoway_trigger(trig_var.get())
             if _HAS_CONFIG:
                 # 1.25.3 — on retient le chemin AVANT d'enregistrer, pour savoir
                 # s'il a réellement changé (voir la re-sonde plus bas).

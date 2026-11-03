@@ -9,7 +9,7 @@ pass is it read again without ``--keep`` to move the bookmark, and what that
 second run reports beyond the first is applied too.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import hashlib
 import json
@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 
 import syncdb
 import twoway
@@ -35,6 +36,15 @@ except ImportError:
 PROBE_NAME = "proton-sync-events"
 # Seconds a probe run may take before it counts as a failure.
 PROBE_TIMEOUT = 300
+# The probe's first run lists the whole subtree, one call per folder: it gets
+# its own, much longer limit (6 hours).
+FIRST_WALK_TIMEOUT = 6 * 3600
+# After a first walk that failed slowly, the mapping waits this long (a day)
+# before the next try; a failure faster than SLOW_FAILURE seconds costs nothing
+# and is tried again on the next pass.
+FIRST_WALK_RETRY = 24 * 3600
+SLOW_FAILURE = 60
+STATE_FILE = "changes-state.json"   # the probe's own, in its data folder
 
 _ACTIONS = ("created", "modified", "revised", "moved", "removed")
 _TYPES = ("file", "folder")
@@ -50,7 +60,8 @@ class Result:
     with a ``reason`` in plain words."""
 
     def __init__(self, ok, reason="", initialized=False, events_read=0,
-                 changes=None, notes=None):
+                 changes=None, notes=None, elapsed=0.0):
+        self.elapsed = elapsed
         self.ok = ok
         self.reason = reason
         self.initialized = initialized
@@ -140,10 +151,34 @@ def _parse(text):
     return Result(True, "", initialized, events_read, changes, notes)
 
 
-def read_changes(mapping, keep):
+def has_state(mapping):
+    """True when the probe's state file in this mapping's data folder is
+    readable and names this mapping's Proton folder (its folderUid is there
+    too). Without it the probe's next run is its first walk."""
+    try:
+        with open(os.path.join(events_dir(mapping), STATE_FILE), "r",
+                  encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return False
+    return (isinstance(data, dict)
+            and data.get("folderPath") == remote_folder(mapping)
+            and isinstance(data.get("folderUid"), str)
+            and bool(data.get("folderUid")))
+
+
+def read_changes(mapping, keep, timeout=PROBE_TIMEOUT):
     """Run the probe on the mapping's Proton folder. ``keep`` leaves its
     bookmark where it is. Returns a Result; a missing binary, a failure, a
-    timeout or output that is not valid is a failure with its reason."""
+    timeout or output that is not valid is a failure with its reason.
+    ``timeout`` is in seconds."""
+    started = time.monotonic()
+    result = _read_changes(mapping, keep, timeout)
+    result.elapsed = time.monotonic() - started
+    return result
+
+
+def _read_changes(mapping, keep, timeout):
     probe = probe_path()
     if not probe:
         return Result(False, _(
@@ -167,10 +202,10 @@ def read_changes(mapping, keep):
     try:
         done = subprocess.run(
             cmd, env=env, stdin=subprocess.DEVNULL, capture_output=True,
-            text=True, timeout=PROBE_TIMEOUT)
+            text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return Result(False, _("it did not answer within {s} seconds").format(
-            s=PROBE_TIMEOUT))
+            s=timeout))
     except OSError as exc:
         return Result(False, _("it could not be started: {e}").format(e=exc))
     if done.returncode != 0:
@@ -209,6 +244,58 @@ def _flag(config_path, mapping, value=None):
         db.close()
 
 
+def _meta(config_path, key, value=None, drop=False):
+    """Read a meta row (default), write it (value) or delete it (drop)."""
+    db = syncdb.SyncDB(syncdb.database_path(config_path))
+    try:
+        if drop:
+            db.delete_meta(key)
+            return None
+        if value is not None:
+            db.set_meta(key, value)
+            return value
+        return db.get_meta(key)
+    finally:
+        db.close()
+
+
+def _waiting_key(mapping):
+    return "events_waiting:" + mapping_id(mapping)
+
+
+def _failed_key(mapping):
+    return "events_first_failed:" + mapping_id(mapping)
+
+
+def _held_folders(config_path, mapping):
+    """The Proton folders (relative to the mapping root) where a deletion was
+    waiting at the end of the last pass."""
+    try:
+        found = json.loads(_meta(config_path, _waiting_key(mapping)) or "[]")
+    except ValueError:
+        return set()
+    if not isinstance(found, list):
+        return set()
+    return {f for f in found if isinstance(f, str)}
+
+
+def _store_held(config_path, mapping, folders):
+    if folders:
+        _meta(config_path, _waiting_key(mapping),
+              json.dumps(sorted(folders)))
+    else:
+        _meta(config_path, _waiting_key(mapping), drop=True)
+
+
+def _first_failure(config_path, mapping):
+    """(time, reason) of a first walk that failed, or None."""
+    try:
+        found = json.loads(_meta(config_path, _failed_key(mapping)) or "null")
+        return float(found["time"]), str(found["reason"])
+    except (ValueError, TypeError, KeyError):
+        return None
+
+
 def _say(text):
     print("  ℹ  [events] " + text)
 
@@ -233,17 +320,29 @@ def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                 verbose=False, allow_mass_delete=False, global_ex=None,
                 delete=False, full_check=False):
     """Reconcile one two-way mapping, using the events probe to look only at
-    the folders that changed. Returns True when the pass completed."""
+    the folders that changed. Returns True when the pass completed, False when
+    it did not, and ``twoway.PAUSED`` when the probe could not be used and
+    nothing was done (never a full listing on its own)."""
     kw = dict(dry_run=dry_run, verbose=verbose,
               allow_mass_delete=allow_mass_delete, global_ex=global_ex,
               delete=delete)
     report = {}
+    still = set()           # folders where a deletion waits after this pass
 
-    def run(changes=None, events_read=None):
+    def run(changes=None, events_read=None, extra=None):
         report.clear()
-        return twoway.sync_mapping(
+        done = twoway.sync_mapping(
             mapping, config_path, cache, exclusions, changes=changes,
-            events_read=events_read, report=report, **kw)
+            events_read=events_read, report=report, extra_folders=extra, **kw)
+        still.update(report.get("waiting_folders") or ())
+        return done
+
+    def store(complete):
+        # An incomplete pass may not have reached every held folder: keep them.
+        _store_held(config_path, mapping,
+                    still if complete else still | held)
+        if complete and report.get("deletions_waiting"):
+            _waiting()
 
     if mapping.get("type") == "file":
         _say(_("Listing the Proton side: a single-file mapping has no folder "
@@ -255,22 +354,46 @@ def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
         _say(_("Listing the whole Proton side: a dry run does not use the "
                "events probe."))
         return run()
-    first = read_changes(mapping, keep=True)
+    held = _held_folders(config_path, mapping)
+    first_walk = not has_state(mapping)
+    if first_walk and not full_check:
+        failed = _first_failure(config_path, mapping)
+        if failed and time.time() - failed[0] < FIRST_WALK_RETRY:
+            _pause(_("the events probe's first walk failed ({r}). It is tried "
+                     "again after {t}.").format(
+                         r=failed[1], t=time.strftime(
+                             "%Y-%m-%d %H:%M", time.localtime(
+                                 failed[0] + FIRST_WALK_RETRY))), mapping)
+            return twoway.PAUSED
+    first = read_changes(
+        mapping, keep=True,
+        timeout=FIRST_WALK_TIMEOUT if first_walk else PROBE_TIMEOUT)
     reason = None
     if not first.ok:
+        if first_walk and first.elapsed > SLOW_FAILURE:
+            _meta(config_path, _failed_key(mapping), json.dumps(
+                {"time": time.time(), "reason": first.reason}))
+        if not full_check:
+            _pause(_("the events probe could not be used: {r}. It is tried "
+                     "again on the next pass.").format(r=first.reason),
+                   mapping)
+            return twoway.PAUSED
         _warn(_("The events probe could not be used: {r}. Listing the whole "
-                "Proton side instead.").format(r=first.reason))
+                "Proton side, as a full check was asked for.").format(
+                    r=first.reason))
         reason = ""
-    elif first.initialized:
+    else:
+        _meta(config_path, _failed_key(mapping), drop=True)
+    if reason is None and first.initialized:
         reason = _("the probe has no starting point yet for this folder")
-    elif any(_STATE_RESET.search(n) for n in first.notes):
+    elif reason is None and any(_STATE_RESET.search(n) for n in first.notes):
         reason = _("the probe reports that the watched folder was lost or "
                    "must be read again: {n}").format(n=" ".join(first.notes))
-    elif full_check:
+    elif reason is None and full_check:
         reason = _("a full check was asked for")
-    elif _flag(config_path, mapping):
+    elif reason is None and _flag(config_path, mapping):
         reason = _("the previous pass did not finish applying the events")
-    elif not _has_history(config_path, mapping):
+    elif reason is None and not _has_history(config_path, mapping):
         reason = _("nothing is recorded yet for this folder")
     if reason is not None:
         if reason:
@@ -279,32 +402,34 @@ def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
         # that stops halfway must not be forgotten.
         _flag(config_path, mapping, True)
         complete = run()
+        store(complete)
         if not complete:
             return complete
-        if report.get("deletions_waiting"):
-            _waiting()
-            return complete                 # the flag stays: list everything again
         _flag(config_path, mapping, False)  # the listing saw everything
         if first.ok and not first.initialized and first.events_read > 0:
-            _acknowledge(mapping, config_path, first, run, report)
+            _acknowledge(mapping, config_path, first, run, store)
         return complete
-    complete = run(first.changes, first.events_read)
+    complete = run(first.changes, first.events_read, held)
+    store(complete)
     if not complete:
         return complete
-    if report.get("deletions_waiting"):
-        _waiting()
-        return complete
     if first.events_read > 0:
-        _acknowledge(mapping, config_path, first, run, report)
+        _acknowledge(mapping, config_path, first, run, store)
     return complete
 
 
+def _pause(why, mapping):
+    print("  \u23f8 " + _("Two-way sync paused for {s}: {w}").format(
+        s=mapping.get("source") or "", w=why))
+    twoway._ps._RUN.add("twoway_paused")
+
+
 def _waiting():
-    _say(_("A deletion is waiting for a pass that may apply it, so the events "
-           "are not marked as read; they come back until it is applied."))
+    _say(_("A deletion is waiting for a pass that may apply it; its folder is "
+           "looked at again on the next pass."))
 
 
-def _acknowledge(mapping, config_path, first, run, report):
+def _acknowledge(mapping, config_path, first, run, store):
     """Move the probe's bookmark after a complete pass and apply what it
     reports beyond the first read. A failure or stop in between leaves the
     rescan flag, so the next pass lists everything."""
@@ -322,11 +447,10 @@ def _acknowledge(mapping, config_path, first, run, report):
     if extra:
         _say(_("{n} change(s) arrived while the pass ran; applying them."
                ).format(n=len(extra)))
-        if not run(extra, second.events_read):
+        done = run(extra, second.events_read)
+        store(done)
+        if not done:
             _warn(_("The late changes were not all applied. The next pass will "
                     "list the whole Proton side."))
-            return
-        if report.get("deletions_waiting"):
-            _waiting()
             return
     _flag(config_path, mapping, False)
