@@ -52,6 +52,9 @@ _NO_SESSION = re.compile(
     r"log ?in|sign ?in|session|authenticat|credential|unauthori[sz]ed", re.I)
 # The probe says the watched folder was lost ("State reset") or that Proton
 # asked for a full refresh: either way only a full listing can be trusted.
+# The watched Proton folder does not exist (yet): the real probe says
+# "Node not found" or "Item not found", the fake one "was not found".
+_FOLDER_MISSING = re.compile(r"(Node|Item) not found|was not found", re.I)
 _STATE_RESET = re.compile(r"State reset|asked for a full refresh", re.I)
 
 
@@ -60,8 +63,9 @@ class Result:
     with a ``reason`` in plain words."""
 
     def __init__(self, ok, reason="", initialized=False, events_read=0,
-                 changes=None, notes=None, elapsed=0.0):
+                 changes=None, notes=None, elapsed=0.0, folder_missing=False):
         self.elapsed = elapsed
+        self.folder_missing = folder_missing
         self.ok = ok
         self.reason = reason
         self.initialized = initialized
@@ -217,7 +221,8 @@ def _read_changes(mapping, keep, timeout):
                 "there is no signed-in session; run: {n} auth login").format(
                     n=PROBE_NAME))
         return Result(False, _("it failed (exit {c}): {s}").format(
-            c=done.returncode, s=said or _("no message")))
+            c=done.returncode, s=said or _("no message")),
+            folder_missing=bool(_FOLDER_MISSING.search(said)))
     return _parse(done.stdout)
 
 
@@ -370,7 +375,14 @@ def run_mapping(mapping, config_path, cache, exclusions, dry_run=False,
         mapping, keep=True,
         timeout=FIRST_WALK_TIMEOUT if first_walk else PROBE_TIMEOUT)
     reason = None
-    if not first.ok:
+    if (not first.ok and first.folder_missing
+            and not _has_history(config_path, mapping)):
+        # A new mapping whose Proton folder is not there yet: there is nothing
+        # to list on that side, and the uploads of this pass create it.
+        _say(_("Listing the Proton side: its folder does not exist yet, so "
+               "this pass creates it."))
+        reason = ""
+    elif not first.ok:
         if first_walk and first.elapsed > SLOW_FAILURE:
             _meta(config_path, _failed_key(mapping), json.dumps(
                 {"time": time.time(), "reason": first.reason}))

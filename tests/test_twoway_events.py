@@ -201,6 +201,37 @@ def test_first_run_lists_everything_then_a_quiet_pass_lists_nothing(
     assert _flags(engine.isolated_home, cfg) == []
 
 
+def test_a_new_mapping_whose_proton_folder_is_missing_creates_it_then_uses_the_probe(
+        fake_drive, local_tree, write_mappings, engine, probe):
+    src = local_tree(FILES)
+    cfg = write_mappings([_mapping(src / "Docs")])
+    result = _events(engine, cfg)             # no Proton folder yet
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "its folder does not exist yet" in result.stdout
+    assert "⏸" not in result.stdout
+    assert fake_drive.content(REMOTE + "/Docs/sub/b.txt") == b"BBBB"
+    for _ in range(3):                        # now the probe starts and settles
+        assert _events(engine, cfg).returncode == 0
+    _quiet(engine, fake_drive, probe, cfg)
+
+
+def test_a_missing_proton_folder_with_history_pauses(
+        fake_drive, local_tree, write_mappings, engine, probe):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    root = REMOTE + "/Docs"
+
+    def gone(state):                          # the folder vanished on Proton
+        for path in [p for p in state["nodes"]
+                     if p == root or p.startswith(root + "/")]:
+            del state["nodes"][path]
+    fake_drive._update(gone)
+    start = len(fake_drive.calls())
+    result = _events(engine, cfg)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "⏸ Two-way sync paused for" in result.stdout
+    assert _listed(fake_drive, start) == []
+
+
 def test_a_change_on_proton_looks_only_at_its_folder(
         fake_drive, local_tree, write_mappings, engine, probe):
     src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
