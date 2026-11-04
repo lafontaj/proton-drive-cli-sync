@@ -121,6 +121,23 @@ describe('probe change detection', () => {
         expect(again.changes).toEqual([]);
     });
 
+    test('a file created and trashed between two runs is reported as removed', async () => {
+        const d = new FakeDrive();
+        d.add({ uid: 's', parentUid: 'W', name: 'sub', type: 'folder' });
+        const state = await started(d);
+
+        d.add({ uid: 'x', parentUid: 's', name: 'a.txt', type: 'file', size: 1 });
+        d.emit(EVENT.NodeCreated, 'x');
+        d.nodes.get('x')!.trashed = true;
+        d.emit(EVENT.NodeUpdated, 'x');
+
+        const r = await detectChanges(d, state);
+        expect(r.changes.map((c) => `${c.action} ${c.path} (${c.reason})`)).toEqual([
+            'removed sub/a.txt (trashed before this probe saw it)',
+        ]);
+        expect(Object.keys(r.newState!.known)).not.toContain('x');
+    });
+
     test('activity outside the folder is counted but not reported', async () => {
         const d = new FakeDrive();
         const state = await started(d);

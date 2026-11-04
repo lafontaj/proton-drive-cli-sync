@@ -131,7 +131,7 @@ version installs the dependencies without error but leaves the patched
    (cd client/js && bun install)
    ```
 
-5. Run the tests (21, on a fake Drive):
+5. Run the tests (28, on a fake Drive):
 
    ```
    cd cli

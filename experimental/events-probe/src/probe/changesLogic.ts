@@ -172,7 +172,7 @@ export function compareContent(before: KnownEntry, now: KnownEntry): 'same' | 'c
 
 type Located =
     | { where: 'inside'; node: ProbeNode; path: string }
-    | { where: 'trashed' }
+    | { where: 'trashed'; node?: ProbeNode; path?: string }
     | { where: 'outside' }
     | { where: 'gone' };
 
@@ -192,7 +192,8 @@ async function locate(sdk: ProbeSdk, folderUid: string, nodeUid: string): Promis
         return { where: 'outside' };
     }
     if (below.some((n) => n.trashed)) {
-        return { where: 'trashed' };
+        // The names are still readable in the trash: the path it had here.
+        return { where: 'trashed', node: below[below.length - 1]!, path: below.map((n) => n.name).join('/') };
     }
     return { where: 'inside', node: below[below.length - 1]!, path: below.map((n) => n.name).join('/') };
 }
@@ -404,6 +405,12 @@ export async function detectChanges(sdk: ProbeSdk, state: ProbeState): Promise<R
             changes.push({ ...change('removed', before), reason });
             outcomes.set(uid, `was ${before.path}: ${reason}`);
             delete known[uid];
+        } else if (now.where === 'trashed' && now.node && now.path) {
+            // Created and trashed between two runs (an upload by the sync
+            // engine, for example): unknown here, but the engine may hold it.
+            const reason = 'trashed before this probe saw it';
+            changes.push({ ...change('removed', entryOf(now.node, now.path)), reason });
+            outcomes.set(uid, `was ${now.path}: ${reason}`);
         } else {
             outcomes.set(uid, `not in the folder (${now.where})`);
         }
