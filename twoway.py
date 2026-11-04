@@ -5,7 +5,7 @@ download does not replace the local file and does not rewrite its sync row.
 A failed remote listing does not update the sync database for that folder.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.5.0"
 
 import os
 import posixpath
@@ -49,13 +49,37 @@ WEB_DOCUMENT_LINE = (
 )
 
 
+class _Paused:
+    """What a trigger returns for a mapping it did not run this pass."""
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self):
+        return "PAUSED"
+
+
+PAUSED = _Paused()
+
+
 def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
                  verbose=False, allow_mass_delete=False, global_ex=None,
-                 delete=False):
+                 delete=False, changes=None, events_read=None,
+                 report=None, extra_folders=None):
     """Reconcile one twoway mapping. Returns True when the tree completed.
 
     ``delete`` is the pass's ``--delete`` switch. Without it nothing is
     removed on either side, whatever the mapping says.
+
+    ``changes`` (a folder mapping only) is what the events probe reported for
+    the Proton folder: the pass then looks only at the folders those changes
+    and the local tree point at (``_sync_changes``). None lists everything.
+
+    ``report`` is a dict of the caller's: ``deletions_waiting`` is set in it
+    when a deletion was left for a later pass (deletions off, or a guard
+    refused), and ``waiting_folders`` holds the Proton folders concerned
+    (relative to the mapping root, "" for the root). ``extra_folders`` is such
+    a list kept from an earlier pass: a scoped pass looks at them too.
     """
     source = mapping.get("source") or ""
     if mapping.get("type") == "file":
@@ -67,7 +91,11 @@ def sync_mapping(mapping, config_path, cache, exclusions, dry_run=False,
     ctx = _context(mapping, config_path, cache, exclusions, dry_run,
                    verbose, allow_mass_delete, source_root=source,
                    global_ex=global_ex, delete=delete)
+    ctx.report = report if report is not None else {}
     with ctx.db:
+        if changes is not None:
+            return _sync_changes(ctx, source, mapping.get("dest_parent") or "",
+                                 changes, events_read, extra_folders)
         _apply_moves(ctx, _remote_folder(source, mapping.get("dest_parent") or "", ctx))
         return _sync_dir(source, mapping.get("dest_parent") or "", ctx)
 
@@ -119,22 +147,17 @@ def plan(sync_mappings, upload_mappings):
 
 
 def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
-             only_source=None, trigger_name="none", runner=None, dry_run=False,
-             verbose=False, allow_mass_delete=False, delete=False,
+             only_source=None, dry_run=False, verbose=False, allow_mass_delete=False, delete=False,
              full_check=False, blocked=None):
     """Run the two-way pass of one engine run. Returns a list of
     (source, complete, unreadable) for the health report.
 
-    ``runner`` is a trigger's own function; None means no events probe, so
-    the whole Proton side would be listed (``sync_mapping``); that is only
-    done when ``full_check`` is set (--twoway-full-check), otherwise each
-    mapping is paused with one line and counted in ``twoway_paused``.
+    Every mapping goes through the events trigger (``twoway_events``); one
+    it paused (``PAUSED``) is not counted and not in the health list.
     ``upload_mappings`` is the full ``mappings`` list, for the overlap check;
     ``blocked`` maps id(mapping) to (reason, other, detail, file) for the
     mappings that overlap a mapping of the other service's file."""
-    if runner is None and trigger_name != "none":
-        print(_("Two-way trigger {t!r} unknown: listing the whole Proton side")
-              .format(t=trigger_name))
+    import twoway_events
     runnable, skipped = plan(sync_mappings, upload_mappings)
     if blocked:
         still = []
@@ -156,14 +179,6 @@ def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
         runnable = [m for m in runnable
                     if os.path.normpath(m["source"]) in wanted]
     out = []
-    if runner is None and not full_check:
-        for m in runnable:
-            print("  \u23f8 " + _("Two-way sync paused for {s}: there is no events "
-                                  "probe, so a pass would have to list the whole "
-                                  "Proton side. Run with --twoway-full-check to "
-                                  "do that once.").format(s=m["source"]))
-            _ps._RUN.add("twoway_paused")
-        return out
     for m in runnable:
         print(_("\n\u25b6 Two-way mapping: {s}  =>  {d}").format(
             s=m["source"], d=m["dest_parent"]))
@@ -172,10 +187,13 @@ def run_pass(sync_mappings, upload_mappings, config_path, cache, global_ex,
             print(_("  \u274c Source not found, skipped: {s}").format(s=m["source"]))
             _ps._RUN.add("sources_missing")
             continue
-        complete = (runner or sync_mapping)(
+        complete = twoway_events.run_mapping(
             m, config_path, cache, _ps.mapping_exclusions(m, global_ex),
             dry_run=dry_run, verbose=verbose, allow_mass_delete=allow_mass_delete,
-            global_ex=global_ex, delete=delete)
+            global_ex=global_ex, delete=delete, full_check=full_check)
+        if complete is PAUSED:
+            _ps._RUN.mappings_total -= 1
+            continue
         if complete:
             _ps._RUN.add("mappings_complete")
         out.append((m["source"], bool(complete), _ps._take_unreadable()))
@@ -193,6 +211,174 @@ def sync_tree(mapping, local_dir, remote_parent, config_path, cache, exclusions,
                    global_ex=global_ex, delete=delete)
     with ctx.db:
         return _sync_dir(local_dir, remote_parent, ctx)
+
+
+# ── Scoped pass (events trigger) ─────────────────────────────────────────────
+# Events only decide which folders to look at; the listing stays the truth. A
+# folder is listed when an event or the local tree points at it, or when it
+# holds something that is not settled. Every reconcile rule and guard is the
+# one of the full pass.
+
+
+def _note_waiting(ctx, remote_folder):
+    """Remember, in the report, the Proton folder a held deletion belongs to."""
+    root = _remote_folder(
+        ctx.source_root, ctx.mapping.get("dest_parent") or "", ctx)
+    root = root.rstrip("/")
+    folder = remote_folder.rstrip("/")
+    if folder == root:
+        rel = ""
+    elif folder.startswith(root + "/"):
+        rel = folder[len(root) + 1:]
+    else:
+        return
+    ctx.report.setdefault("waiting_folders", set()).add(rel)
+
+
+def _sync_changes(ctx, source, dest_parent, changes, events_read,
+                  extra_folders=None):
+    """A pass limited to the folders ``changes`` and the local tree point at.
+
+    A lost mount stops it before any scan: the caller then does not
+    acknowledge the events."""
+    ok, reason = ctx.opts["delete_guard"]()
+    if not ok:
+        ctx.opts["mount_lost"] = True
+        print("  ⚠  [events] " + _(
+            "The mount check failed, so nothing was scanned or changed and the "
+            "events will be read again: {r}").format(r=reason))
+        return False
+    remote_root = _remote_folder(source, dest_parent, ctx)
+    ctx.scoped = True
+    _apply_moves(ctx, remote_root,
+                 lambda c, root, files, folders: _event_moves(
+                     c, root, files, folders, changes))
+    held = {os.path.join(ctx.source_root, *rel.split("/")) if rel
+            else ctx.source_root
+            for rel in (extra_folders or ()) if _safe_rel(rel)}
+    dirty = (_event_folders(ctx, changes) | _local_dirty(ctx)
+             | ctx.moved_parents | held)
+    wanted = set()
+    for folder in dirty:
+        while folder not in wanted and _inside_or_root(ctx, folder):
+            wanted.add(folder)
+            folder = os.path.dirname(folder)
+    ctx.wanted = wanted
+    complete = _sync_dir(source, dest_parent, ctx)
+    print("  ℹ  [events] " + _(
+        "{e} event(s) read, {c} change(s) in the folder, {n} folder(s) looked "
+        "at.").format(e=events_read if events_read is not None else "?",
+                      c=len(changes), n=ctx.looked))
+    return complete
+
+
+def _safe_rel(rel):
+    """A kept folder is "" (the root) or a plain relative path."""
+    if not isinstance(rel, str):
+        return False
+    return rel == "" or not (rel.startswith("/") or any(
+        p in ("", ".", "..") for p in rel.split("/")))
+
+
+def _inside_or_root(ctx, path):
+    root = ctx.source_root.rstrip(os.sep)
+    return path == root or path.startswith(root + os.sep)
+
+
+def _event_folders(ctx, changes):
+    """Local folders holding a path an event names, or its old path. A name
+    that is excluded anywhere in the path never counts."""
+    found = set()
+    for change in changes:
+        for rel in (change.get("path"), change.get("from")):
+            if not rel:
+                continue
+            parts = rel.split("/")
+            if any(_ps._name_excluded(ctx.exclusions, p) for p in parts):
+                continue
+            found.add(os.path.join(ctx.source_root, *parts[:-1]))
+    return found
+
+
+def _row_stale(path, row):
+    """True when the file is not the one the row recorded: size, mtime or inode
+    differ, or it is gone. Stat only, no hashing."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return True
+    return (st.st_size != row.get("claimed_size")
+            or float(st.st_mtime) != row.get("local_mtime")
+            or st.st_ino != row.get("local_inode"))
+
+
+def _local_dirty(ctx):
+    """Local folders with a new, changed or vanished item, or holding a row
+    that is not settled. Read from the disk and the database; no CLI call."""
+    files, folders = _mapping_rows(ctx)
+    dirty = set()
+    for row in files:
+        path = row["local_path"]
+        if not _local_inside_mapping(ctx, path):
+            continue
+        if row.get("state") != "synced" or _row_stale(path, row):
+            dirty.add(os.path.dirname(path))
+    for row in folders:
+        path = row["local_path"]
+        if not _local_inside_mapping(ctx, path):
+            continue
+        if (not os.path.lexists(path)
+                or not (row.get("local_seen") and row.get("remote_seen"))):
+            dirty.add(os.path.dirname(path))
+    known_files = {r["local_path"] for r in files}
+    known_folders = {r["local_path"] for r in folders}
+    for parent, dirs, names in os.walk(ctx.source_root):
+        kept = []
+        for name in dirs:
+            path = os.path.join(parent, name)
+            if _name_ignored(ctx, name) or os.path.islink(path):
+                continue
+            kept.append(name)
+            if path not in known_folders:
+                dirty.add(parent)
+        dirs[:] = kept
+        for name in names:
+            path = os.path.join(parent, name)
+            if (not _name_ignored(ctx, name) and os.path.isfile(path)
+                    and path not in known_files):
+                dirty.add(parent)
+    return dirty
+
+
+def _event_moves(ctx, remote_root, files, folders, changes):
+    """The Proton side of _apply_moves from the ``moved`` changes: {node id:
+    (new Proton path, type, entry)}. The row is found by its old Proton path.
+    A file needs a SHA-1 equal to the row's, else the normal pass decides."""
+    base = remote_root.rstrip("/") + "/"
+    by_file = {r["remote_path"]: r for r in files}
+    by_folder = {r["remote_path"]: r for r in folders}
+    found = {}
+    for change in changes:
+        old = change.get("from")
+        if change.get("action") != "moved" or not old:
+            continue
+        new_remote = base + change["path"]
+        if change.get("type") == "folder":
+            row = by_folder.get(base + old)
+            if row and row.get("remote_node_id"):
+                found[row["remote_node_id"]] = (
+                    new_remote, "folder", {"type": "folder"})
+            continue
+        row = by_file.get(base + old)
+        sha1 = change.get("sha1")
+        if (row and row.get("remote_node_id") and sha1 and row.get("sha1")
+                and str(sha1).lower() == str(row["sha1"]).lower()):
+            size = change.get("size")
+            found[row["remote_node_id"]] = (new_remote, "file", {
+                "type": "file", "sha1": sha1, "size": size,
+                "claimed_size": size, "mtime": None,
+                "node_id": row["remote_node_id"]})
+    return found
 
 
 class _Ctx:
@@ -218,6 +404,17 @@ class _Ctx:
         # Proton folder -> listing taken by the walk at the start of the pass.
         # _list hands each one out once, so a folder is still listed once.
         self.prelisted = {}
+        # A scoped pass: the local folders to list (the dirty ones and their
+        # ancestors); None lists every folder. ``looked`` counts the folders
+        # listed.
+        self.wanted = None
+        self.looked = 0
+        # True during a scoped pass, also before ``wanted`` is known (the
+        # moves run first); the local folders a move was attempted in.
+        self.scoped = False
+        self.moved_parents = set()
+        # The caller's report (see sync_mapping).
+        self.report = {}
 
 
 def _context(mapping, config_path, cache, exclusions, dry_run, verbose,
@@ -453,13 +650,17 @@ def _next_move(ctx, remote_root, remote, scan, tried):
     return None
 
 
-def _apply_moves(ctx, remote_root):
+def _apply_moves(ctx, remote_root, remote_side=None):
     """Apply what was renamed or moved on one side to the other, then let the
-    normal pass run. A lost mount skips all of it."""
+    normal pass run. A lost mount skips all of it.
+
+    ``remote_side(ctx, remote_root, files, folders)`` gives the Proton side as
+    {node id: (path, type, entry)}: the full walk by default, or a map built
+    from the moves an events probe reported."""
     if ctx.opts.get("mount_lost"):
         return
     files, folders = _mapping_rows(ctx)
-    remote = _walk_remote(ctx, remote_root, files, folders)
+    remote = (remote_side or _walk_remote)(ctx, remote_root, files, folders)
     scan = _LocalScan(ctx)
     tried = []
     while True:
@@ -512,6 +713,20 @@ def _remote_entry(ctx, remote_path):
     return True, listing.get(posixpath.basename(remote_path))
 
 
+def _list_parents(ctx, *folders):
+    """In a scoped pass the walk did not list anything: list the Proton
+    folders a move touches into ``prelisted`` (each is still handed out once
+    by _list). False when one cannot be listed."""
+    for folder in folders:
+        if folder in ctx.prelisted:
+            continue
+        listing = _ps.get_remote_listing(folder, verbose=ctx.verbose)
+        if not listing.ok:
+            return False
+        ctx.prelisted[folder] = listing
+    return True
+
+
 def _moved_here(ctx, remote_root, remote, kind, old, new):
     """Renamed or moved here: do the same on Proton, move first, then rename."""
     row = ctx.db.get_folder(old) if kind == "folder" else ctx.db.get(old)
@@ -519,17 +734,23 @@ def _moved_here(ctx, remote_root, remote, kind, old, new):
     new_remote = _remote_for_local(ctx, remote_root, new)
     if new_remote is None:
         return
+    wanted = "folder" if kind == "folder" else "file"
+    old_parent, old_name = posixpath.split(old_remote)
+    new_parent, new_name = posixpath.split(new_remote)
+    if ctx.scoped and not _list_parents(ctx, old_parent, new_parent):
+        return                  # cannot check the names: the normal pass decides
     if _remote_entry(ctx, new_remote)[1] is not None:
         return                  # the name is taken on Proton: the normal pass decides
     listed, entry = _remote_entry(ctx, old_remote)
-    wanted = "folder" if kind == "folder" else "file"
     if listed and (entry is None
                    or (entry.get("type") or "file") != wanted
                    or (row.get("remote_node_id") and entry.get("node_id")
                        and entry["node_id"] != row["remote_node_id"])):
         return                  # no longer there on Proton: the normal pass decides
-    old_parent, old_name = posixpath.split(old_remote)
-    new_parent, new_name = posixpath.split(new_remote)
+    if ctx.scoped:
+        # A move is attempted: both local parents are looked at afterwards.
+        ctx.moved_parents.add(os.path.dirname(old))
+        ctx.moved_parents.add(os.path.dirname(new))
     ok = True
     if not ctx.dry_run and old_parent != new_parent:
         ok = _ps.ensure_remote_path(new_parent)
@@ -621,6 +842,11 @@ def _sync_dir(local_dir, remote_parent, ctx, remote_info=None,
     ``parent_listed`` says the caller just listed the parent: a ``remote_info``
     of None then means the parent does not contain this folder."""
     remote_folder = _remote_folder(local_dir, remote_parent, ctx)
+    if (ctx.wanted is not None and local_dir not in ctx.wanted
+            and not (parent_listed and remote_info is None)
+            and ctx.db.get_folder(local_dir) is not None):
+        return True             # clean in a scoped pass: no call, nothing to report
+    ctx.looked += 1
     print("📂 " + local_dir)
     listing = None
     gone = False
@@ -866,6 +1092,8 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
                 continue
             if not ctx.dry_run:
                 os.makedirs(local_path, exist_ok=True)
+            if ctx.wanted is not None:
+                ctx.wanted.add(local_path)      # brought back here: list it
             if not _sync_dir(local_path, remote_folder, ctx, info):
                 ok = False
             continue
@@ -908,6 +1136,8 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
             else:
                 ok = False
         else:
+            ctx.report["deletions_waiting"] = True
+            _note_waiting(ctx, remote_folder)
             if not _deletion_switched_on(ctx):
                 # Deletion is simply off: the documented behaviour, the file
                 # comes back on the next pass.
@@ -992,6 +1222,8 @@ def _folder_deleted_here(local_path, remote_path, parent_listing, ctx):
         return False
     if not _can_trash(ctx, remote_path):
         # A guard refused: the rows stay, the next pass decides again.
+        ctx.report["deletions_waiting"] = True
+        _note_waiting(ctx, remote_path.rsplit("/", 1)[0])
         return not ctx.opts.get("mount_lost")
     if not _ps.remote_trash(remote_path, permanent=False, dry_run=ctx.dry_run):
         return False
@@ -1256,6 +1488,8 @@ def _remote_gone(local_path, remote_folder, remote_info, row, ctx):
         print("[kept] " + _(
             "removed on Proton; local file kept because deletions are off "
             "for this pass: {p}").format(p=local_path))
+        ctx.report["deletions_waiting"] = True
+        _note_waiting(ctx, remote_folder)
         return True
     if ctx.hold_queue is not None:
         ctx.hold_queue.append(local_path)
