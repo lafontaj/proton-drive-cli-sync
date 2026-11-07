@@ -415,6 +415,9 @@ class _Ctx:
         self.moved_parents = set()
         # The caller's report (see sync_mapping).
         self.report = {}
+        # Local folders deleted here and brought back this pass because
+        # deletions are off: what they held comes back in the same pass.
+        self.restored_dirs = set()
 
 
 def _context(mapping, config_path, cache, exclusions, dry_run, verbose,
@@ -1102,7 +1105,11 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
             continue
         row = ctx.db.get(local_path)
         if row and row.get("state") == "synced":
-            if _remote_changed_since(info, row) is False:
+            if _in_restored_dir(ctx, local_path):
+                # Its folder was deleted here and comes back now (deletions
+                # off): the folder's line said so, the file comes with it.
+                restores.append((local_path, remote_path, info))
+            elif _remote_changed_since(info, row) is False:
                 gone.append((local_path, remote_path, info, row))
             else:
                 # Removed here, but the Proton copy changed after the last
@@ -1221,9 +1228,11 @@ def _folder_deleted_here(local_path, remote_path, parent_listing, ctx):
             "files are kept and the folder comes back.").format(p=local_path))
         return None
     if not _deletion_switched_on(ctx):
-        print("  ℹ  [restore] " + _(
-            "{p}: deleted here, but deletions are off for this pass; it is "
-            "downloaded again from Proton.").format(p=local_path))
+        if not _in_restored_dir(ctx, local_path):
+            print("  ℹ  [restore] " + _(
+                "{p}: deleted here, but deletions are off for this pass; it "
+                "is downloaded again from Proton.").format(p=local_path))
+        ctx.restored_dirs.add(local_path)
         return None
     total = len(parent_listing) - 1 + len(files)
     if _refusing_mass_delete(files, total, ctx):
@@ -1590,6 +1599,11 @@ def _flush_holds(queue, local_count, remote_folder, ctx):
         if not _hold(local_path, ctx):
             ok = False
     return ok
+
+
+def _in_restored_dir(ctx, path):
+    return any(path.startswith(d.rstrip(os.sep) + os.sep)
+               for d in ctx.restored_dirs)
 
 
 def _deletion_switched_on(ctx):

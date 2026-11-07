@@ -1033,9 +1033,11 @@ def test_a_local_folder_deletion_without_delete_says_it_will_be_restored(
     assert first.returncode == 0, first.stdout + first.stderr
     assert "deleted here, but deletions are off for this pass" in first.stdout
     assert "A deletion is waiting" not in first.stdout, first.stdout
-    assert (src / "Docs" / "sub").is_dir()
-    second = engine(cfg, full_check=False)
-    assert second.returncode == 0, second.stdout + second.stderr
-    assert "A deletion is waiting" not in second.stdout, second.stdout
+    # The folder comes back with what it held, in the same pass, and the
+    # line comes once, for the folder, before its downloads.
     assert (src / "Docs" / "sub" / "b.txt").exists()
+    assert first.stdout.count("deletions are off for this pass") == 1
+    assert (first.stdout.index("deletions are off for this pass")
+            < first.stdout.index("[download]"))
     assert not fake_drive.trashed(REMOTE + "/Docs/sub")
+    _quiet(engine, fake_drive, probe, cfg)
