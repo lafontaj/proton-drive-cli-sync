@@ -1111,6 +1111,12 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
                     "deleted here but changed on Proton since, downloading "
                     "it again: {p}").format(p=local_path))
                 restores.append((local_path, remote_path, info))
+        elif row and row.get("state") == "pending-down":
+            # Deleted here on an earlier pass that had deletions off.
+            print("  ℹ  [restore] " + _(
+                "{p}: deleted here, but deletions are off for this pass; it "
+                "is downloaded again from Proton.").format(p=local_path))
+            restores.append((local_path, remote_path, info))
         elif row and row.get("state") == "conflict":
             # The original was removed during a conflict. The Proton version
             # comes back under the original name; any conflict copy stays.
@@ -1135,16 +1141,19 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
                     ctx.db.delete(local_path)
             else:
                 ok = False
+        elif not _deletion_switched_on(ctx):
+            # Deletion is simply off: the documented behaviour, the file
+            # comes back on the next pass. Nothing waits for --delete, and
+            # the row, no longer synced, brings its folder into that pass.
+            _set_state(row, "pending-down", ctx)
+            if ctx.opts.get("mount_lost"):
+                ok = False
         else:
+            # A guard refused it (mount, source_kind, shared folder): the row
+            # stays synced and the next pass decides again, so a refused
+            # deletion is never turned into a restore.
             ctx.report["deletions_waiting"] = True
             _note_waiting(ctx, remote_folder)
-            if not _deletion_switched_on(ctx):
-                # Deletion is simply off: the documented behaviour, the file
-                # comes back on the next pass.
-                _set_state(row, "pending-down", ctx)
-            # Otherwise a guard refused it (mount, source_kind, shared
-            # folder): the row stays synced and the next pass decides again,
-            # so a refused deletion is never turned into a restore.
             if ctx.opts.get("mount_lost"):
                 ok = False
 
@@ -1212,6 +1221,9 @@ def _folder_deleted_here(local_path, remote_path, parent_listing, ctx):
             "files are kept and the folder comes back.").format(p=local_path))
         return None
     if not _deletion_switched_on(ctx):
+        print("  ℹ  [restore] " + _(
+            "{p}: deleted here, but deletions are off for this pass; it is "
+            "downloaded again from Proton.").format(p=local_path))
         return None
     total = len(parent_listing) - 1 + len(files)
     if _refusing_mass_delete(files, total, ctx):

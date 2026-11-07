@@ -1004,3 +1004,38 @@ def test_a_symlinked_file_does_not_make_every_pass_dirty(
     for _ in range(3):
         assert _events(engine, cfg).returncode == 0
     _quiet(engine, fake_drive, probe, cfg)
+
+
+def test_a_local_deletion_without_delete_says_it_will_be_restored(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    os.remove(src / "Docs" / "sub" / "b.txt")
+    first = engine(cfg, full_check=False)                 # no --delete
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert "A deletion is waiting" not in first.stdout, first.stdout
+    assert _meta(isolated_home, cfg, "events_waiting:") == {}
+    second = engine(cfg, full_check=False)
+    assert second.returncode == 0, second.stdout + second.stderr
+    line = "deleted here, but deletions are off for this pass"
+    assert line in second.stdout, second.stdout
+    assert "[download]" in second.stdout, second.stdout
+    assert second.stdout.index(line) < second.stdout.index("[download]")
+    assert (src / "Docs" / "sub" / "b.txt").exists()
+    assert not fake_drive.trashed(REMOTE + "/Docs/sub/b.txt")
+    _quiet(engine, fake_drive, probe, cfg)
+
+
+def test_a_local_folder_deletion_without_delete_says_it_will_be_restored(
+        fake_drive, local_tree, write_mappings, engine, probe, isolated_home):
+    src, cfg = _started(fake_drive, local_tree, write_mappings, engine, probe)
+    shutil.rmtree(src / "Docs" / "sub")
+    first = engine(cfg, full_check=False)                 # no --delete
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert "deleted here, but deletions are off for this pass" in first.stdout
+    assert "A deletion is waiting" not in first.stdout, first.stdout
+    assert (src / "Docs" / "sub").is_dir()
+    second = engine(cfg, full_check=False)
+    assert second.returncode == 0, second.stdout + second.stderr
+    assert "A deletion is waiting" not in second.stdout, second.stdout
+    assert (src / "Docs" / "sub" / "b.txt").exists()
+    assert not fake_drive.trashed(REMOTE + "/Docs/sub")
