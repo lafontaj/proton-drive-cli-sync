@@ -31,7 +31,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (sinon : réglage, binaire à côté des scripts, puis PATH)
 """
-__version__ = "1.23.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.25.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -836,22 +836,6 @@ def load_sync_mappings(path):
         if isinstance(found, list):
             return found
     return []
-
-
-# Déclencheurs du deux sens, par nom. None = aucune sonde d'événements : le
-# moteur liste tout le côté Proton à chaque passage (premier passage, nouveau
-# balayage, sonde absente ou en échec) ; il fonctionne pleinement ainsi. Une
-# valeur appelable remplace ce parcours :
-# fn(mapping, config_path, cache, exclusions, **opts) -> complet.
-# Seul "none" existe pour l'instant ; la sonde d'événements viendra ensuite.
-TWOWAY_TRIGGERS = {"none": None}
-
-
-def twoway_runner():
-    """(nom, exécuteur) du déclencheur. Exécuteur None = aucune sonde
-    d'événements : le deux sens est en pause, sauf --twoway-full-check."""
-    name = "none"
-    return name, TWOWAY_TRIGGERS.get(name)
 
 
 def mapping_exclusions(mapping, global_ex):
@@ -4500,11 +4484,10 @@ def main():
     # avec une ligne de journal ; le reste passe par twoway.run_pass.
     if sync_mappings and not args.reset_source:
         import twoway
-        trigger_name, runner = twoway_runner()
         for src, complete, unreadable in twoway.run_pass(
                 sync_mappings, all_mappings, args.config, cache, global_ex,
-                only_source=args.only_source, trigger_name=trigger_name,
-                runner=runner, dry_run=args.dry_run, verbose=args.verbose,
+                only_source=args.only_source, dry_run=args.dry_run,
+                verbose=args.verbose,
                 allow_mass_delete=args.allow_mass_delete, delete=args.delete,
                 full_check=args.twoway_full_check, blocked=twoway_blocked):
             health.append((src, complete, unreadable))
