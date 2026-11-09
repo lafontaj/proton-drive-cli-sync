@@ -70,6 +70,7 @@ def _editor_stub():
         _warn_revisions_unsupported=lambda: None,
         _warn_permanent_delete_unsupported=lambda: None,
         _warn_cross_file_conflicts=lambda: None,
+        _warn_twoway_conflicts=lambda: None,
     )
     stub._warn_arrival_conflicts = lambda: ed.MappingEditor._warn_arrival_conflicts(stub)
     return ed, stub, warnings
@@ -88,8 +89,8 @@ def test_save_keeps_keys_it_does_not_know(tmp_path, monkeypatch):
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["sync_mappings"] == later
     assert [m["source"] for m in saved["mappings"]] == ["/h/Docs", "/h/More"]
-    # The editor itself still shows only its own mappings.
-    assert [m["source"] for m in stub.mappings] == ["/h/Docs", "/h/More"]
+    # The editor shows the two-way entry too, after the upload ones loaded.
+    assert [m["source"] for m in stub.mappings] == ["/h/Docs", "/h/Share", "/h/More"]
 
 
 def test_save_keeps_the_plain_list_format_without_extra_keys(tmp_path):
@@ -101,7 +102,7 @@ def test_save_keeps_the_plain_list_format_without_extra_keys(tmp_path):
     assert isinstance(json.loads(path.read_text(encoding="utf-8")), list)
 
 
-def test_dormant_entries_never_count_as_conflicts(tmp_path, monkeypatch):
+def test_two_way_entry_does_not_count_as_an_arrival_conflict(tmp_path, monkeypatch):
     ed, stub, _w = _editor_stub()
     shown = []
     monkeypatch.setattr(ed, "dlg_warning", lambda *a, **k: shown.append(a))
@@ -112,6 +113,8 @@ def test_dormant_entries_never_count_as_conflicts(tmp_path, monkeypatch):
                            "dest_parent": "/my-files", "direction": "twoway"}]}),
         encoding="utf-8")
     ed.MappingEditor._load(stub, str(path))
+    # The arrival check is for upload mappings; the two-way pair has its own
+    # warning (stubbed out here, covered in test_editor_twoway.py).
     assert shown == []
 
 

@@ -5,7 +5,7 @@ download does not replace the local file and does not rewrite its sync row.
 A failed remote listing does not update the sync database for that folder.
 """
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 import os
 import posixpath
@@ -1127,6 +1127,10 @@ def _remote_only(local_dir, remote_folder, listing, local_names, ctx):
         elif row and row.get("state") == "conflict":
             # The original was removed during a conflict. The Proton version
             # comes back under the original name; any conflict copy stays.
+            print("  ℹ  [restore] " + _(
+                "{p}: removed here while it waited on a conflict, so the "
+                "Proton version is kept; it is downloaded again under this "
+                "name.").format(p=local_path))
             restores.append((local_path, remote_path, info))
         else:
             restores.append((local_path, remote_path, info))

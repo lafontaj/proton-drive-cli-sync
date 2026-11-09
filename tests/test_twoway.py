@@ -541,6 +541,9 @@ def test_conflict_keeps_theirs_after_the_original_is_removed(
     (src / "Docs" / "a.txt").unlink()
     result = engine(cfg, "--delete")
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "ℹ  [restore] " in result.stdout
+    assert "waited on a conflict" in result.stdout
+    assert result.stdout.index("[restore]") < result.stdout.index("[download]")
     assert not fake_drive.trashed(remote)
     assert (src / "Docs" / "a.txt").read_bytes() == b"THEIRS"
     assert _state(isolated_home, cfg, src / "Docs" / "a.txt") == "synced"
