@@ -12,7 +12,7 @@ Usage :
     python3 proton_mapping_editor.py                # ouvre un sélecteur de fichier
     python3 proton_mapping_editor.py mappings-user1.json
 """
-__version__ = "1.34.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.34.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import json
 import os
@@ -1228,7 +1228,12 @@ _EDITOR_STATUS_PREFIXES = ("===", "▶", "⏸", "✓", "✗", "❌", "⚠", "�
                            "Error", "Cache", "Global", "▶ Mapping", "  ↪",
                            # 🔍 : en-tête d'une vérification SHA1 (passage long)
                            # et reprise des vérifications d'après les journaux.
-                           "🔍")
+                           "🔍",
+                           # ℹ : bilan d'un mapping qui n'est pas une erreur mais
+                           # doit se voir — ex. les liens symboliques non
+                           # envoyés. Sans lui, la ligne restait au journal et
+                           # n'apparaissait qu'en mode « Détaillé ».
+                           "ℹ")
 
 _EDITOR_FAILURE_COUNTERS = (
     "files_failed",
