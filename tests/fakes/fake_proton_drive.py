@@ -153,6 +153,20 @@ def _upload(state, args):
             print("- {name}: {detail}".format(name=name, detail=detail))
         print("{n} item(s) failed to upload".format(n=len(names)), file=sys.stderr)
         return 1
+    # Like the real CLI (cli/src/commands/fileSystem/transferQueue.ts): every
+    # local path is checked with lstat while the queue is built, BEFORE any
+    # transfer. Anything that is neither a regular file nor a directory -- a
+    # symbolic link included, it is never followed -- stops the whole command.
+    import stat as _stat
+    for escaped in names:
+        local = os.path.abspath(remote_state.unescape_glob(escaped))
+        try:
+            mode = os.lstat(local).st_mode
+        except OSError:
+            continue    # a missing path fails below, as before
+        if not (_stat.S_ISREG(mode) or _stat.S_ISDIR(mode)):
+            print("Transfer summary:\n  Uploaded: 0 items (0 B)")
+            return _fail("Not a regular file or directory: " + local, 1)
     failed = []
     for escaped in names:
         name = remote_state.unescape_glob(escaped)

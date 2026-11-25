@@ -29,7 +29,7 @@ Variable d'environnement :
     PROTON_DRIVE_CLI   chemin vers le binaire proton-drive
                         (sinon : réglage, binaire à côté des scripts, puis PATH)
 """
-__version__ = "1.20.0"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
+__version__ = "1.21.1"   # version propre à CE fichier ; incrémentée quand il change (indépendant de GitHub)
 
 import argparse
 import atexit
@@ -829,17 +829,14 @@ def _local_signature(local_dir, remote_folder, excl_fp=None):
     files = []
     try:
         for entry in os.scandir(local_dir):
-            # is_file() SUIVANT les liens (follow_symlinks=True), pour coïncider
-            # EXACTEMENT avec la vue de la boucle d'envoi de sync_folder (elle
-            # aussi en is_file() qui suit). Un lien vers un fichier EST un fichier
-            # pour l'envoi ; il doit donc figurer dans la signature, sinon un
-            # changement de sa cible ne modifie pas l'empreinte du dossier → cache
-            # « frais » → le changement n'est JAMAIS resynchronisé. On stat la
-            # CIBLE (follow) pour capter sa taille/date, afin qu'une modification
-            # de la cible périme bien l'empreinte. Un lien cassé, un lien vers un
-            # dossier, un tube/socket → is_file() False → écartés, exactement
-            # comme à l'envoi. Les deux vues du dossier restent alignées.
-            if entry.is_file():
+            # Fichiers RÉGULIERS seulement, exactement comme la boucle d'envoi de
+            # sync_folder : un lien symbolique n'y est jamais envoyé (le CLI
+            # refuse tout ce qui n'est ni fichier ni dossier, sans suivre les
+            # liens), il n'a donc rien à faire dans l'empreinte. Un tube, un
+            # socket, un lien cassé ou vers un dossier sont écartés de même. Les
+            # deux vues du dossier restent alignées : c'est ce qui garantit
+            # qu'un changement vu par l'une l'est aussi par l'autre.
+            if entry.is_file() and not entry.is_symlink():
                 try:
                     st = entry.stat()
                     files.append([entry.name, st.st_size, st.st_mtime])
@@ -1845,6 +1842,38 @@ def _upload_one(local_path, remote_parent, skip_thumbnails=False,
     return res.returncode == 0, " | ".join(parts)
 
 
+# Lignes de bilan du CLI, qui ne disent jamais POURQUOI un envoi a échoué.
+_REASON_NOISE = re.compile(
+    r"^(Transfer summary:|Uploaded: \d+ items?\b.*|Failed: \d+ items?|"
+    r"\d+ item\(s\) failed to upload|=+)$")
+
+
+def _failure_reason(text):
+    """La cause d'un échec d'envoi, sur UNE ligne, tirée de la réponse du CLI.
+
+    La réponse commence par un bilan (« Transfer summary: », « Uploaded: 0
+    items… ») ; la cause vient après : soit une ligne par fichier (« - nom:
+    Erreur… »), soit un message d'erreur seul (« Not a regular file or
+    directory: … »). Affiché tel quel, le texte multiligne ne laissait voir que
+    « Transfer summary: » à l'écran : sa première ligne. On écarte le bilan, on
+    préfère la ligne par fichier, sinon la première ligne qui reste. Le journal
+    des échecs, lui, garde la réponse entière."""
+    if not text:
+        return ""
+    lines = []
+    for chunk in str(text).split(" | "):
+        for raw in chunk.splitlines():
+            line = raw.strip()
+            if line and not _REASON_NOISE.match(line):
+                lines.append(line)
+    if not lines:
+        return str(text).strip().splitlines()[0].strip()
+    for line in lines:
+        if line.startswith("- ") and ":" in line:
+            return line[2:].strip()
+    return lines[0]
+
+
 def _emit_progress(**fields):
     """Émet une ligne de progression machine-lisible sur stdout, préfixée
     @@PROGRESS, que le GUI intercepte pour alimenter sa barre de progression
@@ -2060,8 +2089,9 @@ def upload_batch(local_paths, remote_parent, dry_run=False, verbose=False,
             failures.append(p)
             _RUN.add("files_failed")
             print(_("    ❌ upload failed: {p}").format(p=p))
-            print(_("    ❌   reason: {e}").format(e=why or _("(no message from the CLI)")))
-            log_failure(p, remote_parent, why)
+            print(_("    ❌   reason: {e}").format(
+                e=_failure_reason(why) or _("(no message from the CLI)")))
+            log_failure(p, remote_parent, why)   # le journal garde TOUT le texte
 
     if recovered:
         print(_("    ✅ {n} file(s) recovered on individual retry.").format(n=recovered))
@@ -2648,6 +2678,30 @@ def publish_health(per_mapping, full_pass):
         print(_("  ⚠  Could not write the health file: {e}").format(e=e))
 
 
+# Liens symboliques laissés de côté pendant le mapping en cours (chemins). Vidé
+# par _report_links, qui en fait le bilan à la fin de chaque mapping.
+_LINKS_SKIPPED = []
+
+
+def _link_target(path):
+    """La cible d'un lien, pour l'affichage ; « ? » si elle est illisible."""
+    try:
+        return os.readlink(path)
+    except OSError:
+        return "?"
+
+
+def _report_links():
+    """Bilan des liens symboliques non envoyés pendant le mapping qui s'achève :
+    une ligne, seulement s'il y en a. Le détail lien par lien est en mode
+    détaillé. Ce n'est pas un échec : le mapping peut être complet."""
+    n = len(_LINKS_SKIPPED)
+    _LINKS_SKIPPED.clear()
+    if n:
+        print(_("  ℹ  {n} symbolic link(s) not sent: the Proton CLI does not "
+                "upload links (details in verbose mode).").format(n=n))
+
+
 def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_hash=False,
                 conflict_mode="replace",
                 cache=None, ignore_cache=False, exclusions=None,
@@ -2775,6 +2829,18 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
             print(_("  ⚡ {t}, skipping the CLI call for {p}").format(t=tag, p=local_dir))
         all_children_complete = True
         for entry in entries:
+            if entry.is_symlink():
+                # Compté ici AUSSI : sans quoi un dossier sauté par le cache ne
+                # signalait plus ses liens, et le bilan n'apparaissait qu'au
+                # passage qui relisait le dossier. Le bilan vaut pour CHAQUE
+                # passage. is_symlink() lit le type de l'entrée déjà listée :
+                # aucun appel de plus au disque.
+                if not (exclusions and exclusions.is_excluded(entry.name)):
+                    _LINKS_SKIPPED.append(entry.path)
+                    if verbose:
+                        print(_("    ⏭  symbolic link not sent: {p} → {t}").format(
+                            p=entry.path, t=_link_target(entry.path)))
+                continue
             if entry.is_dir(follow_symlinks=False):
                 if exclusions and exclusions.is_excluded(entry.name):
                     if verbose:
@@ -2897,7 +2963,24 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
                 delete_opts=delete_opts)
             if not child_complete:
                 all_children_complete = False
-        elif entry.is_file():   # suit les liens : un lien vers un fichier EST un fichier
+        elif entry.is_symlink():
+            # Lien symbolique (vers un fichier, un dossier, ou cassé) : le CLI
+            # l'examine SANS le suivre et refuse tout ce qui n'est ni fichier ni
+            # dossier (« Not a regular file or directory ») — vérifié dans ses
+            # sources, sans option pour le suivre ; Proton Drive n'a pas de type
+            # « lien ». L'envoyer échouait donc à CHAQUE passage, et le mapping
+            # n'était jamais complet. Il est désormais laissé de côté, et compté
+            # pour le bilan du mapping (_report_links) : un lien qui pointe HORS
+            # de tout mapping n'est sauvegardé nulle part, cela doit se voir.
+            #
+            # Son nom reste dans local_names : ce qui porte ce nom sur Proton
+            # (une copie envoyée par une ancienne version, par exemple) n'est
+            # donc jamais pris pour un orphelin — il y reste, comme un nom exclu.
+            _LINKS_SKIPPED.append(entry.path)
+            if verbose:
+                print(_("    ⏭  symbolic link not sent: {p} → {t}").format(
+                    p=entry.path, t=_link_target(entry.path)))
+        elif entry.is_file():
             info = remote_items.get(entry.name)
             send, reason = upload_decision(entry.path, info, baseline=baseline,
                                            verify_hash=verify_hash)
@@ -2917,10 +3000,6 @@ def sync_folder(local_dir, remote_parent, dry_run=False, verbose=False, verify_h
             # Le filtrage était déjà correct pour la SIGNATURE de cache (scandir +
             # is_file), mais pas ici : les deux vues du même dossier divergeaient
             # donc, l'entrée étant invisible au cache et présente à l'envoi.
-            #
-            # Note : les liens symboliques ne sont PAS concernés — is_file() les
-            # accepte, et ils restent traités comme des fichiers ordinaires,
-            # comportement historique volontairement conservé.
             if verbose:
                 print(_("    ⏭  ignored (not a regular file): {p}").format(p=entry.path))
 
@@ -3049,6 +3128,13 @@ def sync_file(local_file, remote_parent, dry_run=False, verbose=False, verify_ha
     if exclusions and exclusions.is_excluded(os.path.basename(local_file)):
         if verbose:
             print(_("    🚫 excluded (file): {p}").format(p=local_file))
+        return True
+    if os.path.islink(local_file):
+        # Même règle que dans un dossier : le CLI n'envoie pas un lien.
+        _LINKS_SKIPPED.append(local_file)
+        if verbose:
+            print(_("    ⏭  symbolic link not sent: {p} → {t}").format(
+                p=local_file, t=_link_target(local_file)))
         return True
     # Listing d'abord : le dossier de destination existe presque toujours, et
     # le vérifier niveau par niveau à chaque passage coûtait un appel par niveau.
@@ -3286,6 +3372,7 @@ def sync_subpath(mapping, subpath, dry_run=False, verbose=False, verify_hash=Fal
                            collision_suffix=collision_suffix,
                            delete_opts=build_delete_opts(
                                mapping, subpath, global_ex, allow_mass_delete, verbose))
+    _report_links()
     return "ok" if complete else "failed"
 
 
@@ -4114,6 +4201,7 @@ def main():
                 if not args.dry_run and (args.verify_hash or args.ignore_cache or _fresh):
                     cache.mark_sha1_verified(m["source"], time.time())
             health.append((m["source"], bool(complete), _take_unreadable()))
+            _report_links()
         else:
             file_ok = sync_file(m["source"], m["dest_parent"], dry_run=args.dry_run, verbose=args.verbose,
                       verify_hash=args.verify_hash,
@@ -4122,6 +4210,7 @@ def main():
                       exclusions=eff_ex)
             if file_ok:
                 _RUN.add("mappings_complete")
+            _report_links()
         # Checkpoint après chaque entrée du mapping : si la machine plante ou
         # qu'on reçoit un kill -9 plus tard, on garde au moins le travail des
         # mappings déjà entièrement traités. L'écriture atomique (tmp+rename)

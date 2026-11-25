@@ -168,8 +168,11 @@ def test_subpath_cold_exits_3(fake_drive, local_tree, write_mappings, engine):
     assert fake_drive.content("/my-files/Backups/Docs/sub/a.txt") is None
 
 
-def test_symlink_to_file_uploaded_symlinked_dir_not_followed(
+def test_symlink_to_file_not_sent_symlinked_dir_not_followed(
         fake_drive, local_tree, write_mappings, engine, tmp_path):
+    """The real CLI refuses a symbolic link (it never follows one): the engine
+    leaves links aside instead of failing on them at every pass. See
+    test_symlinks.py."""
     src = local_tree({"Docs/real.txt": (b"data", 1_000_000_000)})
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -181,7 +184,7 @@ def test_symlink_to_file_uploaded_symlinked_dir_not_followed(
     result = engine(cfg)
     assert result.returncode == 0, result.stdout + result.stderr
     assert fake_drive.content("/my-files/Backups/Docs/real.txt") == b"data"
-    assert fake_drive.content("/my-files/Backups/Docs/link.txt") == b"data"
+    assert fake_drive.content("/my-files/Backups/Docs/link.txt") is None
     assert fake_drive.content("/my-files/Backups/Docs/dirlink/inside.txt") is None
     assert "inside.txt" not in fake_drive.listing("/my-files/Backups/Docs")
 
