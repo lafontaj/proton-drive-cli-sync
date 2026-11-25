@@ -4172,3 +4172,9 @@ msgid ""
 "The two passes would send each other's files to the trash when deletions are "
 "propagated. Change the destination of one of them first."
 msgstr ""
+
+msgid "  ℹ  {n} symbolic link(s) not sent: the Proton CLI does not upload links (details in verbose mode)."
+msgstr ""
+
+msgid "    ⏭  symbolic link not sent: {p} → {t}"
+msgstr ""

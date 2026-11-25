@@ -5243,3 +5243,9 @@ msgstr ""
 "\n"
 "As duas passagens enviariam para a reciclagem os ficheiros uma da outra "
 "quando as eliminações são propagadas. Altere primeiro o destino de um deles."
+
+msgid "  ℹ  {n} symbolic link(s) not sent: the Proton CLI does not upload links (details in verbose mode)."
+msgstr "  ℹ  {n} ligação(ões) simbólica(s) não enviada(s): a CLI do Proton não envia ligações (detalhes no modo «Detalhado»)."
+
+msgid "    ⏭  symbolic link not sent: {p} → {t}"
+msgstr "    ⏭  ligação simbólica não enviada: {p} → {t}"

@@ -5274,3 +5274,9 @@ msgstr ""
 "Les deux passages mettraient à la corbeille les fichiers l'un de l'autre "
 "quand les suppressions sont propagées. Changez d'abord la destination de "
 "l'un des deux."
+
+msgid "  ℹ  {n} symbolic link(s) not sent: the Proton CLI does not upload links (details in verbose mode)."
+msgstr "  ℹ  {n} lien(s) symbolique(s) non envoyé(s) : le CLI Proton n'envoie pas les liens (détail en mode « Détaillé »)."
+
+msgid "    ⏭  symbolic link not sent: {p} → {t}"
+msgstr "    ⏭  lien symbolique non envoyé : {p} → {t}"

@@ -5325,3 +5325,9 @@ msgstr ""
 "Die beiden Durchläufe würden die Dateien des jeweils anderen in den "
 "Papierkorb verschieben, wenn Löschungen übertragen werden. Ändern Sie zuerst "
 "das Ziel eines der beiden."
+
+msgid "  ℹ  {n} symbolic link(s) not sent: the Proton CLI does not upload links (details in verbose mode)."
+msgstr "  ℹ  {n} symbolische(r) Link(s) nicht gesendet: Die Proton-CLI lädt keine Links hoch (Details im Modus „Ausführlich“)."
+
+msgid "    ⏭  symbolic link not sent: {p} → {t}"
+msgstr "    ⏭  symbolischer Link nicht gesendet: {p} → {t}"

@@ -5288,3 +5288,9 @@ msgstr ""
 "I due passaggi sposterebbero nel cestino i file l'uno dell'altro quando le "
 "eliminazioni vengono propagate. Cambiate prima la destinazione di una delle "
 "due."
+
+msgid "  ℹ  {n} symbolic link(s) not sent: the Proton CLI does not upload links (details in verbose mode)."
+msgstr "  ℹ  {n} collegamento/i simbolico/i non inviato/i: la CLI di Proton non carica i collegamenti (dettagli in modalità «Dettagliato»)."
+
+msgid "    ⏭  symbolic link not sent: {p} → {t}"
+msgstr "    ⏭  collegamento simbolico non inviato: {p} → {t}"
